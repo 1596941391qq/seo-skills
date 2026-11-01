@@ -1,0 +1,83 @@
+{
+  "site": "https://github.com/everyinfra/seo-skills",
+  "market": null,
+  "kind": "daily",
+  "status": "ok",
+  "budget_used_sec": 1.3,
+  "checks": {
+    "robots": {
+      "state": "absent",
+      "notes": [
+        "无 robots.txt(=默认全放行,合法;仅记录)"
+      ]
+    },
+    "home": {
+      "state": "ok",
+      "notes": []
+    },
+    "redirects": {
+      "state": "ok",
+      "notes": []
+    },
+    "visibility": {
+      "state": "ok",
+      "notes": [
+        "方法限制:Bing HTML 端点无 SLA,非官方索引数;仅作抽查方向"
+      ]
+    },
+    "gsc": {
+      "state": "skipped",
+      "notes": [
+        "未找到 gsc.csv(GSC 导出)→流量问跳过,不猜数"
+      ]
+    }
+  },
+  "key_pages": {
+    "/": "ok"
+  },
+  "snapshot": {
+    "robots": {
+      "robots": {
+        "state": "absent"
+      }
+    },
+    "pages": {
+      "/": {
+        "status": 200,
+        "latency_ms": 132.7,
+        "title": "GitHub - everyinfra/seo-skills: Free global SEO/GEO skill for Claude Code, Codex & 10 agent hosts — 18 market portals, 56 stdlib scripts, 672 golden tests, self-update intel loop, monitoring daemon, CI gates. Multilingual GEO, pSEO, CWV, penalty recovery. · GitHub",
+        "meta_desc": "Free global SEO/GEO skill for Claude Code, Codex & 10 agent hosts — 18 market portals, 56 stdlib scripts, 672 golden tests, self-update intel loop, monitoring daemon, CI gates. Multilingual GEO, pSEO, CWV, penalty recovery. - everyinfra/seo-skills",
+        "canonical": "",
+        "og_title": "GitHub - everyinfra/seo-skills: Free global SEO/GEO skill for Claude Code, Codex &amp; 10 agent hosts — 18 market portals, 56 stdlib scripts, 672 golden tests, self-update intel loop, monitoring daemon, CI gates. Multilingual GEO, pSEO, CWV, penalty recovery.",
+        "og_desc": "Free global SEO/GEO skill for Claude Code, Codex &amp;amp; 10 agent hosts — 18 market portals, 56 stdlib scripts, 672 golden tests, self-update intel loop, monitoring daemon, CI gates. Multilingual GEO...",
+        "final_url": "https://github.com/everyinfra/seo-skills/",
+        "h1": "EveryInfra SEO Skills",
+        "hreflang_hash": "e3b0c44298fc1c14",
+        "word_count": 4290,
+        "indexable": true,
+        "canonical_target_status": null,
+        "mixed_content": 0,
+        "title_meta_hash": "9e7d661d6be39fea",
+        "canonical_fail_streak": 0
+      }
+    },
+    "redirects": {
+      "variants": {
+        "http://github.com": "ok"
+      }
+    },
+    "visibility": {
+      "site": {
+        "status": 200,
+        "visible_pages": 10,
+        "sample": [
+          "https://github.com",
+          "https://github.com/github-cn-finder",
+          "https://help.github.com",
+          "https://desktop.github.com/download",
+          "https://dev-days.github.com"
+        ]
+      }
+    }
+  }
+}
