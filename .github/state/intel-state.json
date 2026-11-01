@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-10-31T06:57:36.844016+00:00",
+ "checked_at": "2026-11-01T07:29:27.575677+00:00",
  "sources": {
   "google-blog": {
    "top": "Supporting a shared AI training control for websites",
@@ -58,8 +58,8 @@
    "ts": "2026-10-14T06:06:27.928530+00:00"
   },
   "openai-bots": {
-   "hash": "34e066079d6cfa423181d2eea8dfeee4",
-   "ts": "2026-10-31T06:57:14.615909+00:00"
+   "hash": "f4bfad0b569af369707b0b45e2abf7dc",
+   "ts": "2026-11-01T07:29:10.883337+00:00"
   },
   "ard-spec": {
    "top": "Merge pull request #111 from 91pavan/docs/observability-section",
@@ -80,12 +80,12 @@
    "ts": "2026-10-26T06:07:48.821620+00:00"
   },
   "anthropic-crawl": {
-   "hash": "c32a6b9b9319a0ada6f58504ccb2b797",
-   "ts": "2026-10-29T07:01:31.888611+00:00"
+   "hash": "176d0db8abc75fe0606519d5eb6bd89f",
+   "ts": "2026-11-01T07:29:12.036766+00:00"
   },
   "schema-org": {
-   "hash": "77148a1e8e96b49506a4883169899e89",
-   "ts": "2026-10-29T07:01:32.608145+00:00"
+   "hash": "c28ae2197ecacc4469ac00319b179a7f",
+   "ts": "2026-11-01T07:29:12.775504+00:00"
   },
   "crux": {
    "hash": "e9f17c2b8a7526ef2bba3dc71bb6bae3",
@@ -104,13 +104,12 @@
    "ts": "2026-10-11T08:35:05.849665+00:00"
   },
   "statcounter-search": {
-   "hash": "e40a4efe2e81a2bee8f897270fcc39c3",
-   "ts": "2026-10-31T06:57:32.248308+00:00"
+   "hash": "9fd6b70878975d57a75b3b6cb686fa37",
+   "ts": "2026-11-01T07:29:25.307734+00:00"
   },
   "statcounter-ai": {
-   "hash": "dd58794a109f3e4cfcf299c99eb60ba7",
-   "ts": "2026-10-31T06:57:33.687726+00:00",
-   "unstable_streak": 1
+   "hash": "30de4c8b4a3bb5a95c796b8d137adccd",
+   "ts": "2026-11-01T07:29:26.036250+00:00"
   },
   "semrush-sensor": {
    "hash": "ee87f46692a150537caf32c78672b066",
