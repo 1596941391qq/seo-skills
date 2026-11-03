@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-11-02T07:38:42.700128+00:00",
+ "checked_at": "2026-11-03T07:53:15.712533+00:00",
  "sources": {
   "google-blog": {
    "top": "Supporting a shared AI training control for websites",
@@ -58,8 +58,8 @@
    "ts": "2026-10-14T06:06:27.928530+00:00"
   },
   "openai-bots": {
-   "hash": "67d07655be3193802afd7467d3d818b5",
-   "ts": "2026-11-02T07:38:26.838004+00:00"
+   "hash": "b93598b3f8e5cd4de0d481f38f59aa6a",
+   "ts": "2026-11-03T07:52:51.017711+00:00"
   },
   "ard-spec": {
    "top": "Merge pull request #111 from 91pavan/docs/observability-section",
@@ -80,8 +80,8 @@
    "ts": "2026-10-26T06:07:48.821620+00:00"
   },
   "anthropic-crawl": {
-   "hash": "176d0db8abc75fe0606519d5eb6bd89f",
-   "ts": "2026-11-01T07:29:12.036766+00:00"
+   "hash": "64ff0fa0afdbeef176c1b654958871fe",
+   "ts": "2026-11-03T07:52:51.820589+00:00"
   },
   "schema-org": {
    "hash": "77148a1e8e96b49506a4883169899e89",
@@ -92,37 +92,32 @@
    "ts": "2026-10-31T06:57:17.468089+00:00"
   },
   "yandex-wm": {
-   "hash": "5fde123287dae51378402ef6fef44d94",
-   "ts": "2026-10-30T07:03:31.025971+00:00"
+   "hash": "f5fbded20c7e0a8e746afdcd5b00f3d9",
+   "ts": "2026-11-03T07:52:55.594112+00:00"
   },
   "naver-wm": {
-   "hash": "f8ad1f11a667647ee207cb9bdd2c10ca",
-   "ts": "2026-10-29T07:01:40.167223+00:00"
+   "hash": "b40da76f6a83051f656a9a5708261913",
+   "ts": "2026-11-03T07:52:59.539669+00:00"
   },
   "baidu-ziyuan": {
    "hash": "5b970db79a084daa5d7c5e7f41f4db61",
    "ts": "2026-10-11T08:35:05.849665+00:00"
   },
   "statcounter-search": {
-   "hash": "56c0e96a8cda3ac9f1240774d9dda04e",
-   "ts": "2026-11-02T07:38:40.390542+00:00"
+   "hash": "c4ee182764d23ef42f7db0880115a7ce",
+   "ts": "2026-11-03T07:53:13.165194+00:00"
   },
   "statcounter-ai": {
-   "hash": "1c99158f6f59b7c9cc38ad20c91e9b84",
-   "ts": "2026-11-02T07:38:40.925093+00:00"
+   "hash": "1100b985190762f8219d926d5ff7d62c",
+   "ts": "2026-11-03T07:53:14.228742+00:00"
   },
   "semrush-sensor": {
    "hash": "ee87f46692a150537caf32c78672b066",
    "ts": "2026-10-30T07:03:46.191355+00:00"
   },
   "seroundtable": {
-   "top": "Google Adopts New AI Training Control",
+   "top": "Google AI Overviews For Brands Moved To Right Column",
    "seen": [
-    "Is It New? AI Scan Tool",
-    "Google Moves Google Posts Higher Up On Local Panel",
-    "Google Ads Now In AI Mode With Personal Intelligence",
-    "Google AI Mode Citations With Preferred Source Preferences",
-    "OpenAI Auto Enabling Creative Enhancements In ChatGPT Ads",
     "Google Ads Expands Financial Services Verification To US & Canada",
     "Daily Search Forum Recap: October 20, 2026",
     "Google Removes AI Overviews Labels On Some AI Overviews",
@@ -167,9 +162,14 @@
     "Microsoft Bing New AI New Controls With AI Training From AI Search Grounding",
     "ChatGPT Gets Wider Ads, Multi-Image Ads Expands, Expansion & More",
     "Daily Search Forum Recap: October 30, 2026",
-    "Search News Buzz Video Recap: Google Volatility X2, Spam Updates, AI Overviews Everywhere, Blending Ads & Organic, Google & Microsoft Earnings"
+    "Search News Buzz Video Recap: Google Volatility X2, Spam Updates, AI Overviews Everywhere, Blending Ads & Organic, Google & Microsoft Earnings",
+    "Google AI Overviews For Brands Moved To Right Column",
+    "Daily Search Forum Recap: November 2, 2026",
+    "November 2026 Google Webmaster Report",
+    "Gary Illyes Implies Click Data Not Coming To Google Search Console AI Reporting",
+    "Google Ads Strategists Using AI-Generated Fake Names & Profile Photos"
    ],
-   "ts": "2026-10-31T06:57:36.843810+00:00"
+   "ts": "2026-11-03T07:53:15.712350+00:00"
   },
   "google-docs-rss": {
    "top": "Updated guidance on preventing user-generated spam",
