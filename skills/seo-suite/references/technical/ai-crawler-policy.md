@@ -17,6 +17,7 @@
 | `ClaudeBot` | [Anthropic](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) | 训练 | 收集可能用于训练的内容 | 是；支持 Crawl-delay；2026-10-30 起另认 `__usage_ai-training`，点名 `ClaudeBot` 的规则优先（见第二节） | `claude.com/crawling/bots.json` |
 | `Claude-SearchBot` | Anthropic | 搜索 | 为搜索结果建索引 | 是 | 同上 |
 | `Claude-User` | Anthropic | 用户触发 | 禁止后，Claude 不再按用户请求取回该站内容 | 是 | 同上 |
+| `Claude-Agent` | [Anthropic](https://support.claude.com/en/articles/18234133) | 用户触发（托管浏览器） | Anthropic 托管的真实浏览器按用户指示办事（如 Claude Duet）；UA 是浏览器自己的，另加 `Claude-Agent` token，按 token 匹配，不按整串 | 官方没说按 robots.txt；放行或拦截靠 UA 加 IP，和上面三个 bot 的设置互相独立 | `claude.com/.well-known/sail`（`Claude-Agent` 段，格式见 IETF 个人草案 draft-kelley-webbotauth-sail-00）；只看 UA 不够，要核 IP |
 | `PerplexityBot` | [Perplexity](https://docs.perplexity.ai/guides/bots) | 搜索 | 在搜索结果中展示和链接网站；不用于训练基础模型 | 是 | `perplexity.com/perplexitybot.json` |
 | `Perplexity-User` | Perplexity | 用户触发 | 用户提问时访问页面 | 官方：「generally ignores robots.txt」 | `perplexity.com/perplexity-user.json` |
 | `Googlebot` | [Google](https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers) | 搜索 | Google 搜索，含 Discover 和全部搜索功能（AI Overviews、AI Mode 在内） | 自动抓取时总遵守 | `common-crawlers.json`；反向 DNS `*.googlebot.com` |
@@ -232,7 +233,7 @@ robots.txt 只有封和放两态。Cloudflare AI Crawl Control（原名 AI Audit
 
 ## 七、来源与已知偏差
 
-**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。2026-11-05 补核：OpenAI 训练偏好公告、Cloudflare 2026-07-01 博客、2026-09-15 新闻稿与 Accountable 博客。2026-11-05 补核：Anthropic 爬虫帮助页（2026-10-30 新增训练偏好一节）、Google 共享训练控制博客（2026-10-30）、IETF 草案 draft-kelley-aipref-training-preference-signal-00、[Control what you share](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)（2026-10-21 更新，列出 Search generative AI control，与第二节第 3 条一致）。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。2026-11-05 扩信源回放时在 Bing 搜索博客 feed 里发现微软 2026-10-30 训练与 grounding 偏好公告，打开原文核对后写进第二节。
+**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。2026-11-05 补核：OpenAI 训练偏好公告、Cloudflare 2026-07-01 博客、2026-09-15 新闻稿与 Accountable 博客。2026-11-05 补核：Anthropic 爬虫帮助页（2026-10-30 新增训练偏好一节）、Google 共享训练控制博客（2026-10-30）、IETF 草案 draft-kelley-aipref-training-preference-signal-00、[Control what you share](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)（2026-10-21 更新，列出 Search generative AI control，与第二节第 3 条一致）。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。2026-11-05 处理信源工单 #10 时读 Anthropic 爬虫帮助页，页首新增托管浏览器说明，链到 [Claude-Agent 说明](https://support.claude.com/en/articles/18234133)，补进第一节表格。2026-11-05 扩信源回放时在 Bing 搜索博客 feed 里发现微软 2026-10-30 训练与 grounding 偏好公告，打开原文核对后写进第二节。
 
 **第三方**：StatCounter 搜索引擎份额（全平台月度 CSV，2026-01 至 2026-09）；[Mozilla Foundation 2024-02](https://www.mozillafoundation.org/en/research/library/generative-ai-training-data/common-crawl/)（Common Crawl 与生成式 AI 训练数据）。
 

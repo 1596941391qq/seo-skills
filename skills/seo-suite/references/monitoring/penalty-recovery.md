@@ -39,7 +39,7 @@
 ### 1.3 影响范围:受影响页面模式与 EEA 例外
 
 - 报告展开每条人工操作后，会列出「受影响页面的模式」，例如 `https://example.com/real-estate/*`，或 **Affects all pages**(影响整站)。官方注明:匹配模式的页面不一定全部受影响([来源](https://support.google.com/webmasters/answer/9044175))。范围越窄，要修的面越小。
-- **Site reputation policy 的 EEA 例外**(2026-08-28 公告，2026-08-30 起生效，[公告原文](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)):EEA 以外，该人工操作直接影响受影响板块的搜索结果，站点其余部分不受影响。EEA 以内，人工操作的影响不适用，受影响板块可能被系统单独划出，随时间推移独立排名。站点所有者仍会在 Search Console 收到通知，并可提交 reconsideration；符合条件的站点可在复审后申请调解。
+- **Site reputation policy 的 EEA 例外**(2026-08-28 公告，2026-08-30 起生效，[公告原文](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)):EEA 以外，该人工操作直接影响受影响板块的搜索结果，站点其余部分不受影响。EEA 以内，人工操作的影响不适用，受影响板块可能被系统单独划出，随时间推移独立排名。站点所有者仍会在 Search Console 收到通知，并可提交 reconsideration；符合条件的站点可在复审后申请调解。2026-11-04 起 Google 给已有这类人工操作的站补发 Search Console 邮件，说明处罚不影响 EEA 内的搜索结果（第三方报道：[Search Engine Roundtable](https://www.seroundtable.com/google-email-site-reputation-policy-eea-42462.html)，核对 2026-11-05；生效日仍是 08-30，邮件只是迟到的通知）。收到这封邮件不代表处罚解除，EEA 外照旧。
 
 ### 1.4 人工操作报告的读取五字段
 
