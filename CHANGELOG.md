@@ -8,6 +8,7 @@ Future content or structure changes must bump the version and add a dated entry.
 RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条都打开一手原文核对(核对 2026-11-05)。
 
 - **SPA 软导航 CWV**:事实表加 `#crux-softnav`(CrUX 2026-10-13 起的三个 `experimental_*_with_softnavs` 指标,目标 2027-05 转正);`cwv-playbook.md` 加第九节 SPA;`field_data.py` 同一请求另要三个实验指标,有就单列「含软导航(experimental)」,没有不显示,不进退出码和 CSV(`tests/test_field_softnav.py`,期望值来自 CrUX API 文档类型表)。
+- **AI 爬虫与内容授权**:`ai-crawler-policy.md` 加「Cloudflare 2026-09-15 起的新控制与默认」:7 月预告(新域名广告页默认拦 Training 和 Agent、混合爬虫按最严用途拦)和 9 月上线(改成按是否靠广告给推荐设置、新增 Disallow AI Training、Apple/Google/Microsoft 认定为 Accountable、Block AI Bots 和托管 robots.txt 被取代)两种说法逐项对照,以上线为准;老用户迁移表、审计四条。OpenAI 宣布会读 `__usage_ai-training`(原文「coming months」,标「已宣布、未实现」),写进 `ai-crawler-policy.md` 和 `agent-protocols.md` 第 1 卡。`agent-protocols.md` 加第 15 卡 RSL 1.0(用途词表、五种发现方式、检查命令),附 IAB CoMP v1(2026-04-28 定稿)和微软 PCM(2026-02-03 试点)各一段;三者都没找到 AI 厂商公开承诺读取。
 
 ## 0.37.1 - 2026-11-05
 
