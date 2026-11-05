@@ -253,7 +253,8 @@ Discover/Top Stories 细则锚:[discover-news-seo.md](../content/discover-news-s
 
 **获取策略重点**
 
-- GBP 运营:主类目+最多 4 个次类目、帖子、Q&A 退场后常见问题写进商家描述。
+- GBP 运营:主类目+最多 4 个次类目、帖子、Q&A 退场后常见问题写进商家描述(Q&A API 2025-11-03 停用,见 [local-grid-ranking.md](../monitoring/local-grid-ranking.md) 第六节)。
+- Ask Maps(地图里的 Gemini 对话式答案,2026-03 美印上线、2026-08 扩到 150 多个国家和地区):回答取评价正文、贡献者提示和资料属性里的细节,网格排名测不到;做法见 [local-grid-ranking.md](../monitoring/local-grid-ranking.md) 第五节之二。
 - 评价引擎:完工短信征集、不门控(违反 Google 假互动政策与 FTC)、持续回复。
 - 本地链接:"best of" 榜单 + 商会/赞助/行业目录(本套件口径);第三方文章称 2026-03 更新后本地包更看重网站与本地实体的关联信号(DigitalApplied,未核方法)。
 

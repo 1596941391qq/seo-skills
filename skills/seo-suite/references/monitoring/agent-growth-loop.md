@@ -1,6 +1,6 @@
 # 增长周循环:让 AI agent 每周只推一个「赚钱页」
 
-> 建立于 2026-10-17，2026-10-21 重核。来源:X @EXM7777 长文《How to automate SEO with Opus 5.5 (Full Course)》(2026-09-23，正文经 fxtwitter 全文读取)。原文由一款 Slack 内 AI 员工产品赞助,文中「托管自动驾驶」那条路线是广告位,本文件不收。**这是一位从业者的工作方式，没有对照数据，本文件全部按「本套件口径的实践方法」使用，不当作 Google 或行业规定。**
+> 建立于 2026-10-17，2026-10-21 重核，复核于 2026-11-05（加第八节 Chrome 给 agent 的工具）。来源:X @EXM7777 长文《How to automate SEO with Opus 5.5 (Full Course)》(2026-09-23，正文经 fxtwitter 全文读取)。原文由一款 Slack 内 AI 员工产品赞助,文中「托管自动驾驶」那条路线是广告位,本文件不收。**这是一位从业者的工作方式，没有对照数据，本文件全部按「本套件口径的实践方法」使用，不当作 Google 或行业规定。**
 > 以下是与本套件已有内容查重后**只留新增、可操作的部分**,用本套件口径改写。
 >
 > 分工:[continuous-operations](continuous-operations.md) 管「站点今天有没有出事」(监控、告警、自动安全项);
@@ -100,6 +100,18 @@
 | 3 | 上线周:agent 起草,人审后亲手发布 | `log` 记下日期和确切改了什么 |
 | 4 | 启动每周定时循环并开始计量 | 改动再观察几周才判输赢;之后进入「同页下一处 / 下一张赚钱页」 |
 
+## 八、Chrome 给 agent 的工具(2026-05 I/O 发布,核对 2026-11-05)
+
+循环里「检查这页有没有被改坏」(第六节第 3 步)和四遍体检,可以交给能真开浏览器的 agent。三样东西在 [Chrome at I/O 2026](https://developer.chrome.com/blog/chrome-at-io26)(2026-05-19)里一起发布:
+
+| 工具 | 是什么 | 在本循环里怎么用 |
+|---|---|---|
+| [Chrome DevTools for agents](https://developer.chrome.com/docs/devtools/agents)(1.0 稳定版,[2026-05-19 博文](https://developer.chrome.com/blog/devtools-for-agents-v1)) | 让编码 agent 用 DevTools 的能力:MCP 服务器、给批量操作用的 CLI、agent skills;能读控制台、网络请求、无障碍树,跑 Lighthouse(含 SEO 和 Agentic Browsing 类别),模拟设备、地点、网速和 CPU,调试 WebMCP 工具,看内存泄漏;可以接管你已登录的浏览器会话(auto-connect) | 每周第 3 步:让 agent 打开赚钱页,跑 Lighthouse 和控制台检查,有回归就停在「推荐一个改动」之前。auto-connect 会把你的登录态交给 agent,只用在测试账号上;对外动作仍要人批准(第六节第 5 步) |
+| [Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance)(早期预览) | Chrome 团队维护的一组 agent skills,覆盖 100 多个用例,按你选的 Baseline 目标给出能用的新特性和降级写法;`npx modern-web-guidance@latest install` 安装 | agent 起草前端改动时装上,减少它写出过时或不兼容的代码;和 [cwv-playbook.md](../technical/cwv-playbook.md) 一起用:CWV 判据仍以本套件和事实表为准 |
+| Gemini in Chrome 的 auto browse | 用户让 Chrome 里的 Gemini 替自己在网页上办事(预约、找有货的商品等);桌面已有,2026-06 起到 Android;桌面端计划和 Gemini Spark 整合 | 这是你网站的**访客**,不是你的工具。赚钱页的表单、结账、预约要能被它走通:按钮是真按钮、表单有 label、关键步骤不靠悬停;WebMCP 在 Chrome 149 起做 origin trial,Gemini in Chrome 将支持(见 [agent-protocols.md](../technical/agent-protocols.md) 第 5 卡) |
+
+本套件口径:这些工具帮 agent「看见」页面,不替代第六节的判定纪律;agent 跑出的 Lighthouse 分数是实验室数据,不是现场数据(见 [cwv-playbook.md](../technical/cwv-playbook.md) 第一节)。
+
 ## 检查清单
 
 | 检查什么 | 怎么查 | 通过 / 失败 |
@@ -118,3 +130,4 @@
   其中关于 Google、Ahrefs 的事实性说法在本套件已有一手核实版本,链接见上文各处。
 - 与本套件已有内容的查重结论:GSC 口径与数据边界、实验七要素、变更四里程碑、schema 与 llms.txt 的证据、AI 引用平台差异均已存在,
   未重复收录;**新增的是「转化 × 搜索」联合选页、流量陷阱标记、三选一候选结论、agent 三文件与冻结指令纪律、一次一改的周循环判定和四周排期**。
+- 第八节来自 Chrome 一手文档,核对 2026-11-05:[Chrome at I/O 2026](https://developer.chrome.com/blog/chrome-at-io26)、[DevTools for agents 1.0](https://developer.chrome.com/blog/devtools-for-agents-v1)、[DevTools for agents 文档](https://developer.chrome.com/docs/devtools/agents)、[Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance)。auto browse 的 Android 时间和 Gemini Spark 整合是官方「将要」,未核到上线。

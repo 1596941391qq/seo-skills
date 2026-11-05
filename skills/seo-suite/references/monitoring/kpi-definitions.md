@@ -10,7 +10,7 @@
 
 ## 一、Search Console（只覆盖 Google 搜索）
 
-核对 2026-10-21，来源：[效果报告概览](https://support.google.com/webmasters/answer/7576553)、[数据如何计数](https://support.google.com/webmasters/answer/17011364)、[维度与分组](https://support.google.com/webmasters/answer/17011259)、[数据差异排查](https://support.google.com/webmasters/answer/17010575)。
+核对 2026-10-21（2026-11-05 补平台属性），来源：[效果报告概览](https://support.google.com/webmasters/answer/7576553)、[数据如何计数](https://support.google.com/webmasters/answer/17011364)、[维度与分组](https://support.google.com/webmasters/answer/17011259)、[数据差异排查](https://support.google.com/webmasters/answer/17010575)。
 
 | 指标 | Google 的定义 | 容易误读的地方 |
 |---|---|---|
@@ -29,6 +29,7 @@
 - **搜索类型**：网页（文本型 Web: text-based，或多模态 Web: multimodal——图片搜索如 Lens、Circle to Search，2026-09-24 起有这个筛选）、图片、视频、新闻是不同的搜索类型；多模态搜索没有文本查询，选它时查询维度不可用。Discover 和 Google 新闻有单独的报告。
 - **AI 功能**：按 Google 的 [AI 功能说明](https://developers.google.com/search/docs/appearance/ai-features)，AI Overviews 和 AI Mode 的数据计入效果报告的「网页」搜索类型。另有[生成式 AI 效果报告](https://support.google.com/webmasters/answer/16984139)：只报展示（按页面、国家、设备、日期），不报点击；先分批开放，后对全球网站开放（[日期](../overview/facts.md#gsc-genai)）；展示太少的站点仍可能看不到该报告。
 - **品牌 / 非品牌**：效果报告有官方的品牌 / 非品牌查询筛选，从 2025-03-11 起有数据，历史长度同效果报告保留期（[保留期](../overview/facts.md#gsc-retention)）；展示太少的站点和子资源没有这个筛选；分类可能出错，仅供参考，不影响排名。要在 API 或批量导出里分品牌，自己用查询正则，并把正则写进报告附录，保证每期一致。
+- **平台属性（社媒与视频账号）**：Instagram、TikTok、X、YouTube 账号可以作为单独的 Search Console 属性，2026-07-29 起全球开放（[帮助页](https://support.google.com/webmasters/answer/17148418)、[博文](https://developers.google.com/search/blog/2026/07/platform-properties-social-video-guide)，核对 2026-11-05）。KPI「平台内容的 Google 点击」= 每个平台属性效果报告的点击，按平台分列，不和网站属性的点击相加成「搜索点击」（两类属性统计的是不同 URL）。口径：只算 Google 搜索、Discover、Google 新闻里的展示和点击，不含平台站内播放；视频在 Google 播放器里打开也算点击；Insights 顶部总数含图片、视频、新闻搜索，下方明细只算网页搜索。新加的属性只从开始收集那天起有数据，没有回溯，做同比前先确认起始日。分析方法见 [video-geo-guide.md](../content/video-geo-guide.md) 第三节。
 - **数据异常期**：Google 在[数据异常页](https://support.google.com/webmasters/answer/6211453)记录过一段展示、CTR、平均排名记录有误的时间（[GSC 数据异常期](../overview/facts.md#gsc-anomaly)），点击不受影响，修复后展示数下降。跨这个期间的展示 / CTR / 排名对比不可信；这段期间只比点击。写报告前先读这个页面，看有没有新的异常。
 
 ### API 与导出的限额（核对 2026-10-21）

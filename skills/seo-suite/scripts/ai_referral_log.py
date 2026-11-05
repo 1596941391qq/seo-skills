@@ -85,7 +85,8 @@ BOT_UA_RE = re.compile("|".join(re.escape(b) for b in BOT_UAS))
 # agent_visits:其余 AI agent UA 宽匹配;未知 UA 单列 unclassified
 BOT_TIERS = {
     "on_demand_fetcher": ("ChatGPT-User", "Claude-User", "Perplexity-User",
-                          "MistralAI-User", "Meta-ExternalFetcher", "Google-Agent"),
+                          "MistralAI-User", "Meta-ExternalFetcher", "Google-Agent",
+                          "Claude-Agent"),
     "search_index": ("PerplexityBot", "OAI-SearchBot", "Claude-SearchBot",
                      "Amzn-SearchBot", "meta-webindexer", "Baiduspider",
                      "YandexAdditional"),
@@ -98,6 +99,8 @@ BOT_TIERS = {
 #   YandexAdditional(UA `YandexAdditional/1.0`,控制 Yandex AI 回答,归 search_index)、
 #   OAI-AdsBot(广告落地页审核,不训练 → agent_visits)。
 # - 官方页没有的 token(UNVERIFIED_UA_TOKENS)移出显式三桶,只按宽匹配进 agent_visits 并标「未核」。
+# - 补 Claude-Agent(2026-11-05):Anthropic 托管浏览器替用户办事,真实浏览器 UA 里加这个 token,
+#   IP 表在 claude.com/.well-known/sail;和 Google-Agent 同归 on_demand_fetcher。
 # - 匹配不分大小写:Meta 官方 UA 全小写(`meta-externalagent/1.1`、`meta-webindexer/1.1`)。
 TIER_ORDER = ("on_demand_fetcher", "search_index", "training",
               "agent_visits", "unclassified")

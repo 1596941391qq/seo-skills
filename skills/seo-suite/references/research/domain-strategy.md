@@ -154,6 +154,7 @@ Google 迁移文档的建议：
 2. 旧域全站服务器级 301，页对页按映射表，不是全部指向首页。
 3. 在 Search Console 验证新旧域，用**地址变更工具**。Google 文档要点（[Change of Address](https://support.google.com/webmasters/answer/9370220?hl=en)，核对 2026-10-21）：
    - 只能用于域名级属性（如 example.com、m.example.com），不能用于路径级属性；不会自动覆盖子域，所有子域变体（含 www 和非 www）都要各自申报。
+   - 2026-06-17 起 Google 的[迁站指南](https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes)把这条写进了正文：换域时，旧域**所有已验证的变体**（含子域、www 和非 www）都要向新域提交地址变更，**即使这些变体没在用**（原文举例：en.example.com、www.example.com、example.com 都迁到 new-example.net）；这些变体都要先在 Search Console 验证（[更新记录](https://developers.google.com/search/updates) 2026-06-17，核对 2026-11-05）。切流前把旧域的变体清单列全，逐个验证、逐个提交。
    - 工具"把旧站的各种信号转给新站，并让 Google 在选规范页时优先新站"，这些动作"在你于 Search Console 发起迁移后持续 180 天"；Search Console 的迁移通知也显示 180 天。
    - 要"保留重定向至少 180 天，如果仍有来自 Google 搜索的访问则更久"；"建议继续为旧域名付费至少一年，以防他人买走并滥用"。180 天后，Google 不再认为新旧站有关系，旧站若仍可抓取则被当作无关站点。
    - 迁移请求可在 180 天内取消。不要连环迁移（A→B 后不能立刻 B→C）。

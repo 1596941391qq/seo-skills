@@ -1,6 +1,6 @@
 # 人工操作与排名下滑：识别、恢复与负面 SEO 防御(类型学·鉴别诊断·恢复流程·防御)
 
-> 建立于 2026-10-09，2026-10-21 逐条对 Google 官方文档重核。定位:**人工操作(manual action)与排名下滑的全生命周期处置**——识别(哪类人工操作)→鉴别(人工操作还是算法变化)→恢复(reconsideration / 内容工程)→防御(负面 SEO)。用词按 Google 原话：人工评审给出的叫「人工操作」(manual action)；核心更新、垃圾内容更新和自动系统造成的排名变化叫「算法变化」或「自动降级」，**不叫惩罚，也没有申诉通道**。
+> 建立于 2026-10-09，2026-10-21 逐条对 Google 官方文档重核，复核于 2026-11-05（补垃圾举报可触发人工操作、生成式 AI 回答适用垃圾政策、第三方 SEO 服务评估）。定位:**人工操作(manual action)与排名下滑的全生命周期处置**——识别(哪类人工操作)→鉴别(人工操作还是算法变化)→恢复(reconsideration / 内容工程)→防御(负面 SEO)。用词按 Google 原话：人工评审给出的叫「人工操作」(manual action)；核心更新、垃圾内容更新和自动系统造成的排名变化叫「算法变化」或「自动降级」，**不叫惩罚，也没有申诉通道**。
 > 分工(引用不重复):**时间线对齐与算法归因方法论**见 [seo-drift-monitoring](seo-drift-monitoring.md) 第五节(归因流程)与五层协议 L5;**站群/PBN 案例模式、传染性与 SRA 时间线**见 [site-networks](../research/site-networks.md) 第四节;**disavow 判定门槛**见 [外链画像分析](../research/backlink-profile-analysis.md) 第四节;**规模化内容政策闸门**见 [agent-readiness](../technical/agent-readiness.md) 第 8 节。本文件只写上述文件未覆盖的:手动动作类型全清单、reconsideration 全流程、负面 SEO 防御、恢复期策略与时长汇总。
 
 ## 一、人工操作类型学:官方清单
@@ -9,6 +9,9 @@
 
 - 唯一权威入口:Search Console「Security & Manual Actions → Manual actions」报告，官方说明见[手动操作报告](https://support.google.com/webmasters/answer/9044175)(核对 2026-10-21)。官方定义:人工评审员判定站点页面不符合 Google 垃圾内容政策时，发出人工操作；有人工操作时，站点的部分或全部内容不会出现在搜索结果里。
 - 人工操作有邮件通知和 Search Console 消息中心记录;**报告里没有任何条目 = 没有人工操作**(哪怕流量腰斩——那是算法变化或技术问题，见二)。
+- **2026 年两条范围变化**（[文档更新记录](https://developers.google.com/search/updates)，核对 2026-11-05）：
+  - 2026-05-15 起，垃圾内容政策写明适用于 Google 搜索里的**生成式 AI 回答**：政策开头对 spam 的定义原文包括「attempting to manipulate generative AI responses in Google Search」（[spam policies](https://developers.google.com/search/docs/essentials/spam-policies)，页面日期 2026-08-28）。所以为了让 AI Overviews / AI Mode 提到你而做的操纵（隐藏文本、批量 fan-out 页面、伪造评价等）按同一套政策处理，可能收到同样的人工操作。
+  - 2026-04-14 起，Google **可能用垃圾举报直接采取人工操作**；04-23 补充说明。举报页原文：「Google may use your report to take manual action against violations」；发出人工操作时，举报正文会发给被举报站点的所有者，所以含个人身份信息的举报不处理（[举报质量问题](https://developers.google.com/search/help/report-quality-issues)，页面日期 2026-04-23）。含义：竞争对手的举报现在可能直接变成你的人工操作，见 4.1。
 - 类型清单会变。截至 2026-10-21 官方清单增补过 **Back button hijacking**(2026-04-13 公告，2026-06-15 起执行，见[公告](https://developers.google.com/search/blog/2026/04/back-button-hijacking))，原「Site reputation abuse」现名 **Site reputation policy**，原「Pure spam」现名 **Major spam problems**。以报告当时的原文为准，不要凭本表判断类型。
 
 ### 1.2 官方类型表(截至 2026-10-21)× 识别信号
@@ -36,7 +39,7 @@
 ### 1.3 影响范围:受影响页面模式与 EEA 例外
 
 - 报告展开每条人工操作后，会列出「受影响页面的模式」，例如 `https://example.com/real-estate/*`，或 **Affects all pages**(影响整站)。官方注明:匹配模式的页面不一定全部受影响([来源](https://support.google.com/webmasters/answer/9044175))。范围越窄，要修的面越小。
-- **Site reputation policy 的 EEA 例外**(2026-08-28 公告，2026-08-30 起生效，[公告原文](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)):EEA 以外，该人工操作直接影响受影响板块的搜索结果，站点其余部分不受影响。EEA 以内，人工操作的影响不适用，受影响板块可能被系统单独划出，随时间推移独立排名。站点所有者仍会在 Search Console 收到通知，并可提交 reconsideration；符合条件的站点可在复审后申请调解。
+- **Site reputation policy 的 EEA 例外**(2026-08-28 公告，2026-08-30 起生效，[公告原文](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)):EEA 以外，该人工操作直接影响受影响板块的搜索结果，站点其余部分不受影响。EEA 以内，人工操作的影响不适用，受影响板块可能被系统单独划出，随时间推移独立排名。站点所有者仍会在 Search Console 收到通知，并可提交 reconsideration；符合条件的站点可在复审后申请调解。2026-11-04 起 Google 给已有这类人工操作的站补发 Search Console 邮件，说明处罚不影响 EEA 内的搜索结果（第三方报道：[Search Engine Roundtable](https://www.seroundtable.com/google-email-site-reputation-policy-eea-42462.html)，核对 2026-11-05；生效日仍是 08-30，邮件只是迟到的通知）。收到这封邮件不代表处罚解除，EEA 外照旧。
 
 ### 1.4 人工操作报告的读取五字段
 
@@ -168,6 +171,8 @@
 - Google 在 disavow 说明里写:「Google 努力确保第三方站点上的行为不会对网站产生负面影响」「大多数情况下，Google 能判断哪些链接可信，所以大多数站点不需要用这个工具」（[Disavow links](https://support.google.com/webmasters/answer/2648487)）。人工操作报告页也写:「我们的算法很擅长发现垃圾内容，多数情况下会自动发现并从结果中移除」。
 - 所以纯外链攻击先**监控，不先动手**。真正需要防的是:被黑（走 Security issues 报告）、持续的外链攻击（已出现 Unnatural links 人工操作才用 disavow）、内容剽窃、表单与评论垃圾。
 - disavow 判据见 [外链画像分析](../research/backlink-profile-analysis.md) 第四节;官方两条门槛见 3.1。本节只讲防御动作。
+- **举报风险（2026-04 起）**:垃圾举报可能直接触发人工操作（见 1.1）。别人举报不需要你的同意,也不需要证明自己是竞争对手。防线只有一条:站内没有真违规。逐项自查 1.2 的类型,尤其是自己能控制的（隐藏文本、结构化数据标记看不见的内容、付费链接、UGC 垃圾、后退键劫持、给 AI 回答做的操纵）。收到人工操作后,报告里附的举报原文能帮你定位问题,按 3.1 修复后复审,不要和举报方纠缠。
+- **第三方 SEO / AEO / GEO 服务**:Google 2026-06-05 发布评估指引([third-party-seo](https://developers.google.com/search/docs/fundamentals/third-party-seo),核对 2026-11-05):Google 不评估第三方服务,对自称做法被 Google「接受」或「认可」的说法要警惕;第三方工具拿不到 Google 内部排名数据,不能保证效果,预测是工具自己的。外包方做出违规手法,人工操作落在你的站上。签约前和交付时按 [report-templates.md](report-templates.md) 检查清单「工具或服务声称 Google 认可」一项核对。
 
 ### 4.2 外链攻击识别与响应
 
@@ -295,10 +300,11 @@
 | 链接类：名单格式 | disavow 文件逐项核对 3.1 的格式规则（`.txt`、UTF-8 / ASCII、`domain:`、≤100,000 行、≤2MB）；确认属性类型不是域名属性 | 全部满足才上传 |
 | Googlebot 真伪 | `host <ip>` → 域名是否为 googlebot.com / google.com / googleusercontent.com → 再 `host <域名>` 回到同一 IP | 回不到原 IP = 伪造 |
 | 复审材料 | 对照 3.2 的三件事与链接类附加项 | 缺任一项不提交 |
+| 被举报风险（2026-04 起） | 按 1.2 类型表自查自己能控制的项；为 AI 回答做的手法按 [geo-evidence.md](../content/geo-evidence.md)「GEO 手法风险线」逐项过 | 任一项落在「越线」= 先改，不等举报 |
 
 ## 附:核验口径
 
-- 2026-10-21 起逐条对 Google 官方文档重核:[手动操作报告](https://support.google.com/webmasters/answer/9044175)、[垃圾内容政策](https://developers.google.com/search/docs/essentials/spam-policies)（页面更新日 2026-08-28）、[核心更新](https://developers.google.com/search/updates/core-updates)、[垃圾内容更新](https://developers.google.com/search/updates/spam-updates)、[Disavow links](https://support.google.com/webmasters/answer/2648487)、[2024-03 公告](https://developers.google.com/search/blog/2024/03/core-update-spam-policies)、[2026-08 站点声誉政策更新](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)、[2026-04 back button hijacking](https://developers.google.com/search/blog/2026/04/back-button-hijacking)。
+- 2026-10-21 起逐条对 Google 官方文档重核:[手动操作报告](https://support.google.com/webmasters/answer/9044175)、[垃圾内容政策](https://developers.google.com/search/docs/essentials/spam-policies)（页面更新日 2026-08-28）、[核心更新](https://developers.google.com/search/updates/core-updates)、[垃圾内容更新](https://developers.google.com/search/updates/spam-updates)、[Disavow links](https://support.google.com/webmasters/answer/2648487)、[2024-03 公告](https://developers.google.com/search/blog/2024/03/core-update-spam-policies)、[2026-08 站点声誉政策更新](https://developers.google.com/search/blog/2026/08/update-site-reputation-policy)、[2026-04 back button hijacking](https://developers.google.com/search/blog/2026/04/back-button-hijacking)。2026-11-05 补核:[举报质量问题](https://developers.google.com/search/help/report-quality-issues)、[第三方 SEO 指引](https://developers.google.com/search/docs/fundamentals/third-party-seo)、[文档更新记录](https://developers.google.com/search/updates) 的 2026-04-14、04-23、05-15、06-05 条目。
 - 上一版里来自第三方机构（SEJ、PPC Land、seoinbounds、SISL、Bruce Clay、Coalition 等）的时长、周数和「行业经验值」没有一手出处，已删除，不再作为口径。
 - 站群、PBN、EEA 之外的站点声誉细节、disavow 的两条官方适用条件等沿用各源文件的核验结论（[site-networks](../research/site-networks.md)、[外链画像分析](../research/backlink-profile-analysis.md)），本文件未重复核。
 - 官方政策每季度可能变化，引用前复查「核对日期」。

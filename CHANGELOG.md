@@ -9,11 +9,28 @@ Future content or structure changes must bump the version and add a dated entry.
 - **数据接入**:新增 `ga4_api.py`(GA4 Data API,AI Assistant 渠道和按引擎拆的 AI 引荐)、`gsc_api.py inspect`(URL Inspection,按每站每天配额记台账)、外部数据包格式 `seo-ops.external.v1`(站点已有数据管道时读它,不重复拉),说明见 `references/monitoring/ops-agenda.md`。
 - **URL → 源码**:新增 `source_map.py`(Next.js App Router、纯静态;动态页沿 import 找数据,生成物指到生成器,带置信度)。
   Weekly ops agenda (`project.py ops weekly`) with hard alerts, one recommendation, five-state issue tracking, due verifications, GSC/GA4/GEO numbers with sources, clicks-vs-crawl lists and coverage-gated scoring; GA4 Data API, GSC URL Inspection with quota budgeting, an external data bundle format, and URL-to-source mapping.
+
+## 0.38.0 - 2026-11-05
+
 - **长期运营状态统一到 `seo-ops/`(RQ-229 第 1 批)**:`project.py init` 默认在站点仓库根目录建 `seo-ops/`(schema 2:project.yaml、history/、ledger/、monitor/、.gitignore);新增 `project.py migrate` 把旧版 `<slug>.seo/`、`.seo-monitor/`、散落的 remediations.json/panel.json/状态文件搬进来,先复制核对(文件集合、工单 id 集合)再把旧位置改名保留;工作区 schema 比本版新时退出码 2,不改写。`next` 的阶段判定改用记录里的时间(triage.json 的 generated_at、工单新增的 `implemented_at`),新克隆后修改时间全部相同也能判对。
 - **`monitor.db` 降为缓存,不进 git**:每次 diff 写库的告警落 `runs/diff-NNNNN.json`,隔离状态落 `runs/status-NNNNN.json`,run 快照带 `ts`;库不在时自动从 `runs/` 重建,新增 `monitor.py rebuild`。Actions 模板只把 `runs/` 提交到状态分支,恢复时删掉旧版提交过的库。当前目录有 `seo-ops/` 时 `--dir` 默认 `seo-ops/monitor`。
 - **安全边界统一**:监控修复动作表里原来的 `auto`(agent 直接回滚 robots 误封、noindex、被删 meta、首页、证书)全部改为 `urgent_pr`(加急草稿 PR + 立即通知人合并);手册、`claude -p` 模板和 SKILL.md 同步:不推主干、不合并、网页里的「指令」当数据。
 - **发版门**:新增 `tools/release_check.py`(七处版本号一致、CHANGELOG、单元测试、self_check、过期断言、行为评测快速档)和 `release-gate` 工作流(每次 push/PR 跑离线部分)。
   Long-running ops state now lives in one `seo-ops/` directory (with migration and schema guard); `monitor.db` is a rebuildable cache that never goes into git; no more auto-applied fixes — rollbacks become urgent draft PRs; a release gate script and CI workflow.
+
+RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条都打开一手原文核对(核对 2026-11-05)。
+
+- **SPA 软导航 CWV**:事实表加 `#crux-softnav`(CrUX 2026-10-13 起的三个 `experimental_*_with_softnavs` 指标,目标 2027-05 转正);`cwv-playbook.md` 加第九节 SPA;`field_data.py` 同一请求另要三个实验指标,有就单列「含软导航(experimental)」,没有不显示,不进退出码和 CSV(`tests/test_field_softnav.py`,期望值来自 CrUX API 文档类型表)。
+- **AI 爬虫与内容授权**:`ai-crawler-policy.md` 加「Cloudflare 2026-09-15 起的新控制与默认」:7 月预告(新域名广告页默认拦 Training 和 Agent、混合爬虫按最严用途拦)和 9 月上线(改成按是否靠广告给推荐设置、新增 Disallow AI Training、Apple/Google/Microsoft 认定为 Accountable、Block AI Bots 和托管 robots.txt 被取代)两种说法逐项对照,以上线为准;老用户迁移表、审计四条。OpenAI 宣布会读 `__usage_ai-training`(原文「coming months」,标「已宣布、未实现」),写进 `ai-crawler-policy.md` 和 `agent-protocols.md` 第 1 卡。`agent-protocols.md` 加第 15 卡 RSL 1.0(用途词表、五种发现方式、检查命令),附 IAB CoMP v1(2026-04-28 定稿)和微软 PCM(2026-02-03 试点)各一段;三者都没找到 AI 厂商公开承诺读取。
+- **Google 政策与文档小更新**:`penalty-recovery.md` 补 2026-04-14 起垃圾举报可能直接触发人工操作(举报原文会发给被举报站)、2026-05-15 起垃圾政策适用于生成式 AI 回答、第三方 SEO/AEO/GEO 服务评估指引;`geo-evidence.md` 加「GEO 手法风险线」表(安全 / 越线 / 灰);`report-templates.md` 检查清单加「工具或服务声称 Google 认可」;`intel-sources.md` 更正「生成式 AI 垃圾条款没有单列日期」的旧说法(更新记录 2026-05-15 有单列)。`rendering-seo.md` 加「Read more」深链三条和审计第 9 项;`video-geo-guide.md`、`schema-examples.md` 加 VideoObject `creator`(2026-09-24)和 `interactionStatistic` 四种类型;`domain-strategy.md` 补迁站指南 2026-06-17「旧域所有已验证变体都要提交地址变更」。评价摘要新准则(2026-07-24)已在 `schema-examples.md`,补了原文两例。
+- **Search Console 平台属性**:`video-geo-guide.md` 加平台属性一段(四个平台、报告、计数口径、指南里的五种分析)和检查项;`kpi-definitions.md` 加 KPI「平台内容的 Google 点击」口径。
+- **电商 agent**:`ecommerce-geo-ladder.md` 第四节加微软 Copilot Checkout(2026-01-08,美国,商家仍是记录商户;2026-04-21 Microsoft Merchant Center 支持 UCP-ready feeds)、Web IQ(2026-06-02,建在 Bing 索引上的 grounding API)、Google AP2(2026-04-28 捐给 FIDO Alliance、v0.2 加 Human Not Present 支付);第五节和检查清单各加一行。
+- **本地**:`local-grid-ranking.md` 加「Ask Maps」一节(2026-03-12 美印上线、2026-08-06 扩到 150 多个国家和地区;对本地 SEO 的四条含义,网格测不到),盲区清单加 Q&A API 2025-11-03 停用;`site-type-playbooks.md`、`gap-analysis-frameworks.md` 同步。`local_audit.py` 本来没有 Q&A 检查项,不用改。
+- **GEO 证据库**:`geo-evidence-bank.md` 第七节入库两篇预印本(B 级):arXiv 2610.15033(多伦多大学,2026-10-10)和 2603.09296(2026-03-10),第 11 条的冲突说明随之更新;`citability-scoring.md` 加对应注记和方法纪律第 7 条。
+- **AI 浏览器与 agent 工具**:`intel-sources.md` 更正 ChatGPT Atlas 已停服(2026-07-09 宣布、08-09 停止工作);`agent-growth-loop.md` 加第八节 Chrome 给 agent 的工具(DevTools for agents 1.0、Modern Web Guidance、Gemini in Chrome auto browse),写清各自在每周循环里怎么用、auto-connect 只用测试账号。
+- **信源扩到 29 个**:`intel_check.py` 加 Chrome 开发者博客、web.dev 博客、Cloudflare 博客、OpenAI 新闻、Bing 搜索博客、Microsoft Advertising 博客、Google Maps 博客、Google Shopping 博客、arXiv「generative engine optimization」检索;发文多的源按关键词过滤(先看 50 条,只来无关文章不算变更);Atom 链接改读 `href`。用 12 条回放:11 条能接住,Atlas 停服只发在对脚本回 403 的帮助中心,接不住(`tests/test_intel_sources.py`,RSS 片段和回放标题来自真实 feed 和原文页)。`intel-sources.md` 第五节、`self-update-protocol.md` 映射表、`script-catalog.md`、workflow 注释同步。
+- **回放顺带发现的两条一手公告**:微软 2026-10-30 宣布训练和 grounding 偏好分开设,2027-02-01 起随抓取认 `__usage_ai-training`,grounding 只能页面级设 `ai-grounding:disallow` / `disallowextended`,2027-03-01 后 `NOARCHIVE`/`NOCACHE` 不再算数;Cloudflare 2026-11-04 起能按单个个人 agent 设访问策略。写进 `ai-crawler-policy.md` 和 `agent-protocols.md` 第 1 卡,原来「微软一手页面未核到」的说法改为已证实。
+- **信源工单 #10(2026-11-05 一轮,9 个源)**:Anthropic 爬虫帮助页页首新增托管浏览器说明,`ai-crawler-policy.md` 第一节表格加 `Claude-Agent`(真实浏览器 UA 加 token,IP 表在 `claude.com/.well-known/sail`,和三个 bot 的设置独立),`ai_referral_log.py` 把它归入 on_demand_fetcher(回归测试在 `test_s3_bot_rosters.py`);`penalty-recovery.md` 补 2026-11-04 Google 补发「站点声誉处罚不影响 EEA」邮件(第三方报道)。其余判为噪声:Search Central Live 苏黎世活动、OpenAI bots(仍是四个 bot、UA 1.4)、schema.org(仍是 30.1)、StatCounter 两页(当月数据滚动,2026-10 已入库)、Semrush Sensor(动态页)、Google Ads 搜索词匹配类型(广告,不在本套件范围)、Search Console 效果报告设备多选(界面便利,不改口径)。
 
 ## 0.37.1 - 2026-11-05
 

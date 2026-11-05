@@ -387,7 +387,7 @@ REQUIRED_FILES 硬契约(22 个必在文件,含 evals/trigger_cases.json、schem
 - [审计工具输出解读](../technical/audit-tool-output.md)：用户提供 Screaming Frog / Lighthouse / Sitebulb / Ahrefs / GSC 导出时先读——各工具字段对照、脚本化审计器 JSON 信封、跨工具字段映射与 findings 合并七步、严重度重映射(P0-P3)
 - [head 元素完整参考](../technical/head-elements.md):HTML head 全元素 2026 口径(joshbuchea/HEAD 重组;含弃用清单与平台私有 meta)
 - [重定向与 Canonicalization](../technical/redirects-canonical.md):重定向全类型+canonical 六场景深度指南(信号合并/迁移/跨域)
-- [Agent 协议速查卡](../technical/agent-protocols.md):14 协议一页对照(Content Signals/WebMCP/ARD…每卡:规则数字/验证命令/状态)
+- [Agent 协议速查卡](../technical/agent-protocols.md):15 协议一页对照(Content Signals/WebMCP/ARD/RSL…每卡:规则数字/验证命令/状态)
 - [审计规则全目录](../technical/audit-rule-catalog.md):SEOmator 373 规则深读(三态计分/20 类权重/档位);P0/P1 79 条已扩 Sitebulb 式解释层(what/why/trigger/caveat/fix/export 九字段)
 - [Brand Records 品牌事实档案](../content/brand-records.md):六记录(含批准术语/never-do)+YAML 格式+缺口协议+Grounding Page 11 条——内容起草前必读,oracle_check.py 的输入
 - [多语言 GEO 证据与更新清单](../research/multilingual-geo-evidence.md):fan-out 语言切换与引用池本地化/翻译有效但机翻政策级降权/独立语言 URL 自持权威/分市场杠杆表(Tistory·头条·Habr·知恵袋空置)/小语种唯一源红利——含 multilingual-workflow.md 的 9 项接入清单

@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.37.1-brightgreen" alt="version 0.37.1">
+  <img src="https://img.shields.io/badge/version-0.38.0-brightgreen" alt="version 0.38.0">
   <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0">
   <img src="https://img.shields.io/badge/markets-18-brightgreen" alt="18 language markets">
   <img src="https://img.shields.io/badge/dependencies-Python_stdlib_only-brightgreen" alt="Python standard library only">
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/everyinfra/seo-skills/main/install.
 
 > 由 [EveryInfra（万有引擎）](https://everyinfra.com/) 维护。需要实时数据时，可以接 EveryInfra 的[全网搜索 API](https://everyinfra.com/products/search)（17 种检索工具）和 [90 个平台的数据接口](https://everyinfra.com/market)（<img src="assets/icons/xiaohongshu.svg" width="16" height="16" alt=""> 小红书、<img src="assets/icons/douyin.svg" width="16" height="16" alt=""> 抖音、<img src="assets/icons/taobao.svg" width="16" height="16" alt=""> 淘宝等）；本 Skill 不依赖它们。
 
-EveryInfra SEO Skills 的版本为 `0.37.1`，采用 Apache-2.0 许可协议。仓库里是一个 SEO / GEO 工作台 Skill：`seo-suite`。它是一组工作说明、参考资料和输出模板，本身不调用模型，不捆绑模型提供商，也没有 API Key 或运行时依赖。模型和模型额度来自你自己的 AI 工具。
+EveryInfra SEO Skills 的版本为 `0.38.0`，采用 Apache-2.0 许可协议。仓库里是一个 SEO / GEO 工作台 Skill：`seo-suite`。它是一组工作说明、参考资料和输出模板，本身不调用模型，不捆绑模型提供商，也没有 API Key 或运行时依赖。模型和模型额度来自你自己的 AI 工具。
 
 **独有差异化：全球 SEO/GEO 一把做。** 面向全球做产品的团队不想装十几个单市场工具——本套件把 **18 个语言市场**放进同一个工作台，逐市场分开评分：中文（实测引用经济学）、英文、俄语区（Yandex/Alice）、韩语区（<img src="assets/icons/naver.svg" width="16" height="16" alt=""> Naver/AI Briefing）、日语区（Yahoo! Japan+Bing+AIO）、西语（es-419 拉美分裂）、葡语（巴西=<img src="assets/icons/codex.svg" width="16" height="16" alt=""> ChatGPT 最强市场）、阿拉伯语（RTL+MSA/方言）、法语（Bill 96）、德语（DACH Sie/du）、印尼语（baku/gaul）、印地语（Hinglish 三种书写）、意大利语（it-CH 独立 locale）、土耳其语（第二个 Yandex 市场，~26%）、越南语（有调/无调+Coc Cốc）、泰语（无空格分词）、波兰语（变音符规范化）、荷兰语（nl-NL/nl-BE 弗拉芒）。**全球能力不做成独立模块，而是融入五类能力文件的每一类**——主干是 `overview/multilingual-workflow.md`（市场总表、逐市场工具栈、语言规范、合规速查）。
 
