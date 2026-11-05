@@ -1,33 +1,35 @@
 {
- "checked_at": "2026-11-04T07:28:54.830450+00:00",
+ "checked_at": "2026-11-05T07:53:28.412512+00:00",
  "sources": {
   "google-blog": {
-   "top": "Supporting a shared AI training control for websites",
+   "top": "Search Central Live in Zurich is back!",
    "seen": [
     "New learning paths: curated YouTube playlists for Search fundamentals and Technical SEO",
     "Announcing web multimodal Search performance reporting in Search Console",
     "Search Central Live Deep Dive Europe 2026: Meet the community speakers",
     "Search Central Live India 2026: Bengaluru, We're Coming (For Real This Time)",
     "Search Central Live is coming to Bogota and Ciudad de M\u00e9xico",
-    "Supporting a shared AI training control for websites"
+    "Supporting a shared AI training control for websites",
+    "Search Central Live in Zurich is back!"
    ],
-   "ts": "2026-10-31T06:57:10.096278+00:00"
+   "ts": "2026-11-05T07:53:13.665673+00:00"
   },
   "google-updates": {
    "hash": "11d49f908d16087ac6da327b40280195",
    "ts": "2026-11-04T07:28:27.814448+00:00"
   },
   "gsc-announce": {
-   "top": "Supporting a shared AI training control for websites",
+   "top": "Search Central Live in Zurich is back!",
    "seen": [
     "New learning paths: curated YouTube playlists for Search fundamentals and Technical SEO",
     "Announcing web multimodal Search performance reporting in Search Console",
     "Search Central Live Deep Dive Europe 2026: Meet the community speakers",
     "Search Central Live India 2026: Bengaluru, We're Coming (For Real This Time)",
     "Search Central Live is coming to Bogota and Ciudad de M\u00e9xico",
-    "Supporting a shared AI training control for websites"
+    "Supporting a shared AI training control for websites",
+    "Search Central Live in Zurich is back!"
    ],
-   "ts": "2026-10-31T06:57:11.888512+00:00"
+   "ts": "2026-11-05T07:53:14.293905+00:00"
   },
   "status-dashboard": {
    "hash": "dbf54cafc22db00d7f075d1f10101f38",
@@ -58,8 +60,8 @@
    "ts": "2026-10-14T06:06:27.928530+00:00"
   },
   "openai-bots": {
-   "hash": "7658f09b1ce50c62e138135e1a93278a",
-   "ts": "2026-11-04T07:28:29.916530+00:00"
+   "hash": "91fe7eae3719b8d6e152e75c631c2e34",
+   "ts": "2026-11-05T07:53:15.946849+00:00"
   },
   "ard-spec": {
    "top": "Merge pull request #111 from 91pavan/docs/observability-section",
@@ -80,12 +82,12 @@
    "ts": "2026-10-26T06:07:48.821620+00:00"
   },
   "anthropic-crawl": {
-   "hash": "64ff0fa0afdbeef176c1b654958871fe",
-   "ts": "2026-11-03T07:52:51.820589+00:00"
+   "hash": "95a1d0c81afc048fa63a92e770dae004",
+   "ts": "2026-11-05T07:53:16.549473+00:00"
   },
   "schema-org": {
-   "hash": "77148a1e8e96b49506a4883169899e89",
-   "ts": "2026-11-02T07:38:28.270885+00:00"
+   "hash": "c28ae2197ecacc4469ac00319b179a7f",
+   "ts": "2026-11-05T07:53:16.855715+00:00"
   },
   "crux": {
    "hash": "d842f6212aa2bb011604625ef58846f2",
@@ -104,25 +106,20 @@
    "ts": "2026-10-11T08:35:05.849665+00:00"
   },
   "statcounter-search": {
-   "hash": "dba8c6fa5f45cfdb81f7a60296ff0535",
-   "ts": "2026-11-04T07:28:52.846161+00:00"
+   "hash": "389df5848456ae86138e3c530030f843",
+   "ts": "2026-11-05T07:53:26.951953+00:00"
   },
   "statcounter-ai": {
-   "hash": "08e51e420d878187e2a810dff1b381fa",
-   "ts": "2026-11-04T07:28:53.383767+00:00"
+   "hash": "0ccdf7fede3e3685a5731ff07fb3e2ce",
+   "ts": "2026-11-05T07:53:27.237798+00:00"
   },
   "semrush-sensor": {
-   "hash": "d99addf816322a8b3309a2c9907009bc",
-   "ts": "2026-11-04T07:28:54.018667+00:00"
+   "hash": "3742ec8a321e1b6b9d5a1359e2ce924c",
+   "ts": "2026-11-05T07:53:27.551908+00:00"
   },
   "seroundtable": {
-   "top": "Google Updates Crawled - Currently Not Indexed Details",
+   "top": "Google Ads Explains Difference With Search Terms Match Type (Keywords)",
    "seen": [
-    "Google On Taking Sites Down When Fixing The Emergency PHP Exploit - PHP2Shell",
-    "Daily Search Forum Recap: October 21, 2026",
-    "Google Updates Control What You Share With Google Search With Existing Options",
-    "Google Search Ranking Volatility & Chatter Heats Up October 20 & 21",
-    "Google Business Home - New Google Business Profiles Home",
     "Daily Search Forum Recap: October 22, 2026",
     "Google Search Tests Layout Change For Local Knowledge Panel",
     "Google Ads New Translation Tool",
@@ -167,9 +164,14 @@
     "Google Performance Reports Showing Weird Spike In Clicks For Some Sites",
     "Daily Search Forum Recap: November 3, 2026",
     "Google Will Turn Off Google Search For K-12 Schools & Testing Learning Beta",
-    "Google AI Mode Biased: It Only Shows Links To Google Flights"
+    "Google AI Mode Biased: It Only Shows Links To Google Flights",
+    "Google Ads Explains Difference With Search Terms Match Type (Keywords)",
+    "Google Emails: Site Reputation Policy Manual Actions No Longer Impact EEA",
+    "Google Search Console Performance Report Multi-Select Device Filters",
+    "Daily Search Forum Recap: November 4, 2026",
+    "Microsoft Clarity With New Agentic Analytics & Ask Clarity"
    ],
-   "ts": "2026-11-04T07:28:54.830248+00:00"
+   "ts": "2026-11-05T07:53:28.412258+00:00"
   },
   "google-docs-rss": {
    "top": "Updated guidance on preventing user-generated spam",
