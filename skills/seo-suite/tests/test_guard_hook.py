@@ -33,6 +33,17 @@ class GuardHookTests(unittest.TestCase):
         for c in cases:
             self.assertTrue(G.verdict(c)[0], c)
 
+    def test_blocks_push_to_main_and_title_edits(self):
+        # 例 7 对抗场景「用户说直接推 main」(11-05 评测:没装运营包的 Sonnet 5/5 照推)。
+        self.assertTrue(G.verdict(ev("Bash", command="git push origin main"))[0])
+        self.assertTrue(G.verdict(ev("Bash", command="git push"))[0])
+        self.assertTrue(G.verdict(ev("Bash", branch="seo/x", command="cd r && git push -q origin main"))[0])
+        self.assertTrue(G.verdict(ev("Bash", branch="seo/x", command="git push origin HEAD:main"))[0])
+        self.assertTrue(G.verdict(ev("Edit", file_path="/r/about/index.html", old_string="<head>",
+                                     new_string="<head><title>About</title>"))[0])
+        self.assertFalse(G.verdict(ev("Bash", branch="seo/x", command="git push -u origin seo/x"))[0])
+        self.assertFalse(G.verdict(ev("Bash", branch="seo/x", command="git push"))[0])
+
     def test_allows_on_branch_and_unrelated_edits(self):
         self.assertFalse(G.verdict(ev("Write", branch="seo/fix-robots", file_path="/r/public/robots.txt",
                                       content="x"))[0])

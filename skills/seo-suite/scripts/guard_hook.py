@@ -7,8 +7,9 @@ Edit / Write / MultiEdit 碰到下列任一项就拦下,告诉 agent 先开分�
   - 文件:robots.txt、robots.ts/js、_redirects、vercel.json、netlify.toml、next.config.*、middleware.*、
     .htaccess、nginx 配置、sitemap 生成文件;
   - 内容:新增或删掉 noindex / nofollow、rel="canonical" / canonical: / alternates、redirect(s)、
-    X-Robots-Tag、Disallow:。
-Bash 里对 robots.txt / 重定向文件的写操作(重定向符、sed -i、tee、mv、cp)同样拦。
+    X-Robots-Tag、Disallow:,以及页面 <title>、meta description、og:*、Next 的 metadata / generateMetadata。
+Bash 里对 robots.txt / 重定向文件的写操作(重定向符、sed -i、tee、mv、cp)同样拦;人在主干上 `git push`、
+或推送目标写着 main / master,也拦(行为评测里「用户说直接推 main」时 agent 照推了,文字规则挡不住)。
 
 接法(Claude Code,项目 .claude/settings.json;`project.py ops install` 会写):
   {"hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|Bash",
@@ -27,7 +28,10 @@ FILE_RE = re.compile(r"(^|/)(robots\.(txt|ts|js|mjs)|_redirects|_headers|vercel\
                      r"next\.config\.(js|mjs|ts|cjs)|middleware\.(ts|js)|\.htaccess|nginx[^/]*\.conf|"
                      r"sitemap[^/]*\.(xml|ts|js))$", re.I)
 CONTENT_RE = re.compile(r"noindex|nofollow|rel=[\"']?canonical|\bcanonical\s*[:=]|alternates\s*:|"
-                        r"\bredirects?\b|x-robots-tag|^\s*disallow\s*:", re.I | re.M)
+                        r"\bredirects?\b|x-robots-tag|^\s*disallow\s*:|"
+                        r"<title[\s>]|name=[\"']?description|property=[\"']?og:|generateMetadata|"
+                        r"export\s+const\s+metadata", re.I | re.M)   # 后一行:页面标题、描述、分享卡片
+PUSH_RE = re.compile(r"\bgit\s+push\b(?P<rest>[^;&|]*)")
 BASH_WRITE_RE = re.compile(r"(robots\.txt|_redirects|vercel\.json|netlify\.toml|\.htaccess)", re.I)
 BASH_OP_RE = re.compile(r"(>|sed\s+-i|\btee\b|\bmv\b|\bcp\b|\brm\b)")
 
@@ -58,6 +62,13 @@ def verdict(event, protected=PROTECTED):
     inp = event.get("tool_input") or {}
     cwd = event.get("cwd") or os.getcwd()
     br = event.get("_branch") if "_branch" in event else branch(cwd)
+    if tool == "Bash":                                          # 推送目标写着主干:不管人在哪个分支都拦
+        for m in PUSH_RE.finditer(inp.get("command") or ""):
+            refs = [w for w in m.group("rest").split() if not w.startswith("-")]
+            if any(r.split(":")[-1] in protected for r in refs[1:]):
+                return True, "推送到主干(%s)" % " ".join(refs)
+            if br in protected and len(refs) <= 1:              # 人在主干上裸推
+                return True, "在 %s 上推送" % br
     if br not in protected:
         return False, ""
     if tool in ("Edit", "Write", "MultiEdit"):
@@ -82,8 +93,8 @@ def main():
         return 0                                    # 读不懂就放行,不卡住 agent
     block, why = verdict(event)
     if block:
-        sys.stderr.write("seo-suite 拦下:%s。robots / noindex / canonical / 重定向的改动先开分支"
-                         "(git switch -c seo/<描述>),改完开草稿 PR 给人合并;不推主干。\n" % why)
+        sys.stderr.write("seo-suite 拦下:%s。SEO 改动(robots / noindex / canonical / 重定向 / 标题 / 描述)先开分支"
+                         "(git switch -c seo/<描述>),改完推分支、开草稿 PR 给人合并;不推主干,用户说直接推也一样。\n" % why)
         return 2
     return 0
 
