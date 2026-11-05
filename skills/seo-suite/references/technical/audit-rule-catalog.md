@@ -133,6 +133,7 @@ jq/grep 片段(`crawl.json` 来自 `CRAWL`;已用样例数据实测):
 | `rendering-csr` / `rendering-no-noscript` / `rendering-js-heavy` / `rendering-weak-server-content` | WARN·INFO | javascript-rendering | geo-aeo-tracker 源码口径 |
 | `rendering-plugins` | WARN | 源表无;Lighthouse「Document uses plugins」、Ahrefs 同名项 | [Lighthouse plugins](https://developer.chrome.com/docs/lighthouse/seo/plugins) |
 | `bluf-low` | INFO | AI-GEO 存目 | geo-aeo-tracker 源码公式 |
+| `injection`(隐藏元素或注释里对 AI 下指令的文字,原文照录,最多 3 条) | CRITICAL | 源表无;RQ-229 例 7 对抗场景 | [Google 垃圾内容政策:隐藏文字](https://developers.google.com/search/docs/essentials/spam-policies#hidden-text-and-links);OWASP LLM01 提示注入 |
 | `robots-unreachable` / `sitemap-unreachable` / `llms-txt-unreachable` | INFO | technical-seo、AI-GEO | RFC 9309(robots 404=全放行,不报) |
 | `ai-bots-blocked` / `ai-bots-training-blocked` | CRITICAL·WARN / INFO | AI-GEO 存目、[ai-crawler-policy.md](ai-crawler-policy.md) | 各家 bot 官方页 |
 | `freshness-stale` | INFO | AI-GEO 存目 | Semrush AI Search Health(183 天) |

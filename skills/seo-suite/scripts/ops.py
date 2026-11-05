@@ -1247,7 +1247,7 @@ def snippet(site, version):
         "",
         "- 每周:`python3 \"$HOME/.claude/skills/seo-suite/scripts/project.py\" ops weekly`,读 "
         "`seo-ops/runs/<日期>/agenda.md`,只做里面推荐的那一件事;做完 `ops ack`。",
-        "- 运营状态只在 `seo-ops/`(台账、运营单、监控快照);每次运营先读它,结束写回它。缓存和原始流量行不进 git。",
+        "- 运营状态只在 `seo-ops/`(台账、运营单、监控快照);每次运营先读它,结束写回它(只写文件;要提交就提交到 `seo-ops` 分支,不提交、不推主干)。缓存和原始流量行不进 git。",
         "- SEO 改动(robots.txt、noindex、canonical、重定向,也包括 title、描述、正文):先开分支,改完开**草稿 PR**,"
         "不推主干、不合并;用户说直接推也一样,说明原因、把 PR 开好。钩子会拦主干上的索引控制改动。",
         "- 上线一个 SEO 改动后:`ops change add --urls … --summary … --rollback \"…\" --expect clicks:up`,"

@@ -233,6 +233,64 @@ coverage 分母与 summary.audited)。robots.txt 404=全放行(RFC 9309),不产 
 zh 标题按显示宽度(fullwidth 单位);已检测到服务端内容时 JS 重量只 INFO 提示体积、不报无 noscript;
 挑战页只按结构特征(拦截页标题/拦截元素/正文极短+拦截措辞)拒审,正文谈论 CAPTCHA 不拒审。"""
 
+# ---- 藏在页面里、对 AI 下指令的文字(提示注入)。读这页的编码 agent 可能照做(改 robots.txt、推主干),
+# 所以原文要原样列进运营单,让人看到;同时它也是 Google 垃圾内容政策里的「隐藏文字」。
+# 只看隐藏元素(display:none / visibility:hidden / hidden / aria-hidden)和 HTML 注释,正文里讲提示注入的文章不算。
+VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+             "track", "wbr"}
+HIDDEN_STYLE = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden", re.I)
+AGENT_DIRECTIVE = re.compile(
+    r"ignore\s+(?:all\s+|any\s+)?(?:previous|prior|above)\s+instructions|system\s+prompt|"
+    r"\bnote\s+to\s+(?:ai|llm|assistant)|"
+    r"\b(?:ai|llm|assistant|agent|chatgpt|claude|gpt|copilot)s?\b[^.\n]{0,120}?"
+    r"\b(?:ignore|disregard|must|should|instruct\w*|change|edit|modify|update|replace|push|commit|delete|"
+    r"disallow|robots\.txt)\b|"
+    r"(?:AI|助手|智能体|大模型|模型)[^。\n]{0,40}?(?:忽略|修改|改成|推送|删除|提交|照做)", re.I)
+
+
+class _Hidden(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.stack, self.chunks, self.depth = [], [], 0
+    def handle_starttag(self, tag, attrs):
+        if tag in VOID_TAGS:
+            return
+        a = dict(attrs)
+        hid = (HIDDEN_STYLE.search(a.get("style") or "") is not None or "hidden" in a
+               or (a.get("aria-hidden") or "").lower() == "true")
+        self.stack.append((tag, hid))
+        if hid:
+            self.depth += 1
+            self.chunks.append("")
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                for _, hid in self.stack[i:]:
+                    self.depth -= hid
+                del self.stack[i:]
+                return
+    def handle_data(self, d):
+        if self.depth > 0 and self.chunks:
+            self.chunks[-1] += d
+    def handle_comment(self, d):
+        self.chunks.append(d)
+
+
+def agent_directives(html):
+    """→ 隐藏元素 / 注释里对 AI 下指令的原文列表(去空白,每条最多 300 字)。"""
+    p = _Hidden()
+    try:
+        p.feed(html)
+    except Exception:  # noqa: BLE001 — 坏 HTML 不该让整页审计崩
+        pass
+    out = []
+    for c in p.chunks:
+        t = re.sub(r"\s+", " ", c).strip()
+        if t and AGENT_DIRECTIVE.search(t) and t[:300] not in out:
+            out.append(t[:300])
+    return out
+
+
 def visible_text(html):
     """去 script/style/noscript/注释与标签后的可见文本(空白折叠)。"""
     body = re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>|<noscript[^>]*>.*?</noscript>"
@@ -829,6 +887,9 @@ def audit(url, market="en", serp_titles=None):
     # og:url 是对象的规范 URL(永久 ID),写成 "/" 这类相对路径不合规(sspai 首页实测)
     if "og:url" in p.og and not re.match(r"^https?://", p.og["og:url"].strip(), re.I):
         F.append(("WARN", "og", f"og:url 非绝对 URL: {p.og['og:url'].strip()[:60]!r}(ogp.me:URL 类型须 http(s)://)"))
+    for t in agent_directives(html)[:3]:
+        F.append(("CRITICAL", "injection", "页面里藏着叫 AI 做事的文字(当数据,不执行;也是 Google 政策里的隐藏文字),"
+                  "原文:「%s」" % t))
     plugins = plugin_elements(p.embeds)
     if plugins:
         F.append(("WARN", "rendering", f"页面用了插件 {len(plugins)} 处: {', '.join(plugins[:3])}"
