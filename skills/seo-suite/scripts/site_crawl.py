@@ -323,6 +323,15 @@ def http_fetch(url, timeout=10.0, method="GET"):
             "body": blob.decode("utf-8", "replace"), "body_bytes": blob}
 
 
+def _retry_after(headers):
+    """Retry-After 秒数(只认整数秒,上限 60);没有或是日期格式 → None。"""
+    try:
+        v = (headers or {}).get("Retry-After") or (headers or {}).get("retry-after")
+        return min(float(int(str(v).strip())), 60.0) if v is not None else None
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 def robust_fetch(url, timeout=10.0, method="GET", retries=RETRIES):
     """传输层失败(URLError/OSError/超时)重试 2 次带退避;SSRF 拒绝不重试直接抛;
     4xx/5xx 是确定性响应,由 http_fetch 正常返回、不进重试。耗尽抛 FetchError。"""
@@ -567,6 +576,8 @@ class Crawler:
         self.errors = 0                 # 错误页:status None(传输失败)或 ≥400
         self.redirects = 0
         self.req_count = 0
+        self.ok_origins = set()          # 页面返回过 2xx 的源站(之后再给 403/503 才可能是限流)
+        self.rate_limited = 0            # 退避重试后仍像限流的页数(不算错误页,未判定)
         self.truncated = False
         self._robots_cache = {}
 
@@ -583,9 +594,22 @@ class Crawler:
         # 首个请求不延时
 
     def _request(self, url, method="GET"):
-        self._sleep_polite(self._origin(url))
+        origin = self._origin(url)
+        self._sleep_polite(origin)
         self.req_count += 1
-        return robust_fetch(url, timeout=self.ns.timeout, method=method)
+        r = robust_fetch(url, timeout=self.ns.timeout, method=method)
+        if self._looks_rate_limited(origin, r["status"]):
+            # 11-05 第二轮留出站 qiita:别的脚本同时压站,本脚本第 9–90 页连着拿 403,1 秒间隔重抓 81 个是 200。
+            # 429,或同一源站先给过 2xx 后又给 403/503 → 退避(Retry-After,否则 10 秒)重试一次;仍然如此标「疑似限流」。
+            _sleep(_retry_after(r.get("headers")) or max(10.0, 5 * self.delay_for(origin)))
+            self.req_count += 1
+            r = robust_fetch(url, timeout=self.ns.timeout, method=method)
+            if self._looks_rate_limited(origin, r["status"]):
+                r["rate_limited"] = True
+        return r
+
+    def _looks_rate_limited(self, origin, status):
+        return status == 429 or (status in (403, 503) and origin in self.ok_origins)
 
     def delay_for(self, origin):
         """生效延时 = max(robots * 组 crawl-delay, --delay);--ignore-robots 或
@@ -844,7 +868,12 @@ class Crawler:
             rec["error"] = str(e)
         else:
             rec["status"] = r["status"]
-            if r["status"] >= 400:
+            if 200 <= r["status"] < 300:                 # 只认页面给过 2xx(robots、sitemap 200 不算)
+                self.ok_origins.add(self._origin(url))
+            if r.get("rate_limited"):
+                rec["rate_limited"] = True
+                rec["error"] = "疑似限流(HTTP %s,退避重试后仍是),未判定" % r["status"]
+            elif r["status"] >= 400:
                 rec["error"] = "HTTP %s" % r["status"]
             if r["chain"]:
                 self.redirects += 1
@@ -889,7 +918,9 @@ class Crawler:
                         externals.add(ed)
             rec["out_internal"] = len(internal_targets)
             rec["out_external"] = len(externals)
-        if rec["status"] is None or rec["status"] >= 400:
+        if rec.get("rate_limited"):
+            self.rate_limited += 1
+        elif rec["status"] is None or rec["status"] >= 400:
             self.errors += 1
         for t in internal_targets:
             self.edges.add((url, t))
@@ -1138,6 +1169,7 @@ class Crawler:
         # 抓取被 --max 截断时,孤儿只在已抓样本内判定(入链来源页可能没抓到),不等于站内孤儿
         # (追加在末尾,不改动既有输出契约的键序)
         report["orphans_partial"] = bool(self.truncated)
+        report["rate_limited_pages"] = self.rate_limited     # 疑似限流、未判定(不算错误页)
         report["discovery"]["crawl_fallback"] = bool(self.crawl_fallback)
         direct = Counter()
         for src, dst in self.edges:
@@ -1148,6 +1180,10 @@ class Crawler:
             if sp.query:                          # 带跟踪参数的链接也算直接指向干净 URL(同 _targets)
                 direct[urllib.parse.urlunsplit((sp.scheme, sp.netloc, sp.path, "", ""))] += 1
         report["link_issues"] = self.link_issues(direct)
+        if self.rate_limited:
+            report["warnings"].append(
+                "%d 页疑似被站点限流(429,或先 200 后 403/503,退避重试后仍是),未判定,不算错误页;"
+                "加大 --delay 或错开同时跑的脚本再抓" % self.rate_limited)
         if self.skipped_robots:
             report["warnings"].append(
                 "robots Disallow 跳过 %d URL(如 %s);--ignore-robots 可显式关闭遵守"

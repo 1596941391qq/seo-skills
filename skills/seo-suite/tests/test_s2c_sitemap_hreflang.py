@@ -25,6 +25,7 @@ sys.path.insert(0, SCRIPTS)
 
 import hreflang_cluster  # noqa: E402
 import sitemap_audit as sa  # noqa: E402
+sa._sleep = lambda _s: None   # 逐条检查的礼貌间隔在测试里不真等
 
 S = "https://example.com"
 

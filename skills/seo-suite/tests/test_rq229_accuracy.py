@@ -36,6 +36,7 @@ import redirect_chain  # noqa: E402
 import site_audit as sa  # noqa: E402
 import site_crawl as sc  # noqa: E402
 import sitemap_audit as sma  # noqa: E402
+sma._sleep = lambda _s: None   # 逐条检查的礼貌间隔在测试里不真等
 from test_site_crawl import FakeWeb, crawl, make_ns, urlset_xml, html_links  # noqa: E402
 
 

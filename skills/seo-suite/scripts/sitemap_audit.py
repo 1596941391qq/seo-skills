@@ -45,6 +45,7 @@ sitemap 不可达(4xx/5xx/网络)/XML 不可解析 -> 2; 正常 0.
 from __future__ import annotations
 
 import argparse
+import time
 import re
 import os
 import sys
@@ -198,6 +199,7 @@ def _drop_lang_params(query):
 
 
 _ROBOTS_CACHE = {}
+_sleep = time.sleep          # 模块级可打桩(测试零真实延时)
 
 
 def robots_for(url, timeout=10.0):
@@ -427,6 +429,8 @@ def main(argv=None):
                     help="逐条抓取检查的 loc 数: 默认 loc ≤{0} 时全查、超过时按位置均匀抽 {0} 个(含首尾); "
                          "N>0 按位置均匀抽 N 个; 0=全部. 输出里写明查了几条、共几条".format(DEFAULT_CHECK_CAP))
     ap.add_argument("--timeout", type=float, default=10.0, help="单请求超时秒数 (默认 10)")
+    ap.add_argument("--delay", type=float, default=0.5,
+                    help="逐条检查时两次请求的间隔秒数 (默认 0.5;robots.txt 的 crawl-delay 更大时用它)")
     ap.add_argument("--max-child", type=int, default=100,
                     help="sitemapindex 展开的子 sitemap 上限 (默认 100)")
     ap.add_argument("--must-include", action="append", default=[], metavar="URL",
@@ -594,6 +598,7 @@ def main(argv=None):
 
     # ---------- 六坏桶 ----------
     b_non200, b_redir, b_noindex, b_canonical, b_robots, b_dup = [], [], [], [], [], []
+    b_limited = []      # 疑似被限流、未判定(不进问题桶,不影响退出码)
 
     # 逐条检查的范围:默认 ≤DEFAULT_CHECK_CAP 全查,超过按位置均匀抽样(含首尾);
     # 修前默认只查前 50 条——plausible 的 Google 验证文件 URL(302)排在第 160 条之后,漏报。
@@ -607,8 +612,15 @@ def main(argv=None):
     sampled = len(to_check) < total
     checked = 0
     page_alts = {}                      # 六坏桶抓过的页:loc → <head> hreflang(--hreflang 复用)
-    for e in to_check:
+    ok_seen, limited_run = False, 0
+    for i, e in enumerate(to_check):
         u = e["loc"]
+        if limited_run >= 5:                    # 连续 5 条退避后仍像限流:停下,剩下的不判
+            b_limited.extend(x["loc"] for x in to_check[i:])
+            notes.append("连续 5 条疑似被限流, 剩余 {0} 条未检查".format(len(to_check) - i))
+            break
+        if i:
+            _sleep(args.delay)
         try:
             rp = robots_for(u, args.timeout)
             if not rp.can_fetch("Googlebot", u):
@@ -618,9 +630,20 @@ def main(argv=None):
             notes.append("robots.txt 判定失败 {0}: {1}".format(u, err))
         try:
             status, headers, body = fetch(u, timeout=args.timeout)
+            if status == 429 or (status in (403, 503) and ok_seen):
+                # 11-05 第二轮留出站 qiita:原来不留间隔连抓 500 条,被限流后 403 全算「非 200」(列出的 10 条重抓全是 200)
+                _sleep(max(10.0, args.delay * 10))
+                status, headers, body = fetch(u, timeout=args.timeout)
+                if status == 429 or (status in (403, 503) and ok_seen):
+                    b_limited.append(u)
+                    limited_run += 1
+                    continue
         except Exception as err:
             b_non200.append("{0}  (抓取失败: {1})".format(u, type(err).__name__))
             continue
+        limited_run = 0
+        if 200 <= status < 300:
+            ok_seen = True
         checked += 1
         if 300 <= status < 400:
             loc_hdr = ""
@@ -692,6 +715,8 @@ def main(argv=None):
     print_bucket(4, "canonical 指向他址", b_canonical)
     print_bucket(5, "robots.txt 屏蔽 (Googlebot)", b_robots)
     print_bucket(6, "参数重复 URL (同 path 不同 query)", b_dup)
+    if b_limited:
+        print("\n[未判定:疑似被站点限流] {0} 条(429,或先 200 后 403/503,退避重试后仍是);加大 --delay 或错开同时跑的脚本再查".format(len(b_limited)))
 
     # ---------- 反向检查 ----------
     missing = []

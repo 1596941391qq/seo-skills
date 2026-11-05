@@ -15,6 +15,8 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
 FIX = os.path.join(BASE, "tests", "fixtures", "k2")
 sys.path.insert(0, SCRIPTS)
+import sitemap_audit as _sma  # noqa: E402
+_sma._sleep = lambda _s: None  # 逐条检查的礼貌间隔在测试里不真等
 
 
 def fixture(*parts):

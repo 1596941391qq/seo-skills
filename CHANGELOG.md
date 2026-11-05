@@ -5,6 +5,7 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **不把站点限流当站点问题(例 6 第二轮留出站;ifanr.com、ghost.org 0 误报,qiita.com 93 条误报全是这一个原因)**:`sitemap_audit` 逐条检查原来不留间隔连抓 500 条,把 qiita 打到限流;现在默认间隔 0.5 秒(`--delay`),429、或先 200 后 403/503 时退避 10 秒重试一次,仍然如此的单列「未判定:疑似被站点限流」,连续 5 条就停。`site_crawl` 同样退避重试(认 Retry-After),仍像限流的页记 `rate_limited_pages`、不算错误页;页面一次 200 都没给过的 403 照旧算错误。回归测试修前 3/3 红。
 - **留出站误报 8 类(例 6;ruanyifeng.com、buttondown.com、zenn.dev,独立核验子代理逐条对原始响应:精度 65.6%,没过 95%)**:`site_crawl` 不再去掉 URL 尾斜杠(链接带斜杠的站每页先吃一次 301,「重定向目标没有直接内链」和「HTTPS→HTTP」误报);`sitemap_audit` 中日文网址先按 UTF-8 编码再请求、认带毫秒的 lastmod、5 万条上限按单个文件算(index 汇总超 5 万是正常拆分)、只差语言参数(?locale=en)的不算参数重复;`site_audit` 先读 robots.txt 声明的 sitemap、服务端内容只看纯文本量(不要求 main/article/section)、只有 Cloudflare JS Detections 脚本的中文短页不再判成拦截页;`head_check` twitter:* 和 og:* 值相同才算重复。回归测试 `tests/test_holdout_20261105.py` 修前 8/8 红。
 - **独立评分发现的**:`site_crawl --check-external` 外链 4xx 原来直接丢掉,现在单列「外链 4xx」;`redirect_chain` 跳到 404 原来打印「无问题」,现在报 CRITICAL;人读版能力矩阵补上 ga4_api、guard_hook、ops、source_map(129 条 = 91 脚本 + 25 模板 + 13 主干)。
 - **事实重抽 30 条(种子 20261105-2,独立子代理逐条开原文)**:错 0;三条转述偏强或页码不准的已改:`ecommerce-geo-ladder.md`(Merchant Center 要求的是商品数据和店铺一致)、`markets/ar.md`(国家表在 PDF 第 17–18 页)、`scoring-rubric.md`(有用内容自评问题里没有「注明更新日期」,改为提醒不要为显得新而改日期)。

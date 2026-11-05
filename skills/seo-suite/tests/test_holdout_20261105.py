@@ -7,6 +7,8 @@
   index 汇总 31 万条,但要看的是单个文件;?locale=en 是译文(正文不同、canonical 指自己)。
 - buttondown:lastmod 写成「2017-12-26T00:00:00.000Z」;两页原始 HTML 有 4,809 / 4,098 字正文但不用 main/article;
   twitter:title 和 og:title 不同。
+- 第二轮 qiita(21:11 换的留出站):sitemap_audit 不留间隔连抓 500 条把站打到限流,同时跑的 site_crawl 第 9–90 页
+  连着 403,按 1 秒间隔重抓 81 个是 200;sitemap_audit 列出的 10 条「非 200」全是 200。
 - 阮一峰:中文首页可见文本不到 600 字,带 Cloudflare JS Detections 脚本(每页都注入),不是挑战页。
 """
 import os
@@ -21,6 +23,7 @@ import head_check  # noqa: E402
 import site_audit as sa  # noqa: E402
 import sitemap_audit as sma  # noqa: E402
 from test_rq229_accuracy import PAGE_OK, run_sitemap, sitemap_web, urlset  # noqa: E402
+from test_site_crawl import HOME, FakeWeb, crawl, html_links, make_ns, urlset_xml  # noqa: E402
 
 JSD = ("<script>(function(){var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=x';"
        "var a=document.createElement('script');a.src=u;document.head.appendChild(a);})();</script>")
@@ -123,6 +126,56 @@ class Zenn(unittest.TestCase):
         with sitemap_web(routes):
             _rc, out = run_sitemap(["https://z.example/sitemap.xml"])
         self.assertIn("参数重复 URL (同 path 不同 query)] 命中 0", out)
+
+
+class QiitaRateLimit(unittest.TestCase):
+    def test_crawl_retries_403_after_200_and_recovers(self):
+        web = FakeWeb()
+        pages = ["https://example.com/p%d" % i for i in range(3)]
+        web.add("https://example.com/sitemap.xml", body=urlset_xml([HOME] + pages))
+        web.add(HOME, body=html_links("H", []))
+        for u in pages:
+            web.add(u, body=html_links("P", []))
+        hits = {}
+        inner = web.__call__
+
+        def flaky(url, timeout=10.0, method="GET"):        # 每页第一次 403(限流中),退避后 200
+            hits[url] = hits.get(url, 0) + 1
+            if url in pages and hits[url] == 1:
+                return FakeWeb._resp(url, 403, "", [], None)
+            return inner(url, timeout, method)
+        rep, rc = crawl(make_ns(), flaky)
+        self.assertEqual(rc, 0, rep["warnings"])
+        self.assertEqual(rep["stats"]["errors"], 0)
+        self.assertEqual({p["url"]: p["status"] for p in rep["pages"]}[pages[0]], 200)
+
+    def test_crawl_persistent_403_after_200_is_unjudged_not_error(self):
+        web = FakeWeb()
+        pages = ["https://example.com/p%d" % i for i in range(3)]
+        web.add("https://example.com/sitemap.xml", body=urlset_xml([HOME] + pages))
+        web.add(HOME, body=html_links("H", []))
+        for u in pages:
+            web.add(u, status=403)
+        rep, rc = crawl(make_ns(), web)
+        self.assertEqual(rep["stats"]["errors"], 0)
+        self.assertEqual(rep["rate_limited_pages"], 3)
+        self.assertEqual(rc, 0)
+
+    def test_crawl_403_without_any_200_is_still_an_error(self):
+        web = FakeWeb()
+        web.add("https://example.com/sitemap.xml", body=urlset_xml([HOME]))
+        web.add(HOME, status=403)
+        rep, _rc = crawl(make_ns(), web)
+        self.assertEqual(rep["stats"]["errors"], 1)
+
+    def test_sitemap_audit_403_after_200_is_unjudged(self):
+        locs = ["https://q.example/a/%d" % i for i in range(8)]
+        routes = {"https://q.example/sitemap.xml": (200, {}, urlset(locs)), locs[0]: PAGE_OK}
+        routes.update({u: (403, {}, b"") for u in locs[1:]})
+        with sitemap_web(routes):
+            _rc, out = run_sitemap(["https://q.example/sitemap.xml"])
+        self.assertIn("[桶1 非 200 / 抓取失败] 命中 0", out)
+        self.assertIn("未判定:疑似被站点限流", out)
 
 
 if __name__ == "__main__":
