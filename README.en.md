@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.39.0-brightgreen" alt="version 0.39.0">
+  <img src="https://img.shields.io/badge/version-0.39.1-brightgreen" alt="version 0.39.1">
   <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0">
   <img src="https://img.shields.io/badge/markets-18-brightgreen" alt="18 language markets">
   <img src="https://img.shields.io/badge/dependencies-Python_stdlib_only-brightgreen" alt="Python standard library only">
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/everyinfra/seo-skills/main/install.
 
 > Maintained by [EveryInfra](https://everyinfra.com/en). When a task needs live data, EveryInfra offers a [web search API](https://everyinfra.com/en/products/search) (17 tools) and [data APIs for 90 platforms](https://everyinfra.com/en/market); this Skill does not depend on them.
 
-EveryInfra SEO Skills is version `0.39.0`, licensed under Apache-2.0. One SEO / GEO workbench Skill: `seo-suite` — instructions, reference notes and output templates. No model calls, no bundled provider, no API key, no runtime dependency. The model and its quota are whatever AI tool you already use.
+EveryInfra SEO Skills is version `0.39.1`, licensed under Apache-2.0. One SEO / GEO workbench Skill: `seo-suite` — instructions, reference notes and output templates. No model calls, no bundled provider, no API key, no runtime dependency. The model and its quota are whatever AI tool you already use.
 
 **The differentiator: global SEO/GEO in one pass.** Teams shipping worldwide don't want a dozen single-market tools. This suite puts **18 language markets** in one workbench, scored market-by-market: Chinese, English, Russian (Yandex/Alice), Korean (<img src="assets/icons/naver.svg" width="16" height="16" alt=""> Naver/AI Briefing), Japanese (Yahoo! Japan + Bing + AI Overviews), Spanish (es-419 LatAm splits), Portuguese (Brazil = <img src="assets/icons/codex.svg" width="16" height="16" alt=""> ChatGPT's strongest market), Arabic (RTL + MSA vs dialects), French (Bill 96), German (DACH Sie/du), Indonesian (baku vs gaul), Hindi (Hinglish three-script reality), Italian (it-CH as its own locale), Turkish (a second Yandex market, ~26%), Vietnamese (diacritic variants + Coc Cốc), Thai (spaceless script segmentation), Polish (diacritic canonicalization), Dutch (Flemish nl-BE). Global capability is **woven into every capability set**, not a separate module — the spine is `overview/multilingual-workflow.md`.
 

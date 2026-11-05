@@ -7,6 +7,11 @@ Future content or structure changes must bump the version and add a dated entry.
 
 (暂无)
 
+## 0.39.1 - 2026-11-05
+
+- **运营产物瘦身**:`seo-ops/runs/<日期>/light.json` 只存有问题的行(非 200、noindex、canonical 指别处、重试过),全 OK 的只记个数;`issues.json` 里已查 URL 存 10 位短哈希。2,769 个 URL 的站一期从约 900 KB 降到约 150 KB,一年进 git 的量从约 50 MB 降到约 8 MB。
+  Ops run artifacts slimmed: light-check rows keep only problem URLs; checked URLs stored as short hashes.
+
 ## 0.39.0 - 2026-11-05
 
 - **每周运营单(RQ-229 第 2 批)**:`project.py ops weekly|monthly`(新脚本 `ops.py`)一条命令出一屏运营单:硬告警、只推荐一件事、问题五态(没复查到的 URL 不算已解决)、到期复验(`ops change add` 记改动,+14/+28 天用 GSC 逐页逐日数比前后)、搜索与 AI 可见度(每个数写数据源;GSC 两个来源抽 3 天对账)、有点击却有问题的页五张清单(noindex / 4xx / 403 / 3xx / 非规范)、覆盖率(sitemap 全量轻检 + 按点击前 N 页深审,不够不出分)。`ops notify` 只在有硬告警或连续 2 期没人看时推 Telegram。

@@ -752,7 +752,11 @@ def run_ops(args, kind):
         cov["skipped"].append("轻检、深审、证书、robots:--no-net")
     else:
         light = light_check(site, [p["page"] for p in clicked], args.workers, args.timeout, args.light_limit)
-        write_json(os.path.join(run_dir, "light.json"), light)
+        # 进 git 的只留有问题的行(状态非 200、noindex、canonical 指别处、重试过);全 OK 的只记个数
+        keep = [r for r in light["rows"] if r.get("status") != 200 or r.get("noindex") or r.get("retried")
+                or (r.get("canonical") and not r.get("canonical_self"))]
+        write_json(os.path.join(run_dir, "light.json"),
+                   dict(light, rows=keep, ok_rows=len(light["rows"]) - len(keep)))
         cov["ran"].append("轻检 %d 个 URL(sitemap %d 条 + GSC 有点击的页,%d 个 sitemap 文件,%.0f 秒)"
                           % (light["checked"], light["locs_total"], light["sitemap_files"], light["seconds"]))
         if light["sitemap_errors"]:
@@ -850,13 +854,15 @@ def run_ops(args, kind):
     ledger_path = os.path.join(ws, "ledger", "issues.jsonl")
     ever_resolved = {e["fp"] for e in read_jsonl(ledger_path) if e.get("state") == "resolved"}
     if prev_issues:
-        states = classify(prev_issues["items"], cur_items, set(prev_issues.get("checked") or []), checked,
+        states = classify(prev_issues["items"], cur_items, set(prev_issues.get("checked_h") or []), checked,
                           ever_resolved)
     else:
         states = [("new", it, None) for it in cur_items.values()]
     if light or audit:
         write_json(os.path.join(run_dir, "issues.json"),
-                   {"date": date, "checked": sorted(checked), "items": cur_items})
+                   {"date": date, "checked_count": len(checked),
+                    "checked_h": sorted(hashlib.sha1(u.encode("utf-8")).hexdigest()[:10] for u in checked),
+                    "items": cur_items})
         for st, it, _ in states:
             if st != "persisting":
                 append_jsonl(ledger_path, {"run": date, "fp": it["fp"], "state": st, "severity": it["severity"],
