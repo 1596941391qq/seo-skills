@@ -22,8 +22,11 @@
       Freshness    = 最新 lastmod 距今 <= 30 天
       Truthfulness = 最大"单日簇"占比 > 50% 且该日 == 今天 -> 疑似构建期伪造
   * 规模提示: 单文件 > 50,000 URL 或 > 50MB 超出 Google 单 sitemap 上限, 建议拆分
-  * --check-limit N 限制逐条抓取检查的 loc 数 (默认 50, 0=全部);
+  * 逐条抓取检查范围: 默认 loc ≤500 全查, 超过按位置均匀抽 500 个(含首尾); --check-limit N
+    按位置均匀抽 N 个, 0=全部; 输出 [范围] 行写明查了几条、共几条、是否抽样.
     参数重复与 lastmod 统计始终基于全量 loc
+  * sitemap URL 返回 HTML 页面(被重定向到首页、SPA 页面壳等)报「sitemap 文件不是 sitemap
+    (软 404)」并计入坏桶(退出码 1), 不当输入错误退出
   * --hreflang: 全部 loc 的 hreflang 互指检查(口径: Google localized-versions 文档)。
     数据源: sitemap 的 <xhtml:link rel="alternate" hreflang> 优先; sitemap 没有注解时
     改读各 loc 页面 <head> 的 <link rel="alternate" hreflang>(受 --hreflang-limit 限制)。
@@ -36,7 +39,8 @@
       [hreflang 缺 x-default] 可选的兜底版本(提示, 不计入退出码)
     前五项任一非空 -> 退出码 1
 
-退出码: 六坏桶任一非空、--must-include 有缺失或 --hreflang 硬问题非空 -> 1; sitemap 不可达/不可解析 -> 2; 正常 0.
+退出码: 六坏桶任一非空、sitemap 返回 HTML、--must-include 有缺失或 --hreflang 硬问题非空 -> 1;
+sitemap 不可达(4xx/5xx/网络)/XML 不可解析 -> 2; 正常 0.
 """
 from __future__ import annotations
 
@@ -59,6 +63,7 @@ from hreflang_cluster import check_lang  # 语言码校验唯一实现(Google lo
 UA = "Mozilla/5.0 (compatible; SEOSkill-SitemapAudit/1.0)"
 FIFTY_MB = 50 * 1024 * 1024
 FIFTY_K = 50000
+DEFAULT_CHECK_CAP = 500   # 默认逐条检查上限:≤500 条全查,超过按位置均匀抽 500 条(本套件口径,写进输出)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -264,15 +269,72 @@ def parse_sitemap_bytes(blob):
     return kind, urls, children
 
 
-def fetch_sitemap(url, timeout):
-    status, headers, body = fetch(url, timeout=timeout, max_bytes=FIFTY_MB + 1)
+class NotSitemap(Exception):
+    """sitemap URL 返回的是 HTML 页面(常见:被重定向到首页,或 SPA 对任意路径都回 200 + 页面壳)。
+    口径:sitemaps.org 协议要求 sitemap 是 XML(根元素 urlset/sitemapindex);Search Console
+    Sitemaps 报告把这类文件记为 Unsupported format / Parsing error
+    (https://support.google.com/webmasters/answer/7451001,2026-11-05 读取)。
+    这是站点问题(软 404:URL 回 200 却没有 sitemap 内容),作为发现报告,不当输入错误退出。"""
+
+    def __init__(self, url, final_url, status, ctype, nbytes, hops):
+        self.url, self.final_url, self.status = url, final_url, status
+        self.ctype, self.nbytes, self.hops = ctype, nbytes, hops
+        super().__init__(self.describe())
+
+    def describe(self):
+        via = ""
+        if self.hops:
+            via = "经 {0} 次重定向到 {1},".format(len(self.hops), self.final_url)
+        return ("{0} {1}返回 HTTP {2} 的 HTML 页面(Content-Type: {3},{4} 字节),不是 sitemap"
+                "(软 404:搜索引擎读不到任何 URL)").format(
+                    self.url, via, self.status, self.ctype or "未声明", self.nbytes)
+
+
+_HTML_HEAD_RE = re.compile(rb"^\s*(?:\xef\xbb\xbf)?\s*(?:<!doctype\s+html|<html[\s>]|<head[\s>]|<body[\s>])", re.I)
+
+
+def looks_like_html(body, ctype):
+    """Content-Type 是 text/html,或正文开头就是 <!doctype html>/<html>/<head>/<body>。
+    XML sitemap 开头是 <?xml 或 <urlset/<sitemapindex,两条都不会命中。"""
+    if (ctype or "").split(";")[0].strip().lower() in ("text/html", "application/xhtml+xml"):
+        return True
+    return bool(_HTML_HEAD_RE.match(body[:2048] or b""))
+
+
+def fetch_sitemap(url, timeout, max_hops=5):
+    """抓 sitemap:跟随 ≤max_hops 次重定向(记录在 hops 里供备注);返回 HTML 页面时抛 NotSitemap。"""
+    hops, cur = [], url
+    for _ in range(max_hops + 1):
+        status, headers, body = fetch(cur, timeout=timeout, max_bytes=FIFTY_MB + 1)
+        loc = ""
+        if 300 <= status < 400:
+            try:
+                loc = headers.get("Location") or "" if headers else ""
+            except Exception:
+                loc = ""
+        if not loc:
+            break
+        nxt = urllib.parse.urljoin(cur, loc)
+        hops.append((status, nxt))
+        cur = nxt
     if status != 200:
         raise IOError("HTTP {0}".format(status))
+    try:
+        ctype = headers.get("Content-Type") or "" if headers else ""
+    except Exception:
+        ctype = ""
     if body[:2] == b"\x1f\x8b":
         import gzip
         body = gzip.decompress(body)
+    elif looks_like_html(body, ctype):
+        raise NotSitemap(url, cur, status, ctype, len(body), hops)
     kind, urls, children = parse_sitemap_bytes(body)
+    if hops:
+        _REDIRECT_NOTES.append("{0} 经 {1} 次重定向到 {2}".format(url, len(hops), cur))
     return kind, urls, children, len(body)
+
+
+_REDIRECT_NOTES = []   # fetch_sitemap 记下的 sitemap 自身重定向(main 收进过程备注)
 
 
 def hreflang_audit(alts_by_loc, sitemap_norms):
@@ -340,8 +402,9 @@ def main(argv=None):
         prog="sitemap_audit.py",
         description="Sitemap 六坏桶审计 + lastmod 三判定 (stdlib only)")
     ap.add_argument("url", help="站点或 sitemap URL, 如 https://example.com")
-    ap.add_argument("--check-limit", type=int, default=50, metavar="N",
-                    help="逐条抓取检查的 loc 上限, 0=全部 (默认 50)")
+    ap.add_argument("--check-limit", type=int, default=None, metavar="N",
+                    help="逐条抓取检查的 loc 数: 默认 loc ≤{0} 时全查、超过时按位置均匀抽 {0} 个(含首尾); "
+                         "N>0 按位置均匀抽 N 个; 0=全部. 输出里写明查了几条、共几条".format(DEFAULT_CHECK_CAP))
     ap.add_argument("--timeout", type=float, default=10.0, help="单请求超时秒数 (默认 10)")
     ap.add_argument("--max-child", type=int, default=100,
                     help="sitemapindex 展开的子 sitemap 上限 (默认 100)")
@@ -354,6 +417,7 @@ def main(argv=None):
     ap.add_argument("--hreflang-limit", type=int, default=0, metavar="N",
                     help="sitemap 无 hreflang 注解、改读页面时最多抓取的 loc 数 (默认 0=全部)")
     args = ap.parse_args(argv)
+    del _REDIRECT_NOTES[:]
 
     target = args.url.strip()
     if not target.lower().startswith(("http://", "https://")):
@@ -368,6 +432,7 @@ def main(argv=None):
     origin = "{0}://{1}".format(parts.scheme, parts.netloc)
     path_l = (parts.path or "").lower()
     notes = []
+    sitemap_bad = []          # sitemap 文件本身的问题(返回 HTML 等),计入坏桶总数
     entries = []
     total_bytes = 0
     oversize_files = 0
@@ -390,6 +455,9 @@ def main(argv=None):
             notes.append("入口来自 robots.txt 的 Sitemap 声明: {0}".format(sitemap_url))
         try:
             kind, urls, children, nbytes = fetch_sitemap(sitemap_url, args.timeout)
+        except NotSitemap as e:
+            sitemap_bad.append(e.describe())
+            kind, urls, children, nbytes = "html", [], [], e.nbytes
         except Exception as e:
             print("[FATAL] 无法获取/解析 {0}: {1}".format(sitemap_url, e), file=sys.stderr)
             return 2
@@ -406,6 +474,9 @@ def main(argv=None):
         for child in picked:
             try:
                 k2, u2, c2, n2 = fetch_sitemap(child, args.timeout)
+            except NotSitemap as e:
+                sitemap_bad.append(e.describe())
+                continue
             except Exception as e:
                 notes.append("子 sitemap 获取失败: {0}: {1}".format(child, e))
                 continue
@@ -424,6 +495,9 @@ def main(argv=None):
                 for g in picked2:
                     try:
                         k3, u3, _c3, n3 = fetch_sitemap(g, args.timeout)
+                    except NotSitemap as e:
+                        sitemap_bad.append(e.describe())
+                        continue
                     except Exception as e:
                         notes.append("子 sitemap 获取失败: {0}: {1}".format(g, e))
                         continue
@@ -434,9 +508,10 @@ def main(argv=None):
                         entries.extend(u3)
             elif k2 == "sitemapindex":
                 notes.append("嵌套 sitemapindex 超过 1 层, 未继续下钻: {0} ({1} 个子)".format(child, len(c2)))
-    else:
+    elif kind != "html":
         print("[FATAL] 根元素不是 urlset/sitemapindex: {0}".format(sitemap_url), file=sys.stderr)
         return 2
+    notes.extend(_REDIRECT_NOTES)
 
     # 去重 (保序)
     locs = []
@@ -494,10 +569,19 @@ def main(argv=None):
     # ---------- 六坏桶 ----------
     b_non200, b_redir, b_noindex, b_canonical, b_robots, b_dup = [], [], [], [], [], []
 
-    limit = args.check_limit if args.check_limit > 0 else total
+    # 逐条检查的范围:默认 ≤DEFAULT_CHECK_CAP 全查,超过按位置均匀抽样(含首尾);
+    # 修前默认只查前 50 条——plausible 的 Google 验证文件 URL(302)排在第 160 条之后,漏报。
+    if args.check_limit is None:
+        cap, rule = DEFAULT_CHECK_CAP, "默认"
+    elif args.check_limit <= 0:
+        cap, rule = total, "--check-limit 0"
+    else:
+        cap, rule = args.check_limit, "--check-limit {0}".format(args.check_limit)
+    to_check = sample_children(locs, cap) if cap < total else list(locs)
+    sampled = len(to_check) < total
     checked = 0
     page_alts = {}                      # 六坏桶抓过的页:loc → <head> hreflang(--hreflang 复用)
-    for e in locs[:limit]:
+    for e in to_check:
         u = e["loc"]
         try:
             rp = robots_for(u, args.timeout)
@@ -561,8 +645,18 @@ def main(argv=None):
         if len(us) > 1 and len(qs) > 1:
             b_dup.extend(sorted(us))
 
-    if checked < total:
-        print("\n[范围] 逐条抓取检查了前 {0}/{1} 个 loc (--check-limit 可调)".format(checked, total))
+    how = "按位置均匀抽样,含首尾" if sampled else "全量"
+    if rule == "默认":
+        how += ";默认 ≤{0} 条全查、超过抽 {0} 条,--check-limit 可调".format(DEFAULT_CHECK_CAP)
+    else:
+        how += ";" + rule
+    if total or not sitemap_bad:
+        print("\n[范围] 逐条检查 {0}/{1} 个 loc({2});实际抓到 {3} 个,robots 屏蔽 {4} 个"
+              "(参数重复与 lastmod 统计按全部 {1} 个)".format(len(to_check), total, how, checked, len(b_robots)))
+    if sitemap_bad:
+        print("\n[sitemap 文件不是 sitemap(软 404)] 命中 {0}".format(len(sitemap_bad)))
+        for line in sitemap_bad[:10]:
+            print("   - {0}".format(line))
 
     print("\n---- 六坏桶 ----")
     print_bucket(1, "非 200 / 抓取失败", b_non200)
@@ -634,7 +728,8 @@ def main(argv=None):
         if len(notes) > 20:
             print("   ... 共 {0} 条".format(len(notes)))
 
-    bad_total = sum(len(x) for x in (b_non200, b_redir, b_noindex, b_canonical, b_robots, b_dup))
+    bad_total = sum(len(x) for x in (b_non200, b_redir, b_noindex, b_canonical, b_robots, b_dup,
+                                     sitemap_bad))
     fail = bool(bad_total or missing or hl_hard)
     print("\n==== 结论: 坏桶命中 {0} 条, must-include 缺失 {1} 个{2} => {3} ====".format(
         bad_total, len(missing),

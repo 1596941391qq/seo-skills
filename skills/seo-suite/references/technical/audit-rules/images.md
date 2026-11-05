@@ -12,7 +12,7 @@ alt 缺失=fail;alt 泛化("image"/文件名)=warn;alt 长度 **>125 字符 warn
 - 源表:`images-alt-present` fail · 权重 20(img 无 alt 属性);`images-alt-length` warn/fail · 权重 6(>125 字符 warn,>250 fail,无下限);泛化 alt 归 `images-alt-quality`。长度是工具约定。建议优先级 high(缺失)/low(长度)。
 **依据**: Google 结合 alt、计算机视觉和页面内容理解图片,alt 是最重要的图片元数据,也服务屏幕阅读器;不要往 alt 堆关键词([图片 SEO 文档](https://developers.google.com/search/docs/appearance/google-images))。Google 没有 alt 长度规则。装饰图用空 alt 是 W3C 推荐做法,不是缺失。核对 2026-10-18。
 **判据**: 通过=内容图有描述性 alt,装饰图 alt=""。失败=内容图无 alt 属性。长度超 125 只算提示。
-**执行**: `AUDIT URL` 出现 `[WARN] images: alt 缺失 N/M`(超过 20% 才报,且把 alt="" 也算缺失,需人工剔除装饰图);精确查无 alt 属性的图:`curl -s URL | grep -oiE '<img[^>]*>' | grep -viE ' alt='`。
+**执行**: `AUDIT URL` 出现 `[WARN] images: alt 缺失 N/M`(超过 20% 才报;只算没有 alt 属性的图,`alt=""` 是装饰图的正确写法,不算缺失——2026-11-05 对齐脚本实际行为,旧文写反了);精确查无 alt 属性的图:`curl -s URL | grep -oiE '<img[^>]*>' | grep -viE ' alt='`。
 **修复**: 内容图写"图里有什么";装饰图用空 alt;复杂图表用 figcaption 写长描述。
 **关联**: images-alt-generic;[semantic-html.md](../semantic-html.md)
 

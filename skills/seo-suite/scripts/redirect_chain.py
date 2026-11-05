@@ -13,6 +13,7 @@
   * 301 vs 302: 永久性变更 (http->https 升级 / 加去 www / 仅尾斜杠差异) 却用
     302/303/307 -> 提示应改 301 (308 为永久保留方法, 视同 301)
   * 每跳检查查询参数保留: 上一跳的全部参数应出现在下一跳 URL 中
+  * HTTPS -> HTTP 降级跳转 -> 警告 (Ahrefs「HTTPS to HTTP redirect」)
 
 退出码: 存在 CRITICAL (循环 / >5 跳 / 超过 --max) -> 1; 仅警告 -> 0; 致命错误 -> 2.
 """
@@ -147,6 +148,12 @@ def main(argv=None):
                 break
             seen.add(n)
 
+            # HTTPS → HTTP 降级(Ahrefs「HTTPS to HTTP redirect」warning:「It is not recommended to
+            # redirect HTTPS URLs to HTTP URLs」https://help.ahrefs.com/en/articles/2442569,2026-11-05 读取)
+            if urlsplit(current).scheme.lower() == "https" and urlsplit(nxt).scheme.lower() == "http":
+                issues.append(("WARN", "第 {0} 跳 HTTPS→HTTP 降级: {1} -> {2} (跳转目标应保持 HTTPS)".format(
+                    len(chain), truncate(current, 48), truncate(nxt, 48))))
+
             # 301 vs 302 建议
             perm = looks_permanent(current, nxt)
             if perm and status not in PERMANENT:
@@ -187,7 +194,7 @@ def main(argv=None):
         for sev, text in issues:
             print("  [{0}] {1}".format(sev, text))
     else:
-        print("\n无问题: 链长 <= 2 跳, 无循环, 无参数丢失, 无 301/302 误用.")
+        print("\n无问题: 链长 <= 2 跳, 无循环, 无参数丢失, 无 301/302 误用, 无 HTTPS→HTTP 降级.")
 
     print("==== 结论: {0} ====".format("CRITICAL (退出码 1)" if critical else "PASS/WARN (退出码 0)"))
     return 1 if critical else 0

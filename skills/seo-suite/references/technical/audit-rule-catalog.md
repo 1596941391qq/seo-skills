@@ -20,23 +20,23 @@
 |---|---|---|---|---|
 | Crawlability | [audit-rules/crawlability.md](audit-rules/crawlability.md) | 38 | 5% | `robots`、`canonical`;⛏ 跨页条目单页不测,用 `CRAWL`/`SITEMAP` |
 | E-E-A-T | [audit-rules/eeat.md](audit-rules/eeat.md) | 16 | 3% | 无(site_audit 不查) |
-| Internationalization | [audit-rules/i18n.md](audit-rules/i18n.md) | 13 | 2% | 无;用 `HREFLANG` |
+| Internationalization | [audit-rules/i18n.md](audit-rules/i18n.md) | 13 | 2% | `a11y`(html 无 lang);其余用 `HREFLANG` |
 | Core SEO | [audit-rules/core-seo.md](audit-rules/core-seo.md) | 24 | 11% | `title`、`description`、`h1`、`canonical`、`robots`、`staging` |
 | Performance | [audit-rules/performance.md](audit-rules/performance.md) | 28 | 10% | 无;现场数据用 `field_data.py` |
 | Links | [audit-rules/links.md](audit-rules/links.md) | 27 | 8% | `links`(只计数) |
 | Images | [audit-rules/images.md](audit-rules/images.md) | 14 | 8% | `images` |
 | Security | [audit-rules/security.md](audit-rules/security.md) | 26 | 8% | 无 |
-| Technical SEO | [audit-rules/technical-seo.md](audit-rules/technical-seo.md) | 18 | 7% | `fetch`;robots.txt、sitemap 存在性在 AI Search Health 子分 |
+| Technical SEO | [audit-rules/technical-seo.md](audit-rules/technical-seo.md) | 18 | 7% | `fetch`;`robots`/`sitemap` 不可达(INFO) |
 | Structured Data | [audit-rules/structured-data.md](audit-rules/structured-data.md) | 19 | 5% | `schema` |
-| Content | [audit-rules/content.md](audit-rules/content.md) | 27 | 5% | `content`、`headings`、`bluf` |
+| Content | [audit-rules/content.md](audit-rules/content.md) | 27 | 5% | `content`(词数 <200 / >15000)、`headings`(跳级、h1 前低级标题、H2 少)、`bluf` |
 | JavaScript Rendering | [audit-rules/javascript-rendering.md](audit-rules/javascript-rendering.md) | 16 | 5% | `rendering` |
 | Accessibility | [audit-rules/accessibility.md](audit-rules/accessibility.md) | 36 | 7% | `a11y` |
-| Social | [audit-rules/social.md](audit-rules/social.md) | 9 | 3% | `og` |
+| Social | [audit-rules/social.md](audit-rules/social.md) | 9 | 3% | `og`(title/description/image 缺失、og:image/og:url 非绝对) |
 | URL Structure | [audit-rules/url-structure.md](audit-rules/url-structure.md) | 14 | 3% | 无 |
 | Redirects | [audit-rules/redirects.md](audit-rules/redirects.md) | 11 | 3% | 无;用 `REDIR` |
-| Mobile | [audit-rules/mobile.md](audit-rules/mobile.md) | 12 | 2% | 无 |
+| Mobile | [audit-rules/mobile.md](audit-rules/mobile.md) | 12 | 2% | `rendering`(插件内容,Lighthouse plugins 口径;源表无此条,见第七节) |
 | HTML Validation | [audit-rules/html-validation.md](audit-rules/html-validation.md) | 11 | 2% | 无 |
-| AI/GEO Readiness | [audit-rules/ai-geo-readiness.md](audit-rules/ai-geo-readiness.md) | 13 | 2% | `ai-bots`、`llms.txt`、`freshness`、`semantic_html` |
+| AI/GEO Readiness | [audit-rules/ai-geo-readiness.md](audit-rules/ai-geo-readiness.md) | 13 | 2% | `ai-bots`、`llms.txt`、`freshness`、`semantic-html`、`robots`(bingbot 专属指令、max-video-preview) |
 | Legal Compliance | [audit-rules/legal-compliance.md](audit-rules/legal-compliance.md) | 1 | 1% | 无 |
 
 ---
@@ -55,11 +55,11 @@
 
 | 简写 | 命令 | 用途与限制 |
 |---|---|---|
-| `AUDIT` | `python3 scripts/site_audit.py URL [--market xx] [--json] [--export-dir DIR]` | 单页;输出 `[级别] area: 消息`;有 CRITICAL 退出码 1。CRITICAL 只有:缺 title、noindex、staging 子域、搜索类 AI bot 被禁(Google-Extended 为 WARN)、抓取失败。缺 description、缺 H1/多个 H1、缺 canonical、相对 canonical 是 WARN;>100 链接是 INFO(工具约定,Google 无此上限)。title/description 区间取 `scripts/markets.json`(`desc_min` 为 description 下限;zh/ja/ko 按显示宽度)。挑战页只按结构特征判,命中输出 `[SKIP]` 拒审。不跨页、不渲染;meta robots 只取最后一个 `name=robots`,与 X-Robots-Tag 合并判 noindex,不识别 `none` 与 googlebot meta |
-| `SITEMAP` | `python3 scripts/sitemap_audit.py 站点 --check-limit 0` | 六坏桶:1 非200/2 3xx/3 noindex/4 canonical 他指/5 robots 屏蔽/6 参数重复 + lastmod 三判定;默认只逐条查前 50 条;加 `--hreflang` 另查 sitemap 载体的 hreflang(自引用、互指、码值、完整 URL) |
+| `AUDIT` | `python3 scripts/site_audit.py URL [--market xx] [--json] [--export-dir DIR]` | 单页;输出 `[级别] area: 消息`;有 CRITICAL 退出码 1。CRITICAL 只有:缺 title、noindex、staging 子域、搜索类 AI bot 被禁(Google-Extended 为 WARN)、抓取失败。缺 description、缺 H1/多个 H1、缺 canonical、相对 canonical 是 WARN;>100 链接是 INFO(工具约定,Google 无此上限)。title/description 区间取 `scripts/markets.json`(`desc_min` 为 description 下限;zh/ja/ko 按显示宽度)。挑战页只按结构特征判,命中输出 `[SKIP]` 拒审。不跨页、不渲染;meta robots 取最后一个 `name=robots`,与 `name=googlebot`、X-Robots-Tag 合并判 noindex(认 `none`);`name=bingbot` 与 `X-Robots-Tag: bingbot:` 只对 Bing 生效,单独报;`--serp-titles FILE` 给了才比 title 与搜索结果标题(没给时 `meta.serp_title_check` 写跳过原因)。全部检查与目录的对应见第七节 |
+| `SITEMAP` | `python3 scripts/sitemap_audit.py 站点 --check-limit 0` | 六坏桶:1 非200/2 3xx/3 noindex/4 canonical 他指/5 robots 屏蔽/6 参数重复 + lastmod 三判定;逐条检查默认 ≤500 条全查、超过按位置均匀抽 500 条(含首尾),输出 [范围] 行写明查了几条、共几条;sitemap 本身返回 HTML 报「不是 sitemap(软 404)」并计入失败;加 `--hreflang` 另查 sitemap 载体的 hreflang(自引用、互指、码值、完整 URL) |
 | `HREFLANG` | `python3 scripts/hreflang_cluster.py URL1 URL2 …` | 簇矩阵:自引用/语言码/绝对URL/HTTP200/双向回报 + 三载体冲突;跟随重定向;语言码按 Google 口径判(拒 es-419、认 zh-Hans、大小写不敏感、UK/EU 报保留码) |
-| `REDIR` | `python3 scripts/redirect_chain.py URL [--max N]` | 逐跳;>2 跳 WARN,>5 跳或环 CRITICAL;临时码用于永久变化 WARN;打印「终态: HTTP」 |
-| `CRAWL` | `python3 scripts/site_crawl.py 站点 --max N --out crawl.json` | `pages[]` 含 url/status/final_url/canonical/depth/inlinks/source,另有 `edges`、`orphans`;N 要覆盖全站,截断时入链偏少 |
+| `REDIR` | `python3 scripts/redirect_chain.py URL [--max N]` | 逐跳;>2 跳 WARN,>5 跳或环 CRITICAL;临时码用于永久变化 WARN;HTTPS→HTTP 降级 WARN;打印「终态: HTTP」 |
+| `CRAWL` | `python3 scripts/site_crawl.py 站点 --max N --out crawl.json [--check-external]` | `pages[]` 含 url/status/final_url/canonical/depth/inlinks/source,另有 `edges`、`orphans`、`link_issues`(重定向目标页无直接内链、HTTP↔HTTPS 混链、HTTPS→HTTP 重定向)、`subdomain_robots`;`--check-external` 另出 `external_redirects`(外链 URL 3xx 抽检);N 要覆盖全站,截断时入链偏少 |
 | `GRAPH` | `python3 scripts/link_graph.py --crawl crawl.json` | 深度直方图(>3 层占比)、入链 0/1 清单、锚文本审计 |
 | `ROBOTS` | `python3 scripts/robots_posture.py 站点/robots.txt --json` | 含 `crawl_delay`(`*` 组)与 `sitemaps` 字段 |
 | `GSC 网址检查` | Search Console → 网址检查 | 「是否允许抓取 / 是否允许编入索引 / 用户声明与 Google 选择的规范网址」;「查看已抓取的网页 → 更多信息」列出资源 |
@@ -105,4 +105,65 @@ jq/grep 片段(`crawl.json` 来自 `CRAWL`;已用样例数据实测):
 - 后续扩写按同规范增量进行:第四批后 20 类主要规则均有解释层覆盖,剩余为 AI/GEO 13 条(细则在专项文档,存目即可)与各节同构细分条(逐条单列的扩写价值低);后续批次以源目录变动核对、[待核] 阈值复核与新增规则补录为主——每扩一批,更新本节数字。
 - 新增条目必须照抄源表阈值并遵守〇节 ID 纪律与两轴哲学;来源变动的核对入口是 intel_check.py 的 google-updates 源(映射到本文)。
 
+---
+
+## 七、site_audit 实际检查与目录对齐(2026-11-05,RQ-229 第 3 批)
+
+`site_audit.py` 的每条检查都在下表登记(`tests/test_rq229_accuracy.py` 逐条核对 `RULE_SLUGS`,脚本新增检查而本表没写会红)。「依据」写一手出处;没有出处的写「本套件口径」。
+
+| 导出 slug | 级别 | 对应目录规则 | 依据 |
+|---|---|---|---|
+| `staging-subdomain` | CRITICAL | 〇节 AUDIT | 本套件口径 |
+| `title-missing` / `title-too-long` / `title-too-short` | CRITICAL / WARN / WARN | core-title-present | 上限按 markets.json;Google 无字数上限 |
+| `title-serp-mismatch` | INFO | 源表无;Ahrefs「Page and SERP titles do not match」 | [Ahrefs 站点审计研究](https://ahrefs.com/blog/site-audit-study/);只在给了 `--serp-titles` 时比 |
+| `description-missing` / `description-too-long` / `description-too-short` | WARN | core-description-present | 本套件口径(下限 desc_min) |
+| `h1-missing` / `h1-multiple` | WARN | core-h1-present | SEO 入门指南 |
+| `headings-skip-level` / `headings-before-h1` | WARN | content-heading-family、a11y-heading-hierarchy | [W3C WAI Headings](https://www.w3.org/WAI/tutorials/page-structure/headings/) |
+| `headings-h2-few` | INFO | javascript-rendering(rendering 五项之 H1/H2) | geo-aeo-tracker 源码口径 |
+| `canonical-missing` / `canonical-relative` / `canonical-external` | WARN / WARN / INFO | core-canonical-present、core-canonical-external | Google canonical 文档 |
+| `robots-noindex` / `robots-nosnippet` | CRITICAL / WARN | core-robots-meta、core-nosnippet | Google robots meta 文档 |
+| `robots-bingbot-noindex` / `robots-bingbot-only` / `robots-max-video-preview` | WARN / INFO / WARN·INFO | core-robots-meta(GEO 补项) | [Bing robots meta 文档](https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240) |
+| `og-title-missing` / `og-description-missing` / `og-image-missing` | WARN | social 类 | ogp.me |
+| `og-image-not-absolute` / `og-url-not-absolute` | WARN | social-og-url-canonical | [ogp.me](https://ogp.me/) Types 表:URL 须 http(s):// |
+| `a11y-no-lang` | WARN | i18n-lang-attribute、a11y 类 | HTML 标准 lang |
+| `content-thin` / `content-too-long` | WARN | content-word-count(源表阈值 300/100 只在文档;脚本用 <200)/ AI-GEO 存目 | 本套件口径 |
+| `links-too-many` | INFO | links 类 | 工具约定,Google 无上限 |
+| `images-alt-missing` | WARN | images-alt-present | W3C WAI Decorative Images(`alt=""` 不算缺失) |
+| `schema-jsonld-missing` | WARN | structured-data 类 | 本套件口径 |
+| `rendering-csr` / `rendering-no-noscript` / `rendering-js-heavy` / `rendering-weak-server-content` | WARN·INFO | javascript-rendering | geo-aeo-tracker 源码口径 |
+| `rendering-plugins` | WARN | 源表无;Lighthouse「Document uses plugins」、Ahrefs 同名项 | [Lighthouse plugins](https://developer.chrome.com/docs/lighthouse/seo/plugins) |
+| `bluf-low` | INFO | AI-GEO 存目 | geo-aeo-tracker 源码公式 |
+| `robots-unreachable` / `sitemap-unreachable` / `llms-txt-unreachable` | INFO | technical-seo、AI-GEO | RFC 9309(robots 404=全放行,不报) |
+| `ai-bots-blocked` / `ai-bots-training-blocked` | CRITICAL·WARN / INFO | AI-GEO 存目、[ai-crawler-policy.md](ai-crawler-policy.md) | 各家 bot 官方页 |
+| `freshness-stale` | INFO | AI-GEO 存目 | Semrush AI Search Health(183 天) |
+| `semantic-html-low` | INFO | AI-GEO 存目 | 阈值本套件口径 |
+| `fetch`(无导出 slug,按 area 兜底) | CRITICAL | technical-seo 5xx/超时 | — |
+
+**目录里有、脚本没跑(或目录写错)——本批处理结果:**
+
+| 条目 | 原状 | 处理 |
+|---|---|---|
+| images-alt-present | 目录写「alt="" 也算缺失」,脚本只算没有 alt 属性 | 改目录(脚本对) |
+| core-robots-meta | 目录写「不识别 none 与 googlebot meta」 | 脚本补上 none、googlebot、bingbot 分路;目录改写;nofollow、noimageindex 仍只在文档 |
+| social-og-url-canonical | 目录写「site_audit 不查 og:url」 | 脚本补绝对 URL 检查;与 canonical 是否一致仍只在文档 |
+| content-heading-family | 目录列标题长度 <10/>70、同页重复标题 | 工具约定、无搜索引擎依据,不补,标「只在文档」 |
+| content-word-count | 源表 300/100 阈值 | 脚本用 <200(本套件口径),源表阈值标「只在文档」 |
+| AI/GEO 类别表 `semantic_html` | area 名写错 | 改成脚本实际输出的 `semantic-html` |
+| core-canonical-conflicting、core-canonical-multiple、core-robots-directive-mismatch | 目录已写明 site_audit 不查 | 维持「只在文档」(G1/G3/G6 手工) |
+
+**脚本跑了、目录没写(本批之前已有)**:`content-too-long`、`bluf-low`、`freshness-stale`、`ai-bots-training-blocked`、`headings-h2-few`、`robots/sitemap/llms-txt-unreachable`——上表已登记。
+
+**本批新增(Ahrefs 6 项与 GEO 3 项的落点)**:
+
+| 项 | 落在 | 判据出处 |
+|---|---|---|
+| 重定向目标页没有直接内链 | `CRAWL` 的 `link_issues.redirect_target_no_direct_inlinks` | [Ahrefs 帮助](https://help.ahrefs.com/en/articles/2754350):「pages that are only linked via a redirect」 |
+| HTTP 页链到 HTTPS(及反向) | `CRAWL` 的 `link_issues.http_page_links_to_https` / `https_page_links_to_http` | 反向项 [Ahrefs 帮助](https://help.ahrefs.com/en/articles/2614035);正向项官方无单篇帮助文,出现在 Ahrefs 问题清单(Patrick Stox,SERP Conf 2024 演讲) |
+| HTTPS 跳到 HTTP | `CRAWL` 的 `link_issues.https_to_http_redirects`;`REDIR` 的 WARN | [Ahrefs 帮助](https://help.ahrefs.com/en/articles/2442569) |
+| 页面 title 与搜索结果标题不一致 | `AUDIT --serp-titles FILE` | [Ahrefs 研究](https://ahrefs.com/blog/site-audit-study/);无 SERP 数据时跳过并写原因 |
+| 页面用了插件 | `AUDIT` 的 `rendering-plugins` | [Lighthouse plugins](https://developer.chrome.com/docs/lighthouse/seo/plugins)、[Ahrefs SEO issues](https://ahrefs.com/blog/seo-issues/) |
+| 外链 3xx | `CRAWL --check-external` 的 `external_redirects`(按引用页数抽前 50 个外链 URL,写明查了几个/共几个) | [Ahrefs 帮助](https://help.ahrefs.com/en/articles/2724308)、[Ahrefs 301 文第 9 节](https://ahrefs.com/blog/301-redirects/) |
+| 各子域各自的 robots.txt | `CRAWL` 的 `subdomain_robots`(抓得到才判) | [Bing 博客 2012](https://blogs.bing.com/webmaster/2012/5/To-crawl-or-not-to-crawl,-that-is-BingBot-s-questi/)、[Google robots.txt 规范](https://developers.google.com/crawling/docs/robots-txt/robots-txt-spec) |
+| Bing 的 max-video-preview | `AUDIT` 的 `robots-max-video-preview` | [Bing robots meta 文档](https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240) |
+| 只对 Bing 生效的 `name="bingbot"` | `AUDIT` 的 `robots-bingbot-noindex` / `robots-bingbot-only` | 同上 |
 

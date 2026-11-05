@@ -12,7 +12,7 @@ og:title/description/image 缺失或为空=**fail**(用 `name=` 代替 `property
 - 源表:warn/fail · 权重 1。比较 og:url 与 canonical(host 小写、去尾斜杠):不一致或有 canonical 无 og:url=fail;只有 og:url 或两者都无=warn。工具约定。建议优先级 medium。
 **依据**: Open Graph 协议把 og:url 定义为"The canonical URL of your object that will be used as its permanent ID in the graph"([ogp.me](https://ogp.me/))。og:url 与 canonical 不同,社交平台归并分享计数的 URL 与搜索引擎的规范 URL 就分裂。核对 2026-10-18。
 **判据**: 通过=og:url 与 canonical 同值。失败=不同(常见是 og:url 带 utm 参数)。
-**执行**: `curl -s URL | grep -oiE '<meta[^>]+property=.?og:url[^>]*>'` 与 G1 比对;site_audit 只查 og:title/description/image,不查 og:url。
+**执行**: `curl -s URL | grep -oiE '<meta[^>]+property=.?og:url[^>]*>'` 与 G1 比对;site_audit 与 head_check 查 og:url 是否为 http(s):// 绝对 URL(`[WARN] og: og:url 非绝对 URL`,ogp.me URL 类型口径);og:url 与 canonical 是否同一 URL 仍要上面的命令人工比对(只在文档)。
 **修复**: og:url 复用 canonical 的同一模板变量。
 **关联**: core-canonical-conflicting;[head-elements.md](../head-elements.md) OG 消费矩阵
 

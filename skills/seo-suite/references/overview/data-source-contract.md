@@ -44,7 +44,7 @@
 
 | 脚本 | 数据 | 降级 | 反编造 |
 |---|---|---|---|
-| `sitemap_audit.py` | sitemap URL 实时抓取(sitemapindex 递归 1 层;逐 loc 抽查状态码/标签) | ③ 入口不可达→报错指名;② `--check-limit` 限定抽查数,结论只覆盖抽查样本 | 六坏桶只报实测状态码/标签;不推测未抽查 URL 的健康;lastmod 伪造只按三判定的显式证据 |
+| `sitemap_audit.py` | sitemap URL 实时抓取(sitemapindex 递归 1 层;逐 loc 抽查状态码/标签) | ③ 入口不可达→报错指名;② 默认 ≤500 条全查、超过按位置均匀抽 500 条(`--check-limit` 可调),输出写明查了几条/共几条,结论只覆盖抽查样本;入口返回 HTML→报「不是 sitemap(软 404)」发现,不当输入错误 | 六坏桶只报实测状态码/标签;不推测未抽查 URL 的健康;lastmod 伪造只按三判定的显式证据 |
 | `hreflang_cluster.py` | 多个 URL 实时抓取(HTML link 标签+HTTP Link 头+sitemap XML 三载体) | ② 未作为入参的 alternate 自动补抓(`--max-extra` 上限,超限标"未验证") | 只判实际抓到的声明;A 指向 B 而 B 不指回 A,Google 忽略这一对,其余互指的照常处理——不是整簇作废([Google 文档](https://developers.google.com/search/docs/specialty/international/localized-versions),页面日期 2026-09-21);语言码按 ISO 639-1(可加 ISO 15924 文字码、ISO 3166-1 区域码),es-419 这类码 Google 不支持 |
 | `redirect_chain.py` | URL 实时逐跳 GET(手动跟随不自动重定向) | ③ 网络错误→exit 2 | 只报实测跳数/状态码/参数保留;301 建议来自规则映射,不虚构"权重损失数值" |
 | `robots_posture.py` | robots.txt 实时抓取;37 bot 四层名单(search 15/training 11/user 8/other 3,带官方核实标记)+RFC 9309 解析器内置本地 | ③ robots.txt 不可达→报错不判 posture | 四态判定只基于文件内容;通配符 Allow 只拿部分分(两级评分),不夸大为"已放行";`--fix-robots` 只打印不写盘 |

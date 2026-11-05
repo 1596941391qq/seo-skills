@@ -79,6 +79,7 @@ CT_PROBE_CAP = 30                # crt.sh 候选逐个 DNS+200 验收的数目�
 SUB_PROBE_BUDGET_S = 30           # 常见子域探测总预算(秒);超时剩余跳过
 EXTERNAL_SAMPLE = 10             # --check-external 抽样域数
 EXTERNAL_TOP = 50                # external_domains 聚合表保留 Top N
+EXTERNAL_URL_SAMPLE = 50         # --check-external 外链 URL 3xx 抽检个数(按引用页数取前 N)
 SKIP_HREF_SCHEMES = ("javascript:", "mailto:", "tel:", "data:", "ftp:")
 ANCHOR_MAX_LEN = 80               # R3-5:锚文本截断长度(去空白后)
 ANCHOR_MIN_LEN = 2                # R3-5:短于 2 字的锚不落盘(无信号;亦保持 edges 旧快照兼容,anchor 键可缺)
@@ -209,6 +210,28 @@ def normalize_url(u, base=None, strip_params=False):
         return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
     except ValueError:
         return None
+
+
+def _looks_html(text):
+    """正文开头是 HTML 文档(<!doctype html>/<html>/<head>/<body>)。robots.txt、sitemap 这类
+    文本文件 200 却回页面壳时用(SPA 对任意路径回 200,sspai 2026-11-05 实测)。"""
+    return bool(re.match(r"\s*(?:\ufeff)?\s*<(?:!doctype\s+html|html[\s>]|head[\s>]|body[\s>])",
+                         text[:2048] or "", re.I))
+
+
+def _redirect_kind(src, dst):
+    """外链重定向分类:同站换协议/加去 www/尾斜杠 → 低优先;跳到别的站或别的路径 → 要人看
+    (Ahrefs 301 文:「ignore things like HTTP to HTTPS redirects ... Look for redirects to different
+    sites or pages」)。"""
+    a, b = urllib.parse.urlsplit(src), urllib.parse.urlsplit(dst)
+    ha = (a.hostname or "").lower()
+    hb = (b.hostname or "").lower()
+    strip = lambda h: h[4:] if h.startswith("www.") else h
+    if strip(ha) != strip(hb):
+        return "跳到别的站"
+    if (a.path or "/").rstrip("/") != (b.path or "/").rstrip("/") or a.query != b.query:
+        return "跳到别的路径"
+    return "协议/www/尾斜杠规范化"
 
 
 def _top_domains(counter, n):
@@ -530,7 +553,13 @@ class Crawler:
         self.edge_anchor = {}           # (src, dst) -> 锚文本(R3-5;同边多锚首见优先)
         self.external = Counter()       # 外链 registrable domain -> 次数(页内去重后累计)
         self.accepted_subs = set()      # 已收子域(同 registrable、≠种子主机)
-        self.counts = {"robots": 0, "sitemap": 0, "crawl": 0}
+        self.counts = {"robots": 0, "sitemap": 0, "crawl": 0}   # 子域根页另记 "subdomain"(有才出现)
+        self.crawl_fallback = False     # 链④ 是否开着(写进 discovery,摘要按它说话)
+        self.robots_status = {}         # origin -> HTTP 状态 / "html" / "error"(子域 robots 检查用)
+        self.redirect_hops = {}         # url -> [(from, to, status)](HTTPS→HTTP 重定向检查用)
+        self.external_urls = Counter()  # 外链完整 URL -> 引用页数(外链 3xx 抽检用)
+        self.external_src = {}          # 外链 URL -> 首个引用页
+        self.served = {}                # url -> 实际返回内容的最终 URL(判断页面协议)
         self.mode = None
         self.queue = deque()
         self.seen = set()
@@ -577,10 +606,18 @@ class Crawler:
         doc = None
         try:
             r = self._request(origin + "/robots.txt")
+            st = r["status"]
+            if st == 200 and _looks_html(r["body"]):
+                st = "html"               # 200 却是 HTML 页面:解析不出规则(软 404)
+            self.robots_status[origin] = st
             if r["status"] == 200:
                 doc = parse_robots(r["body"])
         except FetchError:
             doc = None
+            self.robots_status[origin] = "error"
+        except GuardError:
+            doc = None
+            self.robots_status[origin] = "error"
         self._robots_cache[origin] = doc
         return doc
 
@@ -713,6 +750,7 @@ class Crawler:
         crawl_fallback = self.mode == "crawl" or (
             self.mode in ("robots+sitemap", "sitemap")
             and self.counts["sitemap"] < SITEMAP_CLOSES_CRAWL)
+        self.crawl_fallback = crawl_fallback
         return self.mode, crawl_fallback
 
     # ---- 子域发现 ----
@@ -755,7 +793,9 @@ class Crawler:
             if url and url not in self.seen:
                 self.seen.add(url)
                 self.queue.append((url, "crawl"))
-                self.counts["crawl"] += 1
+                # 子域根页单独计数:修前记进 counts["crawl"],摘要把它说成「loc<50 兜底开着」
+                # (everyinfra 2769 条 loc、plausible 167 条 loc 都被这样误写,2026-11-05 评分)
+                self.counts["subdomain"] = self.counts.get("subdomain", 0) + 1
 
     def _crtsh_subdomains(self):
         """crt.sh CT 日志子域发现(https://crt.sh/?q=%.{domain}&output=json);失败优雅跳过。"""
@@ -795,6 +835,7 @@ class Crawler:
         rec = {"url": url, "status": None, "title": None, "canonical": None, "depth": None,
                "inlinks": 0, "out_internal": 0, "out_external": 0, "source": source}
         internal_targets, externals = set(), set()
+        page_ext_urls = set()
         try:
             r = self._request(url)
         except FetchError as e:
@@ -809,6 +850,12 @@ class Crawler:
                 self.redirects += 1
                 if r["final_url"] != url:
                     rec["final_url"] = r["final_url"]
+                hops, prev = [], url
+                for h in r["chain"]:
+                    hops.append((prev, h["location"], h["status"]))
+                    prev = h["location"]
+                self.redirect_hops[url] = hops
+            self.served[url] = r["final_url"]
             title, canonical, hrefs, anchors = extract_links(r["body"], r["final_url"])
             rec["title"], rec["canonical"] = title, canonical
             for i, h in enumerate(hrefs):
@@ -829,6 +876,10 @@ class Crawler:
                     if len(atext) >= ANCHOR_MIN_LEN:   # R3-5:锚文本配对进边(首见优先)
                         self.edge_anchor.setdefault((url, absu), atext)
                 else:
+                    if absu not in page_ext_urls:
+                        page_ext_urls.add(absu)
+                        self.external_urls[absu] += 1
+                        self.external_src.setdefault(absu, url)
                     ed = registrable(h2)
                     if ed == self.reg:
                         # --same-host 下跨子域链接记外链:聚合键用完整主机
@@ -884,6 +935,124 @@ class Crawler:
             except FetchError as e:
                 out.append({"domain": domain, "status": None, "error": str(e)})
         return out
+
+    # ---- Ahrefs 站点审计补项(2026-11-05 RQ-229 第 3 批;判据原文与 URL 见各段注释) ----
+
+    def link_issues(self, inlinks_direct):
+        """跨页链接/重定向问题。inlinks_direct: 页面 → 直接指向它的内链数(不经重定向)。
+        返回 dict,写进 crawl.json 的 link_issues 节。"""
+        out = {}
+        # ① Redirected page has no incoming internal links(Ahrefs:「This issue reports pages that
+        #    are only linked via a redirect」;只对想排名的可索引页有意义——本脚本不判可索引性,
+        #    结果里写明。https://help.ahrefs.com/en/articles/2754350,2026-11-05 读取)
+        #    判法:重定向的目标页(站内、最终 200、非首页)没有任何直接内链,只能经重定向到达。
+        seed_final = self.served.get(self.seed, self.seed)
+        via = {}
+        for u in self.order:
+            rec = self.pages[u]
+            fu = rec.get("final_url")
+            if not fu or not self.is_internal(host_of(fu)) or rec.get("status") != 200:
+                continue
+            if fu in (self.seed, seed_final):
+                continue
+            via.setdefault(fu, []).append(u)
+        rows = []
+        for tgt, srcs in via.items():
+            if inlinks_direct.get(tgt, 0) == 0:
+                rows.append({"target": tgt, "via": sorted(srcs),
+                             "links_to_redirects": sum(inlinks_direct.get(x, 0) for x in srcs)})
+        out["redirect_target_no_direct_inlinks"] = sorted(rows, key=lambda r: r["target"])
+        # ② 协议混用的内链:HTTP 页链到 HTTPS(Ahrefs「HTTP page has internal links to HTTPS」,
+        #    官方帮助文无单篇;Ahrefs 首席 Patrick Stox SERP Conf 2024 演讲「Links (Indexable)」
+        #    列此项),反向 HTTPS 页链到 HTTP(「This issue reports HTTPS pages linking to HTTP URLs
+        #    on your website」https://help.ahrefs.com/en/articles/2614035)。
+        #    页面协议按实际返回内容的最终 URL 判(http 页 301 到 https 时,链接出自 https 页)。
+        h2s, s2h = {}, {}
+        for src, dst in self.edges:
+            served = self.served.get(src, src)
+            sch_src = urllib.parse.urlsplit(served).scheme
+            sch_dst = urllib.parse.urlsplit(dst).scheme
+            if sch_src == "http" and sch_dst == "https":
+                h2s.setdefault(served, set()).add(dst)
+            elif sch_src == "https" and sch_dst == "http":
+                s2h.setdefault(served, set()).add(dst)
+        out["http_page_links_to_https"] = [{"page": k, "links": sorted(v)[:20], "count": len(v)}
+                                           for k, v in sorted(h2s.items())]
+        out["https_page_links_to_http"] = [{"page": k, "links": sorted(v)[:20], "count": len(v)}
+                                           for k, v in sorted(s2h.items())]
+        # ③ HTTPS to HTTP redirect(Ahrefs:「pages on your website on a HTTPS protocol but are now
+        #    being redirected to a page with HTTP protocol」https://help.ahrefs.com/en/articles/2442569)
+        rows = []
+        for u in self.order:
+            for frm, to, st in self.redirect_hops.get(u, ()):
+                if (urllib.parse.urlsplit(frm).scheme == "https"
+                        and urllib.parse.urlsplit(to).scheme == "http"):
+                    rows.append({"url": u, "from": frm, "to": to, "status": st})
+        out["https_to_http_redirects"] = rows
+        return out
+
+    def check_external_redirects(self, limit=EXTERNAL_URL_SAMPLE):
+        """--check-external:外链 URL 抽检 3xx(Ahrefs「External 3XX redirect」:站点链出的外部 URL
+        跳到了别处;「The URL could have been redirected after you had added a link to it ...
+        the link from your website might be pointing elsewhere now」
+        https://help.ahrefs.com/en/articles/2724308;External pages 报告的该项见
+        https://ahrefs.com/blog/301-redirects/ 第 9 节)。只发 HEAD(405/501 回退 GET),不跟进外站内容。
+        取引用页数最多的 limit 个 URL(同数按字典序),输出写明查了几个、共几个。"""
+        picked = sorted(self.external_urls.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+        rows = []
+        for u, n in picked:
+            try:
+                r = self._request(u, method="HEAD")
+                if r["status"] in (405, 501):
+                    r = self._request(u)
+            except (FetchError, GuardError) as e:
+                rows.append({"url": u, "status": None, "error": str(e), "linked_from": n,
+                             "example_source": self.external_src.get(u)})
+                continue
+            if r["chain"]:
+                first = r["chain"][0]
+                rows.append({"url": u, "status": first["status"], "location": first["location"],
+                             "final_url": r["final_url"], "final_status": r["status"],
+                             "kind": _redirect_kind(u, r["final_url"]), "linked_from": n,
+                             "example_source": self.external_src.get(u)})
+        return {"checked": len(picked), "total": len(self.external_urls),
+                "redirects": [x for x in rows if x.get("status") is not None],
+                "errors": [x for x in rows if x.get("status") is None]}
+
+    def subdomain_robots(self):
+        """各子域各自的 robots.txt(GEO 补项)。判据:BingBot「looks at the root of the host」
+        取 robots.txt,host 是完整子域;子域没有 robots.txt 时「BingBot will not try to fall back to
+        any other file in your domain, meaning it will consider itself allowed anywhere on the
+        subdomain」(https://blogs.bing.com/webmaster/2012/5/To-crawl-or-not-to-crawl,-that-is-BingBot-s-questi/);
+        Google 同口径「A robots.txt on a subdomain is only valid for that subdomain」
+        (https://developers.google.com/crawling/docs/robots-txt/robots-txt-spec)。
+        抓得到才判:网络失败/5xx 记「未判定」。--ignore-robots 时不抓,返回 None。"""
+        if self.ns.ignore_robots or self.ns.same_host:
+            return None
+        main_origin = self._origin(self.seed)
+        main_doc = self._robots(main_origin)
+        main_rules = 0
+        if main_doc:
+            main_rules = sum(len([x for x in g.get("disallow", []) if x])
+                             for g in main_doc.get("groups", {}).values())
+        rows = []
+        for host in sorted(self.accepted_subs):
+            origin = "%s://%s" % (self.scheme, host)
+            self._robots(origin)
+            st = self.robots_status.get(origin)
+            if st == 200:
+                verdict = "有"
+            elif st == "html":
+                verdict = "返回 HTML(不是 robots.txt,读不出规则,等于全放行)"
+            elif st in (404, 410):
+                verdict = "缺失(该子域全放行;主域 robots.txt 不覆盖子域)"
+            elif isinstance(st, int) and 400 <= st < 500:
+                verdict = "HTTP %d(RFC 9309:4xx 视同没有 robots.txt,全放行)" % st
+            else:
+                verdict = "未判定(%s)" % ("抓取失败" if st in (None, "error") else "HTTP %s" % st)
+            rows.append({"host": host, "status": st, "verdict": verdict})
+        return {"main_host": self.seed_host, "main_status": self.robots_status.get(main_origin),
+                "main_rules": main_rules, "hosts": rows}
 
     # ---- 汇总 ----
 
@@ -965,6 +1134,16 @@ class Crawler:
         # 抓取被 --max 截断时,孤儿只在已抓样本内判定(入链来源页可能没抓到),不等于站内孤儿
         # (追加在末尾,不改动既有输出契约的键序)
         report["orphans_partial"] = bool(self.truncated)
+        report["discovery"]["crawl_fallback"] = bool(self.crawl_fallback)
+        direct = Counter()
+        for src, dst in self.edges:
+            if dst == src:
+                continue
+            direct[dst] += 1
+            sp = urllib.parse.urlsplit(dst)
+            if sp.query:                          # 带跟踪参数的链接也算直接指向干净 URL(同 _targets)
+                direct[urllib.parse.urlunsplit((sp.scheme, sp.netloc, sp.path, "", ""))] += 1
+        report["link_issues"] = self.link_issues(direct)
         if self.skipped_robots:
             report["warnings"].append(
                 "robots Disallow 跳过 %d URL(如 %s);--ignore-robots 可显式关闭遵守"
@@ -981,6 +1160,10 @@ class Crawler:
         report = self.build_report(time.monotonic() - t0)
         if self.ns.check_external:
             report["external_check"] = self.check_external_domains()
+            report["external_redirects"] = self.check_external_redirects()
+        sub = self.subdomain_robots()
+        if sub is not None:
+            report["subdomain_robots"] = sub
         reached = [p for p in report["pages"] if p["status"] is not None]
         if not reached:                      # 全起点失败(所有抓取尝试均传输失败)
             rc = 3
@@ -1006,10 +1189,21 @@ def render_markdown(report):
         "crawl": "链④ 爬虫兜底(robots/sitemap 均无产出)",
         "urls": "链① --urls 手工清单 %d 条" % st["pages"],
     }.get(disc["mode"], disc["mode"])
-    if disc["mode"] in ("robots+sitemap", "sitemap") and c["crawl"]:
-        src_desc += " ∪ 链④ 爬虫补量 %d(loc<50 兜底开着)" % c["crawl"]
+    # 摘要按 discovery.crawl_fallback 说话:修前把子域根页(counts.crawl 里)说成「loc<50 兜底开着」,
+    # everyinfra 实际 2769 条 loc、plausible 167 条 loc,兜底根本没开(2026-11-05 评分)。
+    fallback = disc.get("crawl_fallback")
+    if fallback is None:                        # 旧版 crawl.json 没有该键:按规则推
+        fallback = disc["mode"] == "crawl" or c.get("sitemap", 0) < SITEMAP_CLOSES_CRAWL
+    if disc["mode"] in ("robots+sitemap", "sitemap"):
+        if fallback:
+            src_desc += " ∪ 链④ 爬虫补量 %d(loc %d<%d,爬虫补量开着)" % (
+                c["crawl"], c["sitemap"], SITEMAP_CLOSES_CRAWL)
+        else:
+            src_desc += "(loc ≥%d,爬虫补量关闭)" % SITEMAP_CLOSES_CRAWL
     elif disc["mode"] == "crawl":
         src_desc = "链④ 爬虫兜底(robots/sitemap 均无产出)发现 %d 页" % c["crawl"]
+    if c.get("subdomain"):
+        src_desc += " ∪ 子域根页 %d" % c["subdomain"]
     L.append("- 发现模式: %s(%s)" % (disc["mode"], src_desc))
     subs = report["subdomains"]
     L.append("- 子域 %d 个: %s" % (len(subs), ", ".join(subs) if subs else "-"))
@@ -1038,7 +1232,43 @@ def render_markdown(report):
     if report.get("external_check"):
         L.append("- 外链域抽检(--check-external,HEAD 根路径): "
                  + ", ".join("%s=%s" % (e["domain"], e["status"]) for e in report["external_check"]))
+    L.extend(render_link_issues(report))
     return "\n".join(L)
+
+
+def render_link_issues(report):
+    """Ahrefs 补项与子域 robots 的人读行(crawl.json 的 link_issues / external_redirects /
+    subdomain_robots 节)。"""
+    L = []
+    li = report.get("link_issues")
+    if li is not None:
+        part = "(抓取被 --max 截断,只代表已抓样本)" if report.get("orphans_partial") else ""
+        rows = li.get("redirect_target_no_direct_inlinks", [])
+        L.append("- 重定向目标页没有直接内链 %d%s(只能经重定向到达;只对想排名的可索引页要紧,本脚本不判可索引性):%s"
+                 % (len(rows), part, ", ".join("%s(经 %s)" % (r["target"], r["via"][0]) for r in rows[:5]) or "无"))
+        rows = li.get("http_page_links_to_https", [])
+        L.append("- HTTP 页链到 HTTPS %d 页:%s" % (len(rows), ", ".join(r["page"] for r in rows[:5]) or "无"))
+        rows = li.get("https_page_links_to_http", [])
+        L.append("- HTTPS 页链到 HTTP %d 页:%s" % (len(rows), ", ".join(r["page"] for r in rows[:5]) or "无"))
+        rows = li.get("https_to_http_redirects", [])
+        L.append("- HTTPS→HTTP 重定向 %d:%s" % (len(rows), ", ".join("%s → %s" % (r["from"], r["to"])
+                                                                 for r in rows[:5]) or "无"))
+    ex = report.get("external_redirects")
+    if ex is not None:
+        reds = ex["redirects"]
+        L.append("- 外链 3xx(抽检 %d/%d 个外链 URL,按引用页数取前 %d):%d 个%s"
+                 % (ex["checked"], ex["total"], EXTERNAL_URL_SAMPLE, len(reds),
+                    (":" + ", ".join("%s → %s [%s]" % (r["url"], r["final_url"], r["kind"])
+                                     for r in reds[:5])) if reds else ""))
+    else:
+        L.append("- 外链 3xx:未检查(加 --check-external 才抽检外链 URL)")
+    sub = report.get("subdomain_robots")
+    if sub is not None and sub["hosts"]:
+        main = ("主域 %s 的 %d 条 Disallow 不覆盖子域" % (sub["main_host"], sub["main_rules"])
+                if sub["main_rules"] else "主域 %s 没有 Disallow 规则,子域缺 robots.txt 也是全放行" % sub["main_host"])
+        L.append("- 子域 robots.txt(每个子域各读自己的一份;%s):%s"
+                 % (main, "; ".join("%s=%s" % (h["host"], h["verdict"]) for h in sub["hosts"])))
+    return L
 
 
 USAGE_EPILOG = """\
