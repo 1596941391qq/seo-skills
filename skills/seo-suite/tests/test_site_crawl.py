@@ -421,11 +421,11 @@ class PolitenessTests(unittest.TestCase):
 class NormalizationTests(unittest.TestCase):
 
     def test_normalize_url_rules(self):
-        """去 fragment/去尾斜杠(根保留)/参数保留/大小写不合并/端口与 host 小写。"""
+        """去 fragment/尾斜杠保留(/a 和 /a/ 是两个 URL)/参数保留/大小写不合并/端口与 host 小写。"""
         self.assertEqual(sc.normalize_url("https://Example.COM:443/a/#frag"),
-                         "https://example.com/a")
+                         "https://example.com/a/")
         self.assertEqual(sc.normalize_url("https://x.com/"), "https://x.com/")
-        self.assertEqual(sc.normalize_url("https://x.com/blog/"), "https://x.com/blog")
+        self.assertEqual(sc.normalize_url("https://x.com/blog/"), "https://x.com/blog/")
         self.assertEqual(sc.normalize_url("/p?q=1", base="https://x.com/"),
                          "https://x.com/p?q=1")
         self.assertEqual(sc.normalize_url("/p?q=1", base="https://x.com/", strip_params=True),
@@ -435,22 +435,23 @@ class NormalizationTests(unittest.TestCase):
         self.assertIsNone(sc.normalize_url("not a url"))
 
     def test_dedupe_trailing_slash_fragment_params_and_case(self):
-        """已见集合去重:/a、/a/、/a#f、:443/a 合并;/A 与 /a?x=1 各自独立。"""
+        """已见集合去重:/a、/a#f、:443/a 合并;/a/、/A 与 /a?x=1 各自独立。"""
         web = FakeWeb()
         web.add(HOME, body=html_links("Home",
                                       ["/a/", "/a#top", "/a", "https://example.com:443/a",
                                        "https://example.com/A", "/a?x=1"]))
         rep, _rc = crawl(make_ns(), web)
         by = {pg["url"]: pg for pg in rep["pages"]}
-        self.assertEqual(set(by), {HOME, "https://example.com/a", "https://example.com/A",
+        self.assertEqual(set(by), {HOME, "https://example.com/a", "https://example.com/a/", "https://example.com/A",
                                    "https://example.com/a?x=1"})
-        self.assertEqual(by[HOME]["out_internal"], 3)
+        self.assertEqual(by[HOME]["out_internal"], 4)
         web2 = FakeWeb()
         web2.add(HOME, body=html_links("Home",
                                        ["/a/", "/a#top", "/a?x=1", "https://example.com/A"]))
         rep2, _rc2 = crawl(make_ns(strip_params=True), web2)
         self.assertEqual(set(pg["url"] for pg in rep2["pages"]),
-                         {HOME, "https://example.com/a", "https://example.com/A"})  # ?x=1 并入 /a
+                         {HOME, "https://example.com/a", "https://example.com/a/",
+                          "https://example.com/A"})  # ?x=1 并入 /a
 
 
 # ---------------------------------------------------------------------------

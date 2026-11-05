@@ -1,6 +1,6 @@
 # Capability Matrix(能力矩阵)
 
-机器可读版:[data/capability-matrix.json](data/capability-matrix.json)(**125 条 = 87 脚本 + 25 模板 + 13 references 主干**;schema_version 1.0)。本文件是人读版,2026-10-12 从 JSON 全量重刷,2026-10-18 增补 question_align.py、ste_lint.py,两者由 [tests/test_capability_matrix.py](tests/test_capability_matrix.py) 守护一致性(改条目先改 JSON,再同步本文件)。
+机器可读版:[data/capability-matrix.json](data/capability-matrix.json)(**129 条 = 91 脚本 + 25 模板 + 13 references 主干**;schema_version 1.0)。本文件是人读版,2026-10-12 从 JSON 全量重刷,2026-11-05 补 ga4_api.py、guard_hook.py、ops.py、source_map.py,2026-10-18 增补 question_align.py、ste_lint.py,两者由 [tests/test_capability_matrix.py](tests/test_capability_matrix.py) 守护一致性(改条目先改 JSON,再同步本文件)。
 
 治理出处:[references/research/niubigeo-deep-read.md](references/research/niubigeo-deep-read.md) N10(CAPABILITY_MATRIX 治理格式)。借用其核心思想「**能力=完成**三条件」并按本套件改写:
 
@@ -117,13 +117,16 @@
 | log_session.py | --log access.log(CLF/combined,- 读 stdin) --ua/--window/--top/--json(可选) | json | 服务器访问日志 access.log(apache/nginx combined 或 CLF;按需工具非常驻) | ③ | test_log_session.py | beta |
 | notify.py | run --dir --alerts alerts.json config.json 渠道定义 | markdown | monitor diff 的告警 JSON + config.json 渠道定义(secret 只经环境变量注入) | ④ | test_notify_routing.py | stable |
 
-## 八、工作流与编排(3)
+## 八、工作流与编排(6)
 
 | 脚本 | 输入 | 输出 | 数据源 | 降级 | 测试 | status |
 |---|---|---|---|---|---|---|
 | trend_watch.py | Google News/Reddit rising/HN/微博/百度热搜(实时拉取) --topics 站点主题词表 gate: --angle 观点清单 --exclusive data\|quote\|access(403 源整源跳过;全源失败退出 2) | json | 六信号源实时拉取(Google News/Reddit rising/HN/微博/百度热搜;403 源整源跳过告警;--state 可指工作区) | ②+③ | test_trend_watch.py | beta |
 | remediation.py | envelope 的 audit-data.json(init) 两份 site_audit --json(verify) | json | 前置脚本产出(工单不自带数据) | ③ | test_remediation.py | beta |
 | project.py | --site URL(init) 子进程调既有脚本(run triage/next/status;编排不重实现) | json | 编排器只编排不重实现;任何步失败续跑其余 | ② | test_project.py | beta |
+| ops.py | seo-ops/ 工作区; 外部数据包 seo-ops/raw/external-*.json(可缺); GSC / GA4 服务账号(可缺) | json | 站点 sitemap 与页面(轻检/深审)+ 外部数据包 + GSC/GA4 API + monitor.db | ② | test_ops_agenda.py | beta |
+| source_map.py | 站点仓库路径(可指定 --rev); URL 列表; 线上页面(默认抓 title/描述/H1/首段;--no-fetch 关) | json | 线上页面原文 + 站点仓库文件树与 import 关系(只读) | ② | test_source_map.py | stable |
+| guard_hook.py | Claude Code PreToolUse 事件(stdin JSON) | json | 当前 git 分支名 + 待改文件路径与内容(只读) | ④ | test_guard_hook.py | stable |
 
 ## 九、套件自维护(3)
 
@@ -133,7 +136,7 @@
 | link_check.py | (无;扫本地 markdown 文件树) | markdown | 本地 markdown 文件树 | ③ | 由 self_check 每次消费 | stable |
 | intel_check.py | init\|check --source 名(可选) | markdown | intel-sources.md 注册的 18 源实时拉取(RSS/hash)+ .intel-state.json 基线 | ③+② | run_tests.py(内联) | stable |
 
-## 十、数据接入(5)
+## 十、数据接入(6)
 
 | 脚本 | 输入 | 输出 | 数据源 | 降级 | 测试 | status |
 |---|---|---|---|---|---|---|
@@ -142,6 +145,7 @@
 | indexnow.py | --host --key --urls(Bing/Yandex/Naver 端点) | json | IndexNow 协议提交(零 key;Google 不支持) | ②+③ | test_indexnow.py | beta |
 | bing_wmt.py | env BING_WMT_KEY(免费,需站点验证) | csv | Bing Webmaster API 薄客户端(状态/提交/QueryStats→gsc 契约 CSV) | ③ | test_bing_wmt.py | beta |
 | byo_import.py | Screaming Frog/SERP/关键词表导出 | csv | 第三方导出归一入口(三 kind 自动嗅探) | ③ | test_byo_import.py | beta |
+| ga4_api.py | 服务账号 JSON(--sa/env GA4_SA_FILE/GSC_SA_FILE); GA4 媒体资源 ID | json | GA4 Data API runReport(analytics.readonly) | ③ | — | beta |
 
 ## 十一、内容运营与 pSEO(6)
 

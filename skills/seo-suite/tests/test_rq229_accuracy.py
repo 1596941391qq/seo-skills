@@ -421,6 +421,25 @@ class CrawlLinkIssues(unittest.TestCase):
         rep, _rc = crawl(make_ns(), web)
         self.assertEqual(rep["link_issues"]["redirect_target_no_direct_inlinks"], [])
 
+    def test_trailing_slash_site_no_false_redirect_targets(self):
+        # 11-05 独立评分实测 ma.tt(WordPress,链接都带尾斜杠):12 页 11 页误报「只能经重定向到达」。
+        # 期望值来自站点行为:首页直接链着 /blog/a/,它不是重定向目标;只有 /new/ 是。
+        web = FakeWeb()
+        web.add("https://example.com/sitemap.xml", body=urlset_xml([HOME]))
+        web.add(HOME, body=html_links("H", ["/blog/a/", "/old/"]))
+        web.add("https://example.com/blog/a/", body=html_links("A", []))
+        web.add("https://example.com/blog/a", body=html_links("A", []),          # nginx 习惯:缺斜杠 301 补上
+                chain=[{"status": 301, "location": "https://example.com/blog/a/"}],
+                final_url="https://example.com/blog/a/")
+        web.add("https://example.com/old/", body=html_links("New", []),
+                chain=[{"status": 301, "location": "https://example.com/new/"}],
+                final_url="https://example.com/new/")
+        rep, _rc = crawl(make_ns(), web)
+        rows = rep["link_issues"]["redirect_target_no_direct_inlinks"]
+        self.assertEqual([r["target"] for r in rows], ["https://example.com/new/"])
+        by = {pg["url"]: pg for pg in rep["pages"]}
+        self.assertEqual(by["https://example.com/blog/a/"]["status"], 200)
+
     def test_http_page_links_to_https(self):
         web = FakeWeb()
         web.add("http://example.com/sitemap.xml", body=urlset_xml(["http://example.com/"]))
@@ -456,6 +475,19 @@ class CrawlLinkIssues(unittest.TestCase):
         self.assertEqual([r["url"] for r in ex["redirects"]], ["https://old-partner.com/guide"])
         self.assertEqual(ex["redirects"][0]["kind"], "跳到别的站")
         self.assertIn("外链 3xx(抽检 2/2", sc.render_markdown(rep))
+
+    def test_external_404_reported(self):
+        # 11-05 独立评分:夹具外链 ext-404 实际 404,脚本不报(Ahrefs「External 4XX」)
+        web = FakeWeb()
+        web.add("https://example.com/sitemap.xml", body=urlset_xml([HOME]))
+        web.add(HOME, body=html_links("H", ["https://gone.org/page", "https://ok.org/"]))
+        web.add("https://gone.org/page", status=404)
+        web.add("https://ok.org/", status=200)
+        rep, _rc = crawl(make_ns(check_external=True), web)
+        ex = rep["external_redirects"]
+        self.assertEqual([(r["url"], r["status"]) for r in ex["broken"]], [("https://gone.org/page", 404)])
+        self.assertEqual(ex["redirects"], [])
+        self.assertIn("外链 4xx(同一批抽检):1 个", sc.render_markdown(rep))
 
     def test_external_3xx_off_by_default_says_so(self):
         web = FakeWeb()
@@ -511,6 +543,20 @@ class RedirectChainHttpsToHttp(unittest.TestCase):
             redirect_chain.request_once = orig
         self.assertEqual(rc, 0)
         self.assertIn("HTTPS→HTTP 降级", buf.getvalue())
+
+    def test_redirect_to_404_is_critical(self):
+        # 11-05 独立评分:一跳到 404 的链原来打印「无问题」(Ahrefs「3XX redirect to 4XX」)
+        hops = {"https://e.com/old": (301, "https://e.com/gone"), "https://e.com/gone": (404, None)}
+        orig = redirect_chain.request_once
+        redirect_chain.request_once = lambda u, t, ua=None: (hops[u][0], hops[u][1], 1.0)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = redirect_chain.main(["https://e.com/old"])
+        finally:
+            redirect_chain.request_once = orig
+        self.assertEqual(rc, 1)
+        self.assertIn("重定向终点返回 HTTP 404", buf.getvalue())
 
 
 # ---------------------------------------------------------------- D 目录对齐

@@ -182,6 +182,10 @@ def main(argv=None):
     final = chain[-1]
     print("链长: {0} 跳 | 终态: HTTP {1}".format(hops, final[1] if final[1] is not None else "(循环)"))
 
+    if hops >= 1 and final[1] is not None and final[1] >= 400:   # 11-05 评审:跳到 404 原来判「无问题」
+        issues.append(("CRITICAL", "重定向终点返回 HTTP {0}: {1} (跳到坏页, 改指向能打开的页或直接 404/410)".format(
+            final[1], truncate(final[0], 60))))
+        critical = True
     if hops > 2:
         sev = "CRITICAL" if hops > 5 else "WARN"
         issues.append((sev, "链长 {0} 跳{1} (Google/用户均不友好, 应一跳到底)".format(

@@ -317,14 +317,18 @@ def check(raw, text, enc, ctype, out, market=None):
         out("info", "itemprop 三件套跳过——非中文页面/市场(微信/QQ 分享场景不适用)")
 
     # --- 7. twitter:*:X 先读 twitter:*,缺失时回落 OG(X Cards markup 文档)——不是弃用 ---
-    og_props = {m["property"] for m in metas if m["property"].startswith("og:") and m["content"].strip()}
-    og_props |= {m["name"] for m in metas if m["name"].startswith("og:") and m["content"].strip()}
+    og_vals = {}
+    for m in metas:
+        k = m["property"] if m["property"].startswith("og:") else (m["name"] if m["name"].startswith("og:") else "")
+        if k and m["content"].strip():
+            og_vals.setdefault(k, m["content"].strip())
     redundant = []
     for m in metas:
         tw = m["name"] if m["name"].startswith("twitter:") else (
             m["property"] if m["property"].startswith("twitter:") else "")
         og = TWITTER_OG_FALLBACK.get(tw)
-        if og and og in og_props and tw not in redundant:
+        # 值相同才算重复:11-05 留出站 buttondown 的 twitter:title 和 og:title 不同,也被报成「可省略」
+        if og and og_vals.get(og) == m["content"].strip() and tw not in redundant:
             redundant.append(tw)
     if redundant:
         out("info", f"twitter:* 与 OG 重复: {', '.join(redundant)}——X 缺失时会回落到对应 og:*,"

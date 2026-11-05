@@ -76,9 +76,22 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 _OPENER = urllib.request.build_opener(_NoRedirect)
 
 
+def iri_to_uri(url):
+    """非 ASCII 路径/参数(如 zenn 的 /topics/日本語)按 UTF-8 百分号编码,已有的 %XX 保留。
+    不转码时 urllib 抛 UnicodeEncodeError,11-05 留出站把 10 条 200 的页记成「抓取失败」(同 site_crawl 的修法)。"""
+    try:
+        p = urllib.parse.urlsplit(url)
+        host = p.netloc.encode("idna").decode("ascii") if not p.netloc.isascii() else p.netloc
+    except (ValueError, UnicodeError):
+        return url
+    path = urllib.parse.quote(p.path, safe="/%:@!$&'()*+,;=-._~")
+    query = urllib.parse.quote(p.query, safe="=&%:@!$'()*+,;/?-._~")
+    return urllib.parse.urlunsplit((p.scheme, host, path, query, ""))
+
+
 def fetch(url, timeout=10.0, max_bytes=5_000_000):
     """GET 且不跟随重定向. 返回 (status, headers, body_bytes); 网络层异常向上抛."""
-    req = urllib.request.Request(url, headers={
+    req = urllib.request.Request(iri_to_uri(url), headers={
         "User-Agent": UA,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     })
@@ -168,12 +181,20 @@ def parse_lastmod(value):
     v = value.strip()
     v = re.sub(r"[Zz]$", "+0000", v)
     v = re.sub(r"\.(\d{1,6})\d*", lambda m: "." + m.group(1), v)
-    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S"):
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M%z"):   # 带毫秒(buttondown「…T00:00:00.000Z」)、W3C 只到分钟
         try:
             return datetime.strptime(v, fmt)
         except ValueError:
             continue
     return None
+
+
+LANG_PARAMS = {"locale", "lang", "hl", "language", "lng", "lc"}
+
+
+def _drop_lang_params(query):
+    return "&".join(sorted(kv for kv in query.split("&") if kv and kv.split("=", 1)[0].lower() not in LANG_PARAMS))
 
 
 _ROBOTS_CACHE = {}
@@ -466,6 +487,8 @@ def main(argv=None):
         oversize_files += 1
     if kind == "urlset":
         entries.extend(urls)
+        if len(urls) > FIFTY_K:
+            over50k_files += 1
     elif kind == "sitemapindex":
         picked = sample_children(children, args.max_child)
         if len(children) > args.max_child:
@@ -485,6 +508,8 @@ def main(argv=None):
                 oversize_files += 1
             if k2 == "urlset":
                 entries.extend(u2)
+                if len(u2) > FIFTY_K:                   # 上限按单个文件算,index 汇总数超 5 万是正常拆分
+                    over50k_files += 1
             elif k2 == "sitemapindex" and len(declared) > 1:
                 # 入口是 robots.txt 的多条声明(虚拟 index):声明里的 index 是真正的第一层,照常展开
                 # (2026-10-24 spiegel.de:robots 声明的 sitemap.xml 是 23,707 个子表的 index)
@@ -506,6 +531,8 @@ def main(argv=None):
                         oversize_files += 1
                     if k3 == "urlset":
                         entries.extend(u3)
+                        if len(u3) > FIFTY_K:
+                            over50k_files += 1
             elif k2 == "sitemapindex":
                 notes.append("嵌套 sitemapindex 超过 1 层, 未继续下钻: {0} ({1} 个子)".format(child, len(c2)))
     elif kind != "html":
@@ -529,10 +556,9 @@ def main(argv=None):
     print("sitemap_audit | 入口: {0}".format(sitemap_url))
     print("sitemap 类型: {0} | 累计抓取 {1} 字节 | loc 总数: {2} (去重后)".format(
         kind, total_bytes, total))
-    if total > FIFTY_K:
-        over50k_files += 1
     if over50k_files:
-        print("[提示] URL 总数 {0} > 50,000: 超出 Google 单 sitemap 上限, 建议拆分为多个 sitemap + index".format(total))
+        print("[提示] {0} 个 sitemap 文件各超 50,000 条: 超出 Google 单个 sitemap 上限, 拆成更小的文件挂在 index 下".format(
+            over50k_files))
     if oversize_files:
         print("[提示] 存在 > 50MB 的 sitemap 文件: 超出 Google 上限, 建议拆分")
 
@@ -641,7 +667,8 @@ def main(argv=None):
         key = (sp.scheme.lower(), sp.netloc.lower(), sp.path or "/")
         groups.setdefault(key, []).append(e["loc"])
     for _key, us in groups.items():
-        qs = set(urllib.parse.urlsplit(x).query for x in us)
+        # 只差语言参数(?locale=en、?hl=ja)的是译文,不是重复(11-05 留出站 zenn 抽 4 对:正文不同、canonical 指自己)
+        qs = set(_drop_lang_params(urllib.parse.urlsplit(x).query) for x in us)
         if len(us) > 1 and len(qs) > 1:
             b_dup.extend(sorted(us))
 

@@ -24,7 +24,7 @@ SSRF 防御(照 monitor.py/traffic_funnel.py 惯例):仅 http(s)+拒私网/环�
 保留/组播;重定向逐跳复查(站方可控的 Sitemap 指令可 302 到 169.254.169.254 穿墙);
 198.18.0.0/15(RFC2544)豁免本机 fake-IP 代理,SEO_CRAWL_STRICT_SSRF=1 恢复全拒。
 
-URL 归一:去 fragment/非根路径去尾斜杠/参数默认保留(--strip-params 可开)/
+URL 归一:去 fragment/尾斜杠原样保留/参数默认保留(--strip-params 可开)/
 大小写路径不合并/scheme+host 小写/去默认端口;已见集合去重。
 
 输出:crawl.json(--out,默认 crawl.json)+ --urls-out 纯 URL 清单(直接喂
@@ -181,7 +181,7 @@ def sample_children(children, k):
 
 
 def normalize_url(u, base=None, strip_params=False):
-    """归一:补 base/去 fragment/非根路径去尾斜杠(根 "/" 保留)/参数默认保留
+    """归一:补 base/去 fragment/尾斜杠原样保留/参数默认保留
     (--strip_params 可开)/路径大小写不合并/scheme+host 小写/去默认端口。
     非 http(s) 或缺 host → None(调用方丢弃)。"""
     try:
@@ -203,9 +203,9 @@ def normalize_url(u, base=None, strip_params=False):
                           or (scheme == "http" and port == 80)) else "%s:%d" % (host, port)
         # 非 ASCII 路径/参数(如 /tag/设计)按 UTF-8 百分号编码;已有的 %XX 保留。
         # 不转码时 http_fetch 抛 UnicodeEncodeError,不在重试捕获范围里,会让整次爬取作废。
+        # 尾斜杠原样保留:/a 和 /a/ 是两个 URL(多数站一个 301 到另一个)。11-05 前去掉尾斜杠,
+        # 链接都带斜杠的站(WordPress、nginx 目录)每页先吃一次 301,「重定向目标没有直接内链」全是误报。
         path = urllib.parse.quote(p.path or "/", safe="/%:@!$&'()*+,;=-._~")
-        if path != "/" and path.endswith("/"):
-            path = path.rstrip("/") or "/"
         query = "" if strip_params else urllib.parse.quote(p.query, safe="=&%:@!$'()*+,;/?-._~")
         return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
     except ValueError:
@@ -1015,8 +1015,12 @@ class Crawler:
                              "final_url": r["final_url"], "final_status": r["status"],
                              "kind": _redirect_kind(u, r["final_url"]), "linked_from": n,
                              "example_source": self.external_src.get(u)})
+            elif r["status"] >= 400:                    # Ahrefs「External 4XX」;11-05 评审:外链 404 原来直接丢掉
+                rows.append({"url": u, "status": r["status"], "broken": True, "linked_from": n,
+                             "example_source": self.external_src.get(u)})
         return {"checked": len(picked), "total": len(self.external_urls),
-                "redirects": [x for x in rows if x.get("status") is not None],
+                "redirects": [x for x in rows if x.get("status") is not None and not x.get("broken")],
+                "broken": [x for x in rows if x.get("broken")],
                 "errors": [x for x in rows if x.get("status") is None]}
 
     def subdomain_robots(self):
@@ -1260,6 +1264,9 @@ def render_link_issues(report):
                  % (ex["checked"], ex["total"], EXTERNAL_URL_SAMPLE, len(reds),
                     (":" + ", ".join("%s → %s [%s]" % (r["url"], r["final_url"], r["kind"])
                                      for r in reds[:5])) if reds else ""))
+        bad = ex.get("broken") or []
+        L.append("- 外链 4xx(同一批抽检):%d 个%s" % (len(bad), (":" + ", ".join(
+            "%s [%s]" % (r["url"], r["status"]) for r in bad[:5])) if bad else ""))
     else:
         L.append("- 外链 3xx:未检查(加 --check-external 才抽检外链 URL)")
     sub = report.get("subdomain_robots")

@@ -308,8 +308,8 @@ def looks_like_challenge(html):
     text = visible_text(html)
     if len(text) < CHALLENGE_MAX_TEXT:
         low = (title + " " + text).lower()
-        if any(p in low for p in CHALLENGE_PHRASES) or "/cdn-cgi/challenge-platform/" in html.lower():
-            return True
+        if any(p in low for p in CHALLENGE_PHRASES):   # 只有 challenge-platform 脚本不算:JS Detections 每页都注入,
+            return True                                 # 11-05 留出站阮一峰首页、/blog/(中文短页)被误判拒审
     return False
 
 def load_market(market):
@@ -915,7 +915,9 @@ def audit(url, market="en", serp_titles=None):
                   f"text-HTML 比 {csr['ratio']}(阈值:文本<200 字或比值<0.02)——AI 爬虫多不执行 JS"))
     nos = re.sub(r"\s+", " ", "".join(p.noscript_text)).strip()
     # S2a B3:已检测到服务端内容 → 无 JS 客户端拿到的不是空页;JS 只提示体积,不给改渲染建议
-    server_content = len(plain) > 500 and any(p.sem_counts.get(t) for t in ("article", "main", "section"))
+    # 只看纯文本量:11-05 留出站 buttondown 两页原始 HTML 已有 4,809 / 4,098 字正文,只因没用 article/main/section
+    # 就被说成「无 JS 拿到空页」。语义标签是否齐全由上面的结构检查管,不在这里重复判。
+    server_content = len(plain) > 500
     if len(nos) <= 20 and not server_content:
         F.append(("INFO", "rendering", "无 noscript 回退(或去标签文本≤20 字)——无 JS 客户端拿到空页"))
     if p.ext_scripts > 15 or p.inline_js_bytes > 100 * 1024:
@@ -927,7 +929,7 @@ def audit(url, market="en", serp_titles=None):
             F.append(("WARN", "rendering", js + "——易超 AI 爬虫抓取预算"))
     if not server_content:
         F.append(("INFO", "rendering",
-                  f"服务端内容弱:纯文本 {len(plain)} 字(需>500)或无 article/main/section"))
+                  f"服务端内容弱:纯文本 {len(plain)} 字(需>500)"))
     if h2n < 2:  # 检查项为 H1==1 且 H2>=2;H1 问题上方既有检查已按自身级别报告,此处只补 H2 缺口
         F.append(("INFO", "headings", f"H2 仅 {h2n} 个(<2)——AI 分块依赖标题层级(H1==1 且 H2>=2)"))
     # ---- BLUF 密度(geo-aeo-tracker 源码公式;失败出 INFO,并进 ai_search_health.checks) ----
@@ -937,11 +939,18 @@ def audit(url, market="en", serp_titles=None):
     # ---- 根文件:robots.txt(8 bot 名单判定)/sitemap/llms.txt ----
     root = f"{urlparse(url).scheme}://{host}"
     robots_groups, llms_ok = {}, False
+    declared_sitemaps = []
     for path, name in (("/robots.txt", "robots"), ("/sitemap.xml", "sitemap"), ("/llms.txt", "llms.txt")):
+        target = root + path
+        if name == "sitemap" and declared_sitemaps:
+            # robots.txt 声明了 sitemap 就查声明的那个(Google 认这种发现方式);11-05 留出站 zenn 的 sitemap 在
+            # /sitemaps/_index.xml,只找 /sitemap.xml 每页都报「不可达」
+            target = path = declared_sitemaps[0]
         try:
-            s2, _, body2 = fetch(root + path)
+            s2, _, body2 = fetch(target)
             if s2 == 200 and name == "robots":
                 robots_groups = parse_robots_groups(body2)
+                declared_sitemaps = re.findall(r"(?im)^\s*sitemap\s*:\s*(\S+)", body2 or "")
             if s2 == 200 and name == "llms.txt":
                 llms_ok = True
         except urllib.error.HTTPError as e:
