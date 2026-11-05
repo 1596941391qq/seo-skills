@@ -48,13 +48,28 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 import urllib.parse
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 1
+TRIAGE_SCHEMA_VERSION = 1   # triage.json 的格式版本(和工作区 schema 分开,各自演进)
+SCHEMA_VERSION = 2          # 2 = seo-ops/ 统一工作区(RQ-229);1 或缺字段 = 旧版 <slug>.seo/
+OPS_DIR = "seo-ops"         # 默认工作区:放在站点仓库根目录,可提交进 git(运行状态的唯一位置)
+OPS_MONITOR = "monitor"     # 新版工作区内的监控目录(旧版是 <ws>/.seo-monitor)
+# seo-ops/.gitignore:可重建的缓存和原始流量行不进 git(二进制没法合并;公开仓会泄露查询词)
+OPS_GITIGNORE = """# seo-suite seo-ops/:下列是缓存或原始数据,不提交(可由 runs/*.json 重建)
+cache/
+raw/
+*.lock
+.lock
+monitor/monitor.db
+monitor/monitor.db-*
+monitor/.lock
+monitor/gsc.csv
+"""
 PY = sys.executable or "python3"
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.abspath(os.environ.get("SEO_PROJECT_SCRIPTS_DIR") or HERE)
@@ -168,6 +183,7 @@ def write_project_yaml(path, site, market, site_type, created):
          "market: %s" % market,
          "type: %s" % (site_type or ""),
          "created: %s" % created,
+         "schema_version: %d" % SCHEMA_VERSION,
          "history_dir: history",
          "# 状态收敛说明(R1-2):本工作区收敛 project 实体与 history/ 快照;下列既有",
          "# 散落状态不自动迁移,references 指回旧位置;`project.py adopt` 列可迁移文件。",
@@ -215,8 +231,15 @@ def find_workspace(explicit):
         if not os.path.isfile(os.path.join(ws, "project.yaml")):
             die("--dir 指定的目录缺 project.yaml(不是 project 工作区): %s" % ws)
         return ws
-    cands = sorted(d for d in glob.glob("*.seo")
-                   if os.path.isdir(d) and os.path.isfile(os.path.join(d, "project.yaml")))
+    pats = (OPS_DIR, OPS_DIR + "-*", "*.seo")
+    cands = []
+    for pat in pats:                            # 新版 seo-ops 优先;旧版 *.seo 照样能读
+        for d in sorted(glob.glob(pat)):
+            if os.path.isdir(d) and os.path.isfile(os.path.join(d, "project.yaml")) \
+                    and d not in cands:
+                cands.append(d)
+    if any(not c.endswith(".seo") for c in cands):
+        cands = [c for c in cands if not c.endswith(".seo")]
     if not cands:
         die("当前目录未发现 *.seo/ 工作区;先运行: python3 %s init --site <URL>"
             % os.path.relpath(me_path(), os.getcwd() if os.getcwd() != HERE else "."))
@@ -225,11 +248,38 @@ def find_workspace(explicit):
     return os.path.abspath(cands[0])
 
 
+def schema_of(data):
+    """project.yaml 的 schema 版本;旧版没有这个字段 → 1。"""
+    try:
+        return int(data.get("schema_version") or 1)
+    except (TypeError, ValueError):
+        die("project.yaml 的 schema_version 不是整数: %r" % data.get("schema_version"))
+
+
 def load_project(ws):
     data = parse_project_yaml(os.path.join(ws, "project.yaml"))
     if not data.get("site"):
         die("project.yaml 缺 site: %s" % ws)
+    v = schema_of(data)
+    if v > SCHEMA_VERSION:                      # 新版 skill 写的状态,旧版不碰,防止静默写坏
+        die("工作区 %s 是 schema %d(更新版本的 seo-suite 写的),本版只认到 %d;先升级 skill"
+            % (ws, v, SCHEMA_VERSION))
     return data
+
+
+def monitor_dir(ws, proj):
+    """监控目录:新版在工作区内 monitor/,旧版在 .seo-monitor/。"""
+    return os.path.join(ws, OPS_MONITOR if schema_of(proj) >= 2 else ".seo-monitor")
+
+
+def ensure_ops_layout(ws):
+    """新版工作区的固定子目录与 .gitignore(幂等;已有 .gitignore 不覆盖)。"""
+    for sub in ("history", "ledger"):
+        os.makedirs(os.path.join(ws, sub), exist_ok=True)
+    gi = os.path.join(ws, ".gitignore")
+    if not os.path.exists(gi):
+        with open(gi, "w", encoding="utf-8") as f:
+            f.write(OPS_GITIGNORE)
 
 
 def history_runs(ws):
@@ -291,7 +341,7 @@ def cmd_init(ns):
     mk = known_markets()
     if mk is not None and ns.market not in mk:
         die("未知市场 %s;可用: %s" % (ns.market, ", ".join(sorted(mk))))
-    ws = os.path.abspath(ns.dir or ("%s.seo" % slug))
+    ws = os.path.abspath(ns.dir or OPS_DIR)
     ypath = os.path.join(ws, "project.yaml")
     created = now_utc_iso()
     if os.path.isfile(ypath):                   # 幂等刷新:同 site 保留 created/history
@@ -300,7 +350,15 @@ def cmd_init(ns):
             die("工作区已存在且 site 不同(%s ≠ %s);换 --dir 或先迁移旧工作区"
                 % (old.get("site"), site))
         created = old.get("created") or created
+        if schema_of(old) > SCHEMA_VERSION:
+            die("工作区 %s 是更新版本写的(schema %d),本版不改写;先升级 skill"
+                % (ws, schema_of(old)))
+        if schema_of(old) < SCHEMA_VERSION:
+            die("工作区 %s 是旧版格式(schema %d);先运行 migrate 迁到新版:"
+                " python3 %s migrate --from %s" % (ws, schema_of(old), me_path(),
+                                                   os.path.dirname(ws) or "."))
     os.makedirs(os.path.join(ws, "history"), exist_ok=True)
+    ensure_ops_layout(ws)
     write_project_yaml(ypath, site, ns.market, ns.type, created)
     summary = {"workspace": ws, "project_yaml": ypath, "site": site, "market": ns.market,
                "type": ns.type or "", "created": created, "history_dir": os.path.join(ws, "history"),
@@ -315,6 +373,130 @@ def cmd_init(ns):
         print("- 状态收敛: 不迁移散落状态;%d 处旧位置记于 references;`adopt` 可列可迁移文件"
               % len(SCATTERED_STATE))
     return 0
+
+
+# 旧位置 → 新版工作区内的位置(migrate 用;名字不改,其他脚本的默认路径照旧可用)
+MIGRATE_MAP = (
+    ("remediations.json", "remediations.json"),
+    ("panel.json", "panel.json"),
+    (".trend-state.json", ".trend-state.json"),
+    (".intel-state.json", ".intel-state.json"),
+    ("seo-fixes", "seo-fixes"),
+)
+
+
+def _rem_ids(path):
+    try:
+        return sorted(str(it.get("id")) for it in (load_json_tolerant(path).get("items") or []))
+    except (UsageError, OSError):
+        return None
+
+
+def _tree_files(root):
+    out = set()
+    for d, _dirs, files in os.walk(root):
+        for fn in files:
+            out.add(os.path.relpath(os.path.join(d, fn), root))
+    return out
+
+
+def cmd_migrate(ns):
+    """旧版状态(<slug>.seo/ + 6 处散落文件)→ 新版 seo-ops/。先复制、逐项核对,
+    全部对上才把旧位置改名为 *.migrated-<日期>(保留原件,不删);对不上就不动旧位置。"""
+    base = os.path.abspath(ns.from_dir)
+    legacy = [d for d in sorted(glob.glob(os.path.join(base, "*.seo")))
+              if os.path.isfile(os.path.join(d, "project.yaml"))]
+    if len(legacy) > 1:
+        die("发现多个旧工作区(%s);一次迁一个:先把其余的挪走" % ", ".join(legacy))
+    dest = os.path.abspath(ns.to or os.path.join(base, OPS_DIR))
+    if os.path.isfile(os.path.join(dest, "project.yaml")):
+        die("目标 %s 已有工作区;不覆盖。换 --to 或先处理它" % dest)
+    old_ws = legacy[0] if legacy else None
+    if old_ws:
+        proj = parse_project_yaml(os.path.join(old_ws, "project.yaml"))
+        if schema_of(proj) >= SCHEMA_VERSION:
+            die("%s 已经是新版格式,不用迁移" % old_ws)
+        site, market, stype = proj.get("site"), proj.get("market") or "en", proj.get("type") or ""
+        created = proj.get("created") or now_utc_iso()
+    else:
+        if not ns.site:
+            die("%s 下没有旧工作区 *.seo/;只迁散落文件时要给 --site" % base)
+        _slug, site = site_slug(ns.site)
+        market, stype, created = ns.market, "", now_utc_iso()
+    if not site:
+        die("旧 project.yaml 缺 site")
+
+    moves = []                                  # (源, 目标, 类型)
+    if old_ws and os.path.isdir(os.path.join(old_ws, "history")):
+        moves.append((os.path.join(old_ws, "history"), os.path.join(dest, "history"), "dir"))
+    mon_src = None
+    for cand in ((os.path.join(old_ws, ".seo-monitor") if old_ws else None),
+                 os.path.join(base, ".seo-monitor")):
+        if cand and os.path.isdir(cand):
+            if mon_src:
+                die("两处都有监控目录(%s、%s);先合并成一处再迁" % (mon_src, cand))
+            mon_src = cand
+    if mon_src:
+        moves.append((mon_src, os.path.join(dest, OPS_MONITOR), "dir"))
+    for old_name, new_name in MIGRATE_MAP:
+        found = [p for p in ((os.path.join(old_ws, old_name) if old_ws else None),
+                             os.path.join(base, old_name)) if p and os.path.exists(p)]
+        if len(found) > 1:
+            die("两处都有 %s(%s);先合并成一处再迁" % (old_name, "、".join(found)))
+        if found:
+            kind = "dir" if os.path.isdir(found[0]) else "file"
+            moves.append((found[0], os.path.join(dest, new_name), kind))
+
+    os.makedirs(dest, exist_ok=True)
+    for src, dst, kind in moves:
+        if kind == "dir":
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        else:
+            shutil.copy2(src, dst)
+    ensure_ops_layout(dest)
+    write_project_yaml(os.path.join(dest, "project.yaml"), site, market, stype, created)
+
+    checks = []                                 # 逐项核对:文件集合、工单 id 集合
+    for src, dst, kind in moves:
+        if kind == "dir":
+            ok = _tree_files(src) == _tree_files(dst)
+            checks.append({"item": os.path.relpath(src, base), "files": len(_tree_files(src)),
+                           "ok": ok})
+        else:
+            ok = os.path.getsize(src) == os.path.getsize(dst)
+            if os.path.basename(src) == "remediations.json":
+                ok = ok and _rem_ids(src) == _rem_ids(dst)
+                checks.append({"item": os.path.relpath(src, base), "ids": len(_rem_ids(src) or []),
+                               "ok": ok})
+            else:
+                checks.append({"item": os.path.relpath(src, base), "ok": ok})
+    all_ok = all(c["ok"] for c in checks)
+    stamp = datetime.now().strftime("%Y%m%d")
+    renamed = []
+    if all_ok:
+        for src in [m[0] for m in moves] + ([old_ws] if old_ws else []):
+            if os.path.exists(src):
+                tgt = "%s.migrated-%s" % (src.rstrip("/"), stamp)
+                n = 2
+                while os.path.exists(tgt):
+                    tgt = "%s.migrated-%s-%d" % (src.rstrip("/"), stamp, n)
+                    n += 1
+                os.rename(src, tgt)
+                renamed.append([os.path.relpath(src, base), os.path.relpath(tgt, base)])
+    entry = {"at": now_utc_iso(), "from_schema": 1, "to_schema": SCHEMA_VERSION,
+             "dest": os.path.relpath(dest, base), "checks": checks, "ok": all_ok,
+             "renamed": renamed}
+    with open(os.path.join(dest, "ledger", "migrations.jsonl"), "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    if ns.json:
+        print(json.dumps(entry, ensure_ascii=False, indent=1))
+    else:
+        print("## migrate → %s(%s)" % (dest, "全部核对通过" if all_ok else "核对没过,旧位置未动"))
+        for c in checks:
+            print("  %s %s" % ("✓" if c["ok"] else "✗", c["item"]))
+        for a, b in renamed:
+            print("  旧位置改名保留: %s → %s" % (a, b))
+    return 0 if all_ok else 1
 
 
 def cmd_adopt(ns):
@@ -555,7 +737,7 @@ def cmd_run_triage(ns):
     actions, basis = top_actions(env_artifact, audit_artifact)
 
     summary = {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": TRIAGE_SCHEMA_VERSION,
         "generated_at": now_utc_iso(),
         "site": site, "market": market, "run_dir": hist,
         "steps": steps,
@@ -610,6 +792,42 @@ def find_remediations(ws):
     return None
 
 
+def _iso_epoch(v):
+    """ISO 时间串 → epoch 秒;解析不了 → None。"""
+    if not isinstance(v, str) or not v:
+        return None
+    try:
+        dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+def run_time(run_dir, artifact):
+    """一轮体检的时间:优先 triage.json 的 generated_at(写在文件里,克隆后不变),
+    其次目录名 YYYYMMDD-HHMMSS(本机时间),最后才退回文件修改时间(旧数据兜底)。"""
+    tj = os.path.join(run_dir, "triage.json")
+    if os.path.isfile(tj):
+        try:
+            t = _iso_epoch(load_json_tolerant(tj).get("generated_at"))
+            if t is not None:
+                return t
+        except UsageError:
+            pass
+    m = re.match(r"^(\d{8}-\d{6})", os.path.basename(run_dir))
+    if m:
+        return datetime.strptime(m.group(1), "%Y%m%d-%H%M%S").timestamp()
+    return os.path.getmtime(artifact)
+
+
+def implemented_time(items, rem):
+    """工单进入 implemented 的时间:取 implemented_at 最大值;旧工单没有这个字段才看文件修改时间。"""
+    ts = [t for t in (_iso_epoch(it.get("implemented_at")) for it in items) if t is not None]
+    return max(ts) if ts else os.path.getmtime(rem)
+
+
 def stage_state(ws, proj):
     """五阶段判定(只读 history/ 与工单,不重实现任何链路):
     体检(无 envelope)→ 优先级(有 envelope 无工单)→ 修复(工单有未完成项)→
@@ -640,10 +858,10 @@ def stage_state(ws, proj):
             return "修复", {"why": "工单 %s 项未完成(下一单: %s %s→%s)"
                             % (len(open_items), first.get("id"), first.get("status"), tgt),
                     "rem": rem, "item": first, "target": tgt, "ws": ws, "proj": proj}
-        rem_m = os.path.getmtime(rem)
-        newer = [p for p, _r in audits if os.path.getmtime(p) > rem_m]
+        rem_m = implemented_time(implemented, rem)
+        newer = [p for p, r in audits if run_time(r, p) > rem_m]
         if newer:
-            older = [p for p, _r in audits if os.path.getmtime(p) <= rem_m]
+            older = [p for p, r in audits if run_time(r, p) <= rem_m]
             env_run_audit = os.path.join(os.path.dirname(os.path.dirname(envelope)),
                                          "audit.json")
             old = older[-1] if older else (env_run_audit if os.path.isfile(env_run_audit)
@@ -676,7 +894,7 @@ def next_command(stage, info):
                 % (script_path("remediation.py"),
                    latest_artifact(ws, "audit.json") or "<旧 audit>", info["rem"]))
         return [PY, me_path(), "run", "triage", "--dir", ws], hint
-    mon = os.path.join(ws, ".seo-monitor")
+    mon = monitor_dir(ws, proj)
     if not os.path.isdir(mon):
         return ([PY, script_path("monitor.py"), "init", "--site", proj["site"],
                  "--market", market, "--dir", mon], None)
@@ -743,8 +961,9 @@ def cmd_status(ns):
         if closed_ts:
             row4 += "(最近 closed %s)" % max(closed_ts)
 
-    mon = os.path.join(ws, ".seo-monitor")
-    row5 = "已建立(.seo-monitor/)" if os.path.isdir(mon) else "—(.seo-monitor/ 未建立;见 next)"
+    mon = monitor_dir(ws, proj)
+    mrel = os.path.relpath(mon, ws) + "/"
+    row5 = "已建立(%s)" % mrel if os.path.isdir(mon) else "—(%s 未建立;见 next)" % mrel
 
     trend = []
     for r in runs:
@@ -805,11 +1024,11 @@ def build_parser():
         epilog=USAGE_EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("init", help="建立/刷新 <slug>.seo/ 工作区(project.yaml+history/;幂等)")
+    p = sub.add_parser("init", help="建立/刷新 seo-ops/ 工作区(project.yaml+history/+ledger/;幂等)")
     p.add_argument("--site", required=True, metavar="URL", help="站点 URL 或裸域名(自动补 https://)")
     p.add_argument("--market", default="en", metavar="XX", help="市场代码(markets.json 18 市场,默认 en)")
     p.add_argument("--type", default="", metavar="站型", help="站型自报(8 张站型卡名,见 site-type-playbooks.md)")
-    p.add_argument("--dir", metavar="WS", help="工作区路径(默认 <slug>.seo/)")
+    p.add_argument("--dir", metavar="WS", help="工作区路径(默认 seo-ops/;同一仓库多站点用 seo-ops-<名>)")
     p.add_argument("--json", action="store_true", help="结果 JSON 打 stdout")
     p.set_defaults(func=cmd_init)
 
@@ -818,6 +1037,14 @@ def build_parser():
                    help="扫描目录(默认 cwd;查 6 处已知散落状态)")
     p.add_argument("--json", action="store_true", help="清单 JSON 打 stdout")
     p.set_defaults(func=cmd_adopt)
+
+    p = sub.add_parser("migrate", help="旧版 <slug>.seo/ 和散落状态 → seo-ops/(先复制核对,再把旧位置改名保留)")
+    p.add_argument("--from", dest="from_dir", default=".", metavar="DIR", help="旧状态所在目录(默认 cwd)")
+    p.add_argument("--to", metavar="DIR", help="新工作区(默认 <from>/seo-ops)")
+    p.add_argument("--site", metavar="URL", help="没有旧 *.seo/ 只有散落文件时必填")
+    p.add_argument("--market", default="en", metavar="XX")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_migrate)
 
     p = sub.add_parser("run", help="运行管线(目前: triage 技术审计链)")
     p.add_argument("action", choices=("triage",), help="triage=体检→优先级一条链(R1-7)")

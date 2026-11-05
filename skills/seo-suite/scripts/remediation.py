@@ -456,6 +456,9 @@ def cmd_update(rest):
             item["note"] = val["--note"]
         if new == "wontfix":
             item["closed"] = now_utc().isoformat()       # wontfix 即关闭
+        if new == "implemented":
+            # project.py 阶段判定用它和体检时间比先后;不用文件修改时间(新克隆后全部重置)
+            item["implemented_at"] = now_utc().isoformat()
         save_data(val["--file"], data)
     print("update: %s %s → %s%s" % (tid, cur, new, "(closed=%s)" % item["closed"]
                                     if new == "wontfix" else ""))

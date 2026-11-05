@@ -31,7 +31,7 @@ SCRIPTS = os.path.join(BASE, "scripts")
 sys.path.insert(0, SCRIPTS)
 
 SITE = "https://stub.example"
-WS_NAME = "stub-example.seo"
+WS_NAME = "seo-ops"   # RQ-229:默认工作区改为 seo-ops/
 
 AUDIT_BLOB = json.dumps({
     "schema_version": 1, "audited": 2, "critical": 1,
@@ -63,8 +63,7 @@ def run_project(args, cwd, extra_env=None):
 def mk_ws(cwd, site=SITE, market="en", type_=""):
     r = run_project(["init", "--site", site, "--market", market] + (["--type", type_] if type_ else []), cwd)
     assert r.returncode == 0, r.stderr
-    return os.path.join(cwd, "%s.seo" % re.sub(r"[^a-z0-9]+", "-",
-                                               site.split("//")[-1].replace("www.", "")))
+    return os.path.join(cwd, "seo-ops")
 
 
 def fabricate_run(ws, name, audit=True, envelope=True, health=None):
@@ -81,6 +80,12 @@ def fabricate_run(ws, name, audit=True, envelope=True, health=None):
         with open(os.path.join(d, "health.json"), "w", encoding="utf-8") as f:
             json.dump(health, f)
     return d
+
+
+def local_iso(y, mo, d, h, mi):
+    """本机时间 → 带时区的 ISO 串(体检目录名按本机时间命名,两边口径一致)。"""
+    import datetime as _dt
+    return _dt.datetime(y, mo, d, h, mi).astimezone().isoformat()
 
 
 def write_rem(ws, items):
@@ -408,15 +413,21 @@ class NextTests(ProjectTestCase):
         self.assertIn("update REM-001 in_progress", r.stdout)   # 首张开单按 id 取下一状态
         self.assertIn(rem, r.stdout)
 
+    def _implemented(self, rid, when):
+        it = rem_item(rid, "implemented")
+        it["implemented_at"] = when                          # remediation.py update 写入
+        return it
+
     def test_next_stage_verify_with_newer_audit(self):
+        # RQ-229:先后按记录里的时间判(体检目录名 / implemented_at),不看文件修改时间
         ws = mk_ws(self.tmp)
         run1 = fabricate_run(ws, "20261012-080000")              # 修复前体检
-        rem = write_rem(ws, [rem_item("REM-001", "implemented")])
+        rem = write_rem(ws, [self._implemented("REM-001", local_iso(2026, 10, 12, 8, 30))])
         run2 = fabricate_run(ws, "20261012-090000", envelope=False)  # 修复后复体检
         old = os.path.join(run1, "audit.json")
         new = os.path.join(run2, "audit.json")
-        for path, t in ((old, 1000), (rem, 2000), (new, 3000)):  # 工单夹在两轮体检之间
-            os.utime(path, (t, t))
+        for path in (old, rem, new):                             # 模拟 git clone:修改时间全一样
+            os.utime(path, (5000, 5000))
         r = run_project(["next"], self.tmp)
         self.assertIn("当前阶段: 4/5 验证", r.stdout)
         self.assertIn("verify", r.stdout)
@@ -427,9 +438,9 @@ class NextTests(ProjectTestCase):
     def test_next_stage_verify_without_newer_audit(self):
         ws = mk_ws(self.tmp)
         fabricate_run(ws, "20261012-080000")
-        rem = write_rem(ws, [rem_item("REM-001", "implemented")])
-        os.utime(os.path.join(ws, "history", "20261012-080000", "audit.json"), (1000, 1000))
-        os.utime(rem, (2000, 2000))                              # 尚无更新的体检
+        rem = write_rem(ws, [self._implemented("REM-001", local_iso(2026, 10, 12, 8, 30))])
+        os.utime(os.path.join(ws, "history", "20261012-080000", "audit.json"), (9000, 9000))
+        os.utime(rem, (1000, 1000))                              # 修改时间反着来也不影响判定
         r = run_project(["next"], self.tmp)
         self.assertIn("当前阶段: 4/5 验证", r.stdout)
         self.assertIn("run triage", r.stdout)                    # 先复体检
@@ -442,8 +453,8 @@ class NextTests(ProjectTestCase):
         r = run_project(["next"], self.tmp)
         self.assertIn("当前阶段: 5/5 监控", r.stdout)
         self.assertIn("monitor.py init --site %s" % SITE, r.stdout)   # 未建立 → init 收敛进工作区
-        self.assertIn(os.path.join(ws, ".seo-monitor"), r.stdout)
-        os.makedirs(os.path.join(ws, ".seo-monitor"))
+        self.assertIn(os.path.join(ws, "monitor"), r.stdout)        # 新版工作区:seo-ops/monitor
+        os.makedirs(os.path.join(ws, "monitor"))
         r2 = run_project(["next"], self.tmp)
         self.assertIn("monitor.py run", r2.stdout)                     # 已建立 → run
 
@@ -467,7 +478,7 @@ class StatusTests(ProjectTestCase):
         self.assertIn("开 1 / 闭 1", r.stdout)
         self.assertIn("待核销 1 / 已核销 1", r.stdout)
         self.assertIn("72(Good) → 68(Fair)", r.stdout)           # 主分趋势按 history 轮序
-        self.assertIn(".seo-monitor/ 未建立", r.stdout)
+        self.assertIn("monitor/ 未建立", r.stdout)
 
     def test_status_json_shape(self):
         ws = mk_ws(self.tmp)

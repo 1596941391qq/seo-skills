@@ -140,7 +140,7 @@ class NoindexAlertRuleTests(unittest.TestCase):
         self.assertIn("立即回滚", hit[0]["message"])
         self.assertEqual(hit[0]["details"]["source"], "meta")
         self.assertIn("回滚引入 noindex 的发布/模板改动", hit[0]["action"])
-        self.assertEqual(hit[0]["boundary"], "auto")
+        self.assertEqual(hit[0]["boundary"], "urgent_pr")   # RQ-229:回滚类改为加急草稿 PR,agent 不直接改
 
     def test_noindex_removed_info_heal(self):
         prev = {"pages": {"/pricing": {"status": 200, "indexable": False,

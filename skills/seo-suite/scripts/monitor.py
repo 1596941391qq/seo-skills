@@ -120,6 +120,7 @@ import ipaddress
 import json
 import os
 import random
+import glob
 import re
 import socket
 import sqlite3
@@ -137,6 +138,14 @@ from xml.sax.saxutils import escape as _xml_escape
 
 UA = "Mozilla/5.0 (compatible; seo-suite-monitor/1.0; +https://example.com/bot)"
 DEFAULT_DIR = ".seo-monitor"
+OPS_MONITOR_DIR = os.path.join("seo-ops", "monitor")   # RQ-229:新版统一工作区内的监控目录
+
+
+def default_dir():
+    """没给 --dir 时:当前目录有 seo-ops/ 工作区就用 seo-ops/monitor,否则沿用 .seo-monitor。"""
+    if os.path.isfile(os.path.join("seo-ops", "project.yaml")):
+        return OPS_MONITOR_DIR
+    return DEFAULT_DIR
 FETCH_TIMEOUT = 15
 MAX_BYTES = 2_000_000
 SITEMAP_CAP = 5000          # loc→lastmod 字典上限(防大库)
@@ -192,13 +201,15 @@ DEFAULT_THRESHOLDS = {
     "backlink_total_drop_pct": 10,
 }
 
-# report 用:告警码 → 修复动作与安全边界(自动=可直接执行;draft PR=人审)
+# report 用:告警码 → 修复动作与安全边界。RQ-229 起没有「agent 直接改线上」这一档:
+# urgent_pr = 加急草稿 PR + 立即通知人合并(原 auto 项:回滚类、分秒必争);draft_pr = 草稿 PR 人审;
+# human = 人判断。改 robots、noindex、canonical、重定向一律走 PR,agent 不直接改线上或推主干。
 PLAYBOOK = {
-    "homepage_down":        ("自动安全项:回滚最近发布/检查 CDN 与源站健康", "auto"),
+    "homepage_down":        ("加急:起草回滚最近发布的 PR 并立即通知人;同时查 CDN 与源站健康", "urgent_pr"),
     "key_page_down":        ("查 URL 是否被移动→301 映射(draft PR 人审重定向表)", "draft_pr"),
     "visibility_zero":      ("按 alert-threshold-guide 排查顺序 L1→L5;先查 robots/noindex/处罚", "human"),
     "visibility_drop":      ("GSC 分层定位(query/page/device);对照 Search Status Dashboard", "human"),
-    "robots_sitewide_block":("自动安全项:立即修正 robots.txt 误封(回滚该行)", "auto"),
+    "robots_sitewide_block":("加急:起草删掉误封行的 robots.txt 修正 PR,立即通知人合并", "urgent_pr"),
     "sitemap_urls_drop":    ("sitemap_audit.py 复核;核实是否生成管道断裂", "human"),
     "gsc_clicks_drop":      ("五层根因协议(L1 数据→L5 外部);did_attribution.py 归因", "human"),
     "mixed_content":        ("把 http:// 子资源改 https(draft PR 批量替换)", "draft_pr"),
@@ -210,16 +221,16 @@ PLAYBOOK = {
     "ai_posture_flip":      ("确认 AI 爬虫放行翻转是否有意(visibility/protect-ip 取向)", "human"),
     "latency_spike":        ("CWV 分档核对;查最近部署", "human"),
     "gsc_clicks_spike":     ("记录归因(营销活动/季节性/SERP 变化)", "human"),
-    "ssl_cert_expired":     ("立即续期证书(auto 项:certbot renew 类幂等动作)", "auto"),
+    "ssl_cert_expired":     ("加急:通知人立即续期证书(certbot renew 类幂等动作由有权限的人或其部署流程执行)", "urgent_pr"),
     "ssl_cert_expiry":      ("续期证书;检查自动续期任务为何没跑", "human"),
     "content_regression":   ("核对 expect_substring 断言;查空白渲染/软 404/误改版(draft PR)", "draft_pr"),
     "dead_man":             ("监控自身停摆:查 cron/Actions 是否被禁、机器是否休眠", "human"),
-    "noindex_added":        ("自动安全项:回滚引入 noindex 的发布/模板改动(若非有意下线)", "auto"),
+    "noindex_added":        ("加急:起草回滚引入 noindex 的发布/模板改动的 PR(若非有意下线),立即通知人", "urgent_pr"),
     "noindex_removed":      ("自愈信号,记录即可;顺手排查此前为何被误加 noindex", "human"),
     "canonical_target_broken": ("核对 canonical 目标是否被移动/删除:修正指向或恢复目标页(draft PR)", "draft_pr"),
     "pages_left_segment":   ("定位 segment 内批量掉出健康集的页面(部署/模板/权限回退);逐页看 key_page_down/noindex_added 详情", "human"),
     # D1 P2 批
-    "meta_removed":         ("自动安全项:恢复被移除的 title/meta 等字段(若非有意,回滚发布/模板改动)", "auto"),
+    "meta_removed":         ("加急:起草恢复被移除的 title/meta 等字段的 PR(若非有意,回滚发布/模板改动)", "urgent_pr"),
     "h1_changed":           ("确认 h1 变更是否有意(h1 是最强 on-page 信号之一);无意恢复(draft PR)", "draft_pr"),
     "hreflang_changed":     ("hreflang 注解整组核对(互链回链+x-default);改错会让整组语言版本退出对应市场索引(draft PR)", "draft_pr"),
     "ga_tracking_removed":  ("确认统计/跟踪脚本是否被误删(CMP/广告拦截不改服务端输出);有意移除则同步删 must_contain 断言(draft PR)", "draft_pr"),
@@ -446,14 +457,84 @@ CREATE INDEX IF NOT EXISTS idx_alert_fp ON alerts(code, key, resolved);
 
 def open_db(mdir):
     os.makedirs(mdir, exist_ok=True)
-    conn = sqlite3.connect(os.path.join(mdir, "monitor.db"), timeout=30.0)
+    dbp = os.path.join(mdir, "monitor.db")
+    fresh = not os.path.exists(dbp)
+    conn = sqlite3.connect(dbp, timeout=30.0)
     conn.row_factory = sqlite3.Row
     # audit 05 P1:本地多 cron/挂住的 run 并发 → WAL + busy_timeout,
     # 与目录级 flock(见 monitor_lock)双保险。
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=30000")
     conn.executescript(SCHEMA)
+    if fresh and glob.glob(os.path.join(mdir, "runs", "run-*.json")):
+        # RQ-229:monitor.db 只是缓存(不进 git);新克隆或缓存丢了,从 runs/*.json 重建
+        n_runs, n_alerts = rebuild_db(conn, mdir)
+        print("[i] monitor.db 不存在,已从 runs/ 重建: %d 次 run、%d 条告警" % (n_runs, n_alerts))
     return conn
+
+
+def rebuild_db(conn, mdir):
+    """按 runs/run-NNNNN.json(每次 run 的快照)和 runs/diff-NNNNN.json(每次 diff 写库的告警)
+    重放出 runs/snapshots/alerts 三表。run 编号沿用文件名,保证和 git 里的文件对得上。"""
+    n_runs = n_alerts = 0
+    for path in sorted(glob.glob(os.path.join(mdir, "runs", "run-*.json"))):
+        m = re.search(r"run-(\d+)\.json$", path)
+        if not m:
+            continue
+        rid = int(m.group(1))
+        try:
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+        except (OSError, ValueError):
+            continue
+        ts = payload.get("ts") or datetime.fromtimestamp(os.path.getmtime(path)).isoformat(
+            timespec="seconds")
+        conn.execute("INSERT OR REPLACE INTO runs(id, ts, kind, status, checks_run, budget_used_sec,"
+                     " summary) VALUES(?,?,?,?,?,?,?)",
+                     (rid, ts, payload.get("kind"), payload.get("status") or "ok",
+                      payload.get("kind"), payload.get("budget_used_sec") or 0,
+                      json.dumps(payload, ensure_ascii=False)))
+        for check, kv in (payload.get("snapshot") or {}).items():
+            for key, value in (kv or {}).items():
+                h = sha256_text(json.dumps(value, ensure_ascii=False, sort_keys=True))
+                conn.execute("INSERT INTO snapshots(run_id, ts, \"check\", key, value, hash) "
+                             "VALUES(?,?,?,?,?,?)",
+                             (rid, ts, check, key, json.dumps(value, ensure_ascii=False), h))
+        n_runs += 1
+    for path in sorted(glob.glob(os.path.join(mdir, "runs", "diff-*.json"))):
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            continue
+        rid, ts = d.get("curr_run"), d.get("generated")
+        per = d.get("persisted") or {}
+        for a in per.get("inserted") or []:
+            conn.execute("INSERT INTO alerts(run_id, ts, level, code, key, message, details, suppressed)"
+                         " VALUES(?,?,?,?,?,?,?,0)",
+                         (rid, ts, a.get("level"), a.get("code"), a.get("key"), a.get("message"),
+                          json.dumps(a.get("details_row") or {}, ensure_ascii=False)))
+            n_alerts += 1
+        for r in per.get("resolved") or []:
+            row = conn.execute("SELECT id, ts, level FROM alerts WHERE code=? AND key=? AND resolved=0 "
+                               "ORDER BY id DESC LIMIT 1", (r.get("code"), r.get("key"))).fetchone()
+            if row is None:
+                continue
+            conn.execute("UPDATE alerts SET resolved=1, resolved_run=? WHERE id=?", (rid, row["id"]))
+            conn.execute("INSERT INTO alerts(run_id, ts, level, code, key, message, details) "
+                         "VALUES(?,?,?,?,?,?,?)",
+                         (rid, ts, "low", r.get("code") + "_resolved", r.get("key"),
+                          "自愈: %s 的问题已消失(上次 %s)" % (r.get("key"), row["ts"]),
+                          json.dumps({"prev_level": row["level"]}, ensure_ascii=False)))
+    for path in sorted(glob.glob(os.path.join(mdir, "runs", "status-*.json"))):
+        try:                                    # quarantine 写的状态覆盖(run 编号 → 状态)
+            with open(path, encoding="utf-8") as f:
+                st = json.load(f)
+            conn.execute("UPDATE runs SET status=? WHERE id=?", (st["status"], int(st["run_id"])))
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    conn.commit()
+    return n_runs, n_alerts
 
 
 @contextlib.contextmanager
@@ -1632,12 +1713,13 @@ def prune(conn, mdir, keep=400):
         conn.execute("DELETE FROM snapshots WHERE run_id=?", (rid,))
         conn.execute("DELETE FROM alerts WHERE run_id=?", (rid,))
         conn.execute("DELETE FROM runs WHERE id=?", (rid,))
-        p = os.path.join(mdir, "runs", "run-%05d.json" % rid)
-        if os.path.exists(p):
-            try:
-                os.unlink(p)
-            except OSError:
-                pass
+        for pat in ("run-%05d.json", "diff-%05d.json", "status-%05d.json"):
+            p = os.path.join(mdir, "runs", pat % rid)
+            if os.path.exists(p):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
     if stale:
         conn.commit()
     return len(stale)
@@ -1715,6 +1797,7 @@ def cmd_run(args):
             run_status = "failed"
 
         payload = {"site": cfg["site"], "market": cfg.get("market"), "kind": args.checks,
+                   "ts": datetime.now().isoformat(timespec="seconds"),
                    "status": run_status, "budget_used_sec": budget.used_sec(),
                    "checks": {k: {"state": vv.get("state"), "notes": vv.get("notes", [])}
                               for k, vv in results.items() if isinstance(vv, dict) and "state" in vv},
@@ -2868,6 +2951,7 @@ def cmd_diff(args):
                    "counts": {l: sum(1 for a in active if a["level"] == l) for l in LEVELS}}
 
         if not args.dry_run:
+            persisted = {"inserted": [], "resolved": []}
             for a in alerts:
                 if a.get("suppressed"):
                     continue  # 冷却期内的重复指纹不重复入库(原未结行已代表它)
@@ -2875,6 +2959,8 @@ def cmd_diff(args):
                        "boundary": a.get("boundary")}
                 if a.get("accepted"):
                     det["accepted"] = True          # 周报"已接受告警数"据此计数
+                persisted["inserted"].append({"level": a["level"], "code": a["code"], "key": a["key"],
+                                              "message": a["message"], "details_row": det})
                 conn.execute(
                     "INSERT INTO alerts(run_id, ts, level, code, key, message, details, suppressed) "
                     "VALUES(?,?,?,?,?,?,?,0)",
@@ -2882,6 +2968,7 @@ def cmd_diff(args):
                      a["message"], json.dumps(det, ensure_ascii=False)))
             for row in unresolved:
                 if row["code"] + ":" + row["key"] not in cur_fps:
+                    persisted["resolved"].append({"code": row["code"], "key": row["key"]})
                     conn.execute("UPDATE alerts SET resolved=1, resolved_run=? WHERE id=?",
                                  (curr_id, row["id"]))
                     conn.execute(
@@ -2892,6 +2979,11 @@ def cmd_diff(args):
                          "自愈: %s 的问题已消失(上次 %s)" % (row["key"], row["ts"]),
                          json.dumps({"prev_level": row["level"]}, ensure_ascii=False)))
             conn.commit()
+            # RQ-229:写库内容同时落 runs/diff-NNNNN.json(进 git),monitor.db 丢了能重建
+            os.makedirs(os.path.join(mdir, "runs"), exist_ok=True)
+            with open(os.path.join(mdir, "runs", "diff-%05d.json" % curr_id), "w",
+                      encoding="utf-8") as f:
+                json.dump(dict(payload, persisted=persisted), f, ensure_ascii=False, indent=1)
         conn.close()
 
     # D1 P1:diff --ci(CI 门,siteone 契约):结构化阈值 checks,任一失败 exit 10
@@ -3079,6 +3171,30 @@ def cmd_report(args):
 
 # ---------- quarantine / maintenance ----------
 
+def write_status_override(mdir, run_id, status):
+    """quarantine 的结果落 runs/status-NNNNN.json,重建 monitor.db 时照样生效。"""
+    os.makedirs(os.path.join(mdir, "runs"), exist_ok=True)
+    with open(os.path.join(mdir, "runs", "status-%05d.json" % run_id), "w", encoding="utf-8") as f:
+        json.dump({"run_id": run_id, "status": status,
+                   "at": datetime.now().isoformat(timespec="seconds")}, f)
+
+
+def cmd_rebuild(args):
+    """显式重建:删掉缓存库,从 runs/*.json 重放。"""
+    mdir = args.dir
+    load_config(mdir)
+    with monitor_lock(mdir):
+        for suf in ("", "-wal", "-shm"):
+            p = os.path.join(mdir, "monitor.db" + suf)
+            if os.path.exists(p):
+                os.unlink(p)
+        conn = open_db(mdir)
+        n = conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+        conn.close()
+    print("rebuild 完成: runs 表 %d 行" % n)
+    return 0
+
+
 def cmd_quarantine(args):
     """基线污染回滚入口(audit 05-§2:此前修正只能手工改 SQLite)。"""
     mdir = args.dir
@@ -3093,11 +3209,13 @@ def cmd_quarantine(args):
         if args.undo:
             conn.execute("UPDATE runs SET status='ok' WHERE id=?", (args.run_id,))
             conn.commit()
+            write_status_override(mdir, args.run_id, "ok")
             print("run #%d(%s %s)解除隔离 → status='ok'(重新参与 diff 基线)"
                   % (row["id"], row["ts"], row["kind"]))
         else:
             conn.execute("UPDATE runs SET status='quarantined' WHERE id=?", (args.run_id,))
             conn.commit()
+            write_status_override(mdir, args.run_id, "quarantined")
             print("run #%d(%s %s)已隔离: status '%s' → 'quarantined',diff 不再用它当对比基线"
                   % (row["id"], row["ts"], row["kind"], row["status"]))
             print("  后续 run 与 diff 照常;解除用 --undo")
@@ -3240,7 +3358,7 @@ def build_parser():
     p.add_argument("--key-pages", default="/", help="逗号分隔路径,默认 /")
     p.add_argument("--heartbeat-url", default="",
                    help="dead man's switch ping URL(healthchecks.io 类;成功 ping URL 本身,失败 ping URL/fail)")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.add_argument("--force", action="store_true")
     p.set_defaults(func=cmd_init)
     p = sub.add_parser("run", help="跑一轮检查并写库")
@@ -3251,7 +3369,7 @@ def build_parser():
     p.add_argument("--backlinks", default="",
                    help="月检外链导出路径(缺省 <dir>/backlinks.csv,同 gsc.csv 模式;"
                         "backlink_import 统一格式或 Ahrefs/Semrush/GSC 原始导出)")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_run)
     p = sub.add_parser("diff", help="与上次 run 对比,超阈值才告警")
     p.add_argument("--run-id", type=int, default=None)
@@ -3263,24 +3381,27 @@ def build_parser():
                    help="CI 门模式(siteone 契约):输出 {passed,exit_code,checks[]},任一 check 失败 exit 10")
     p.add_argument("--ci-format", dest="ci_format", choices=["json", "junit"], default="json",
                    help="--ci 的输出格式(默认 json;junit=JUnit XML)")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_diff)
     p = sub.add_parser("report", help="周报:趋势+告警汇总+建议 PR")
     p.add_argument("--days", type=int, default=7)
     p.add_argument("--json", action="store_true")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_report)
+    p = sub.add_parser("rebuild", help="从 runs/*.json 重建 monitor.db(缓存,不进 git)")
+    p.add_argument("--dir", default=None)
+    p.set_defaults(func=cmd_rebuild)
     p = sub.add_parser("quarantine", help="隔离坏 run(标记 quarantined,diff 不再用它对比)")
     p.add_argument("run_id", type=int)
     p.add_argument("--undo", action="store_true", help="解除隔离(恢复 status='ok')")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_quarantine)
     p = sub.add_parser("maintenance", help="维护窗口:窗口内 diff 只记快照不产告警")
     p.add_argument("--from", dest="maint_from", default="", help="ISO 时间,如 2026-10-10T02:00")
     p.add_argument("--to", dest="maint_to", default="", help="ISO 时间")
     p.add_argument("--reason", default="")
     p.add_argument("--clear", action="store_true", help="清空全部维护窗口")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_maintenance)
     p = sub.add_parser("sample-keypages",
                        help="sitemap(或 --urls 清单)→slug 模板分组→每组随机抽 N,建议 key_pages")
@@ -3289,7 +3410,7 @@ def build_parser():
                    help="每个模板抽几个(默认 8)")
     p.add_argument("--seed", type=int, default=0, help="随机种子(默认 0=可复现)")
     p.add_argument("--write", action="store_true", help="把建议合并进 config.key_pages(默认只打印)")
-    p.add_argument("--dir", default=DEFAULT_DIR)
+    p.add_argument("--dir", default=None)
     p.set_defaults(func=cmd_sample_keypages)
     return ap
 
@@ -3704,6 +3825,8 @@ def main(argv=None):
     if not getattr(args, "cmd", None):
         ap.print_help()
         return 1
+    if hasattr(args, "dir") and not args.dir:
+        args.dir = default_dir()
     return args.func(args)
 
 

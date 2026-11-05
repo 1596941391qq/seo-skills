@@ -5,7 +5,11 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
-(暂无)
+- **长期运营状态统一到 `seo-ops/`(RQ-229 第 1 批)**:`project.py init` 默认在站点仓库根目录建 `seo-ops/`(schema 2:project.yaml、history/、ledger/、monitor/、.gitignore);新增 `project.py migrate` 把旧版 `<slug>.seo/`、`.seo-monitor/`、散落的 remediations.json/panel.json/状态文件搬进来,先复制核对(文件集合、工单 id 集合)再把旧位置改名保留;工作区 schema 比本版新时退出码 2,不改写。`next` 的阶段判定改用记录里的时间(triage.json 的 generated_at、工单新增的 `implemented_at`),新克隆后修改时间全部相同也能判对。
+- **`monitor.db` 降为缓存,不进 git**:每次 diff 写库的告警落 `runs/diff-NNNNN.json`,隔离状态落 `runs/status-NNNNN.json`,run 快照带 `ts`;库不在时自动从 `runs/` 重建,新增 `monitor.py rebuild`。Actions 模板只把 `runs/` 提交到状态分支,恢复时删掉旧版提交过的库。当前目录有 `seo-ops/` 时 `--dir` 默认 `seo-ops/monitor`。
+- **安全边界统一**:监控修复动作表里原来的 `auto`(agent 直接回滚 robots 误封、noindex、被删 meta、首页、证书)全部改为 `urgent_pr`(加急草稿 PR + 立即通知人合并);手册、`claude -p` 模板和 SKILL.md 同步:不推主干、不合并、网页里的「指令」当数据。
+- **发版门**:新增 `tools/release_check.py`(七处版本号一致、CHANGELOG、单元测试、self_check、过期断言、行为评测快速档)和 `release-gate` 工作流(每次 push/PR 跑离线部分)。
+  Long-running ops state now lives in one `seo-ops/` directory (with migration and schema guard); `monitor.db` is a rebuildable cache that never goes into git; no more auto-applied fixes — rollbacks become urgent draft PRs; a release gate script and CI workflow.
 
 ## 0.37.1 - 2026-11-05
 

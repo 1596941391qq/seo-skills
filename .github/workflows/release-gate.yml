@@ -1,0 +1,24 @@
+# release-gate:每次 push 到 main、每个 PR 都跑发版门的离线部分(RQ-229 第 1 批)。
+# 发版前本机再跑一次完整的:python3 tools/release_check.py --tag vX.Y.Z
+name: release-gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: release_check (no-net)
+        run: python3 tools/release_check.py --no-net --allow-unreleased
