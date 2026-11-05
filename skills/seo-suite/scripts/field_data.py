@@ -22,6 +22,11 @@ PSI key 免费约 5 分钟,`export PSI_API_KEY=…`(CrUX 用 CRUX_API_KEY),不�
   cumulative_layout_shift 的 p75 是 2 位小数字符串("0.23"),其余为 int 毫秒。
   page(url=)与 origin(origin=)两种查询模式(--crux-scope)。无 key 时整源跳过并告警
   (降级:仅 PSI,不算失败)。
+  软导航实验指标(2026-10-13 起,CrUX 2026-09 数据集):同一请求另要
+  experimental_{largest_contentful_paint,interaction_to_next_paint,cumulative_layout_shift}
+  _with_softnavs(类型同稳定版:CLS 为 2 位小数字符串,其余 int 毫秒;CrUX API 文档
+  「Metric value types」表,核对 2026-11-05)。有就单列「含软导航(experimental)」,
+  没有就不显示、不报错;只作参考,不进退出码、不进 CSV、不覆盖稳定版现场值。
 阈值判定(官方 CWV 口径,写死;与 references/technical/cwv-playbook.md 同源):
   LCP good≤2.5s / NI≤4s;INP good≤200ms / NI≤500ms;CLS good≤0.1 / NI≤0.25;
   TTFB 参考 good≤0.8s / NI≤1.8s(web.dev 诊断口径,非核心三项);FCP 参考 1.8s/3s;
@@ -77,6 +82,11 @@ PSI_LAB_AUDITS = {"largest-contentful-paint": "LCP", "cumulative-layout-shift": 
 CRUX_METRICS = {"largest_contentful_paint": "LCP", "cumulative_layout_shift": "CLS",
                 "interaction_to_next_paint": "INP", "experimental_time_to_first_byte": "TTFB",
                 "first_contentful_paint": "FCP"}
+# CrUX 软导航实验指标(SPA 路由切换计入;web.dev/blog/crux-experimental-soft-navs,
+# 预计 2027-05 转正,转正前标 experimental、只作参考,见 references/overview/facts.md#crux-softnav)
+CRUX_SOFTNAV_METRICS = {"experimental_largest_contentful_paint_with_softnavs": "LCP",
+                        "experimental_interaction_to_next_paint_with_softnavs": "INP",
+                        "experimental_cumulative_layout_shift_with_softnavs": "CLS"}
 FORM_FACTOR = {"mobile": "PHONE", "desktop": "DESKTOP"}
 
 USAGE = """usage: field_data.py --url U | --urls list.txt [--strategy mobile|desktop|both]
@@ -187,7 +197,7 @@ def psi_request_url(url, strategy, key=None):
 
 
 def crux_request_body(target, scope, form_factor):
-    body = {"formFactor": form_factor, "metrics": list(CRUX_METRICS)}
+    body = {"formFactor": form_factor, "metrics": list(CRUX_METRICS) + list(CRUX_SOFTNAV_METRICS)}
     if scope == "origin":                          # origin 查询:剥路径,只留 scheme://netloc
         body["origin"] = "%s://%s" % urllib.parse.urlsplit(target)[:2]
     else:
@@ -248,12 +258,13 @@ def parse_psi_lab(lh):
     return out
 
 
-def parse_crux(record):
+def parse_crux(record, keys=None):
     """CrUX 响应 → {指标: p75 规范值};cumulative_layout_shift 的 p75 官方为
-    2 位小数字符串("0.23"),其余 int 毫秒;percentiles 兼容 dict 与 list 两种形态。"""
+    2 位小数字符串("0.23"),其余 int 毫秒;percentiles 兼容 dict 与 list 两种形态。
+    keys 缺省为稳定版 CRUX_METRICS;传 CRUX_SOFTNAV_METRICS 取软导航实验指标。"""
     metrics = (record.get("record") or {}).get("metrics") or {}
     out = {}
-    for key, name in CRUX_METRICS.items():
+    for key, name in (CRUX_METRICS if keys is None else keys).items():
         pc = (metrics.get(key) or {}).get("percentiles")
         p75 = None
         if isinstance(pc, dict):
@@ -300,7 +311,7 @@ def field_entry(name, canon, category=None, src=None):
 
 def collect(url, strategy, psi_key=None, crux_key=None, scope="page", timeout=DEFAULT_TIMEOUT):
     """单 URL×单策略:PSI(现场+实验)+ CrUX(现场);现场两源合并(PSI 页级优先,CrUX 补缺)。"""
-    res = {"url": url, "strategy": strategy, "field": {}, "lab": {},
+    res = {"url": url, "strategy": strategy, "field": {}, "lab": {}, "field_softnav": {},
            "field_category": None, "performance_score": None,
            "source": "", "errors": [], "notes": []}
     srcs = []
@@ -334,6 +345,12 @@ def collect(url, strategy, psi_key=None, crux_key=None, scope="page", timeout=DE
             crux_field = parse_crux(cdata)
             if crux_field:
                 srcs.append("crux")
+            softnav = parse_crux(cdata, CRUX_SOFTNAV_METRICS)
+            for name in CORE_FIELD:                 # 实验指标:单列,不并入 field
+                if name in softnav:
+                    ent = field_entry(name, softnav[name], None, "crux")
+                    ent["experimental"] = True
+                    res["field_softnav"][name] = ent
     for name in FIELD_ORDER:                        # 现场:PSI 优先,CrUX 补缺
         if name in psi_field:
             canon, cat = psi_field[name]
@@ -399,6 +416,17 @@ def render_markdown(results, notes):
         else:
             L.append("| (无现场数据) | - | - | - | - |")
         L.append("")
+        if r.get("field_softnav"):
+            L.append("### 现场 field·含软导航(experimental,CrUX;SPA 路由切换计入,只作参考,不进退出码)")
+            L.append("")
+            L.append("| 指标 | p75 | 判定(参考) | 稳定版 p75 |")
+            L.append("|---|---|---|---|")
+            for name, e in r["field_softnav"].items():
+                st = r["field"].get(name)
+                L.append("| %s | %s %s | %s | %s |" % (
+                    name, e["value"], e["unit"], VERDICT_MARK[e["verdict"]],
+                    "%s %s" % (st["value"], st["unit"]) if st else "-"))
+            L.append("")
         L.append("### 实验 lab(Lighthouse 单次合成环境,非真实用户)")
         L.append("")
         L.append("| 指标 | 数值 | 评分 | 判定(参考) |")

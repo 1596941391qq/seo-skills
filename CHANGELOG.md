@@ -5,7 +5,9 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
-(暂无)
+RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条都打开一手原文核对(核对 2026-11-05)。
+
+- **SPA 软导航 CWV**:事实表加 `#crux-softnav`(CrUX 2026-10-13 起的三个 `experimental_*_with_softnavs` 指标,目标 2027-05 转正);`cwv-playbook.md` 加第九节 SPA;`field_data.py` 同一请求另要三个实验指标,有就单列「含软导航(experimental)」,没有不显示,不进退出码和 CSV(`tests/test_field_softnav.py`,期望值来自 CrUX API 文档类型表)。
 
 ## 0.37.1 - 2026-11-05
 
