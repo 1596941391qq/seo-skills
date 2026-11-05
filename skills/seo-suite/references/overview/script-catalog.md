@@ -51,6 +51,8 @@
 - `serp_occupancy.py --market XX`:市场 SERP 占位审计(UGC 五霸/聚合器/投诉站)
 - `grid_rank.py rank_data.csv`:本地网格排名三指标(ARP/ATRP/SoLV;未命中 21 惩罚+盲区=ATRP−ARP 必同报)
 
+- `link_intel.py listicles|ccgraph|crawl|intersect|footprint`:**竞品与外链发现**——榜单文章挖上下游种子站;Common Crawl 域名级链接图(免费,季度版,流式读约 9GB 不落盘)查任意域的入链域和种子之间互链;抓合作/友链/资源页和以对方品牌命名的页,页面级找互换(两边页面都给);外联候选=链到 ≥N 个种子、没链我们(--ledger 标已联系);footprint 按 SERP 抽样算竞品排在哪些词、靠哪类页面,我们缺位的词按赢家页面类型归组。流程与判据见 [link-intelligence](../research/link-intelligence.md)
+
 **多语言实装(markets.json 数据层)**
 - `market_lint.py --market XX FILE`:v3 检查注册表 64 条——special_checks 动态机检 52 条映射(全角可见长度(日 32)/泰文字素/句长/营销词 18 语/格式/敬语混用/简繁混检+ko nosourceinfo/ja 星5つ/en 可引性四要素/pt CNPIX骗局/de Werbung 双披露/id baku-gaul/EYD/th 佛历/pl 变音/sierotki/nl je-u·KvK 等)+ v3 常开机检 12 项(营销词密度/句长CV/FAQ问句密度/有源数字密度/H2 疑问式占比/列表密度/标题关键词位次/日期格式/电话前缀/货币符号/母语字符占比/noai·noimageai·nosnippet AI 退出 meta);--report 尾部打印该市场 AUTO 比例
 - `local_format.py --market de|fr|ar|zh`:数字/标点空格/RTL 数字/日期/电话

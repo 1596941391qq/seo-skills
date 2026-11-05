@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """GSC 导出挖掘器(stdlib)。从 Search Console 导出的 CSV(无需 API)直接挖:
 striking distance(pos 5-20 且曝光≥20)/ quick wins(pos 11-20+曝光≥50+低CTR)/
-低 CTR(期望CTR曲线差>2pp)/ 蚕食(同 query ≥2 页)/ 流量衰退(当前28d vs 前28d 两文件)。
+低 CTR(期望CTR曲线差>2pp,query×page 导出先按词合并)/ 蚕食(同 query 在同一语言里 ≥2 页、次页占 ≥20% 且合计 ≥10;
+去掉 #锚点,/en/x 与 /es/x 算语言版本不算互抢;品牌词用 --brand 排除)/ 流量衰退(当前28d vs 前28d 两文件)。
 用法:
   python3 gsc_mining.py queries.csv [--mode query]        # 单表: Query,Clicks,Impressions,CTR,Position
   python3 gsc_mining.py matrix.csv --mode matrix          # Query,Page,Clicks,Impressions,CTR,Position
@@ -83,6 +84,74 @@ def get_query(r):
     """查询列:API 规范化输出是 Query,GSC 网页导出是 Top queries。"""
     return get(r, "query", "top queries")
 
+
+LANG_SEG = re.compile(r"^/([a-z]{2}(?:-[a-z]{2,4})?)(?=/|$)", re.I)
+
+
+def _page_key(url):
+    """→ (语言, 去掉语言前缀和 #锚点的路径)。/en/x 和 /es/x 是同一页的语言版本;/x#faq 和 /x 是同一页。"""
+    u = (url or "").split("#", 1)[0]
+    path = re.sub(r"^https?://[^/]+", "", u) or "/"
+    m = LANG_SEG.match(path)
+    lang = m.group(1).lower() if m else "default"
+    rest = path[m.end():] if m else path
+    return lang, (rest.rstrip("/") or "/")
+
+
+def merge_by_query(rows):
+    """query × page 的导出拿来跑单表模式时,先按词合并(点击、展示相加,排名按展示加权),
+    免得品牌词的几十条站点链接各算一条「低 CTR」。只有一行一词的导出原样返回。"""
+    agg, order = {}, []
+    for r in rows:
+        q = get_query(r)
+        try:
+            impr = float(get(r, "impressions") or 0); clk = float(get(r, "clicks") or 0)
+            pos = float(get(r, "position"))
+        except ValueError:
+            continue
+        if q not in agg:
+            agg[q] = [0.0, 0.0, 0.0]; order.append(q)
+        a = agg[q]; a[0] += clk; a[1] += impr; a[2] += pos * impr
+    if len(order) == len(rows):
+        return rows
+    out = []
+    for q in order:
+        c, i, pw = agg[q]
+        out.append({"query": q, "clicks": str(c), "impressions": str(i), "ctr": str(c / i if i else 0.0),
+                    "position": str(pw / i if i else 0.0)})
+    return out
+
+
+def cannibalization(rows, is_brand=lambda q: False, share=0.20, min_total=10):
+    """同一个词在同一语言里有 ≥2 个不同页面拿展示,第二名占该语言展示 ≥share 且该语言合计 ≥min_total 才算。
+    去掉 #锚点(同一页)、按语言前缀分组(/en/x 与 /es/x 是语言版本,按国家分流,不算互抢)。"""
+    byq = {}
+    for r in rows:
+        q = get_query(r)
+        if is_brand(q): continue
+        try:
+            lang, key = _page_key(get(r, "page"))
+            impr = float(get(r, "impressions") or 0); pos = float(get(r, "position"))
+        except ValueError:
+            continue
+        d = byq.setdefault(q, {}).setdefault(lang, {})
+        a = d.setdefault(key, [0.0, 0.0, get(r, "page").split("#", 1)[0]])
+        a[0] += impr; a[1] += pos * impr
+    out = []
+    for q, langs in byq.items():
+        for lang, pages in langs.items():
+            if len(pages) < 2: continue
+            ranked = sorted(pages.values(), key=lambda v: -v[0])
+            tot = sum(v[0] for v in ranked)
+            if tot < min_total or ranked[1][0] / tot < share: continue
+            wpos = sum(v[1] for v in ranked) / tot
+            out.append({"query": q, "lang": lang, "pages": len(ranked), "impressions": int(tot),
+                        "weighted_pos": round(wpos, 1),
+                        "detail": [(v[2], v[0], round(v[1] / v[0], 1) if v[0] else None) for v in ranked]})
+    out.sort(key=lambda x: -x["impressions"])
+    return out
+
+
 def main():
     a = sys.argv[1:]
     if any(x in ("-h", "--help") for x in a):
@@ -135,6 +204,7 @@ def main():
     rows = read(a[0])
     if not matrix:
         sd, lw = [], []
+        rows = merge_by_query(rows)
         for r in rows:
             try:
                 pos = float(get(r, "position")); impr = float(get(r, "impressions"))
@@ -158,23 +228,13 @@ def main():
         print(f"\n== 低CTR机会(排名1-10, 期望-实际>2pp): {len(lw)} 词 ==")
         for q, p, i, c, g in lw[:30]: print(f"{q:<40} pos{p:<5.1f} CTR{c:.1%} 差{g:.1%}")
     else:
-        byq = {}
-        for r in rows:
-            q = get_query(r)
-            if is_brand(q): continue
-            try: byq.setdefault(q, []).append((get(r, "page"), float(get(r, "position")), float(get(r, "impressions") or 0)))
-            except ValueError: pass
-        cann = []
-        for q, pages in byq.items():
-            if len(pages) >= 2 and max(p[2] for p in pages) >= 20:
-                tot = sum(p[2] for p in pages)
-                wpos = sum(p[1]*p[2] for p in pages)/tot
-                cann.append({"query": q, "pages": len(pages), "weighted_pos": round(wpos, 1)})
-        cann.sort(key=lambda x: -x["weighted_pos"])
+        cann = cannibalization(rows, is_brand)
         if as_json:
             print(json.dumps({"schema_version": 1, "mode": "matrix", "cannibalization": cann[:30]}, ensure_ascii=False, indent=1))
             return
-        print(f"== 蚕食(同query≥2页, 加权位次): {len(cann)} 组 ==")
-        for o in cann[:30]: print(f"{o['query']:<40} {o['pages']}页 加权pos{o['weighted_pos']}")
+        print(f"== 蚕食(同一语言里 ≥2 页分展示,次页占 ≥20% 且合计 ≥10;已去掉 #锚点和语言版本): {len(cann)} 组 ==")
+        for o in cann[:30]:
+            detail = "; ".join(f"{pg}({int(i)}/{ps})" for pg, i, ps in o["detail"][:4])
+            print(f"{o['query']:<40} [{o['lang']}] {o['pages']}页 加权pos{o['weighted_pos']}  {detail}")
 
 if __name__ == "__main__": main()

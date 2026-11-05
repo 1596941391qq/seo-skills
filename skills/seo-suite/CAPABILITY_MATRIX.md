@@ -1,6 +1,6 @@
 # Capability Matrix(能力矩阵)
 
-机器可读版:[data/capability-matrix.json](data/capability-matrix.json)(**129 条 = 91 脚本 + 25 模板 + 13 references 主干**;schema_version 1.0)。本文件是人读版,2026-10-12 从 JSON 全量重刷,2026-11-05 补 ga4_api.py、guard_hook.py、ops.py、source_map.py,2026-10-18 增补 question_align.py、ste_lint.py,两者由 [tests/test_capability_matrix.py](tests/test_capability_matrix.py) 守护一致性(改条目先改 JSON,再同步本文件)。
+机器可读版:[data/capability-matrix.json](data/capability-matrix.json)(**130 条 = 92 脚本 + 25 模板 + 13 references 主干**;schema_version 1.0)。本文件是人读版,2026-10-12 从 JSON 全量重刷,2026-11-05 补 ga4_api.py、guard_hook.py、ops.py、source_map.py,2026-11-06 补 link_intel.py,2026-10-18 增补 question_align.py、ste_lint.py,两者由 [tests/test_capability_matrix.py](tests/test_capability_matrix.py) 守护一致性(改条目先改 JSON,再同步本文件)。
 
 治理出处:[references/research/niubigeo-deep-read.md](references/research/niubigeo-deep-read.md) N10(CAPABILITY_MATRIX 治理格式)。借用其核心思想「**能力=完成**三条件」并按本套件改写:
 
@@ -165,12 +165,13 @@
 | link_graph.py | --crawl site_crawl 的 crawl.json --top/--exact-threshold(可选) | json | crawl edges→PageRank/深度直方图/入链清单/锚文本审计(过度优化警告) | ②+③ | test_link_tools.py | beta |
 | orphan_fix.py | --crawl site_crawl 的 crawl.json --max 处理上限(默认 50) | json | 孤儿×同目录候选源页→修复清单(hub-spoke 规划输入) | ②+③ | test_link_tools.py | beta |
 
-## 十三、外链与数字 PR(2)
+## 十三、外链与数字 PR(3)
 
 | 脚本 | 输入 | 输出 | 数据源 | 降级 | 测试 | status |
 |---|---|---|---|---|---|---|
 | outreach_tracker.py | add/list/update/due/report(outreach.json) add --source 可吃 citation_gaps --json 候选域 | json | 外展状态库(add 吃 gaps 导入/due 复查提醒/转化漏斗;与 citation_gaps 闭环) | ③ | test_outreach_tracker.py | beta |
 | directory_tracker.py | init/add/list/verify/quarterly/export/import(14 列 CSV) verify --entry --target 现场核验 | json | 目录提交执行器(14 列 CSV/现场核验 dofollow/季度复检队列) | ③ | test_directory_tracker.py | beta |
+| link_intel.py | listicles/ccgraph/crawl/intersect/footprint(榜单 URL、种子域、SERP 样本 JSON) | json | Common Crawl 域名级链接图(免费,季度)+ 自抓合作/友链/资源页 + 榜单 + SERP 抽样→种子站/互换/外联候选/竞品页面类型底账 | ③ | test_link_intel.py | beta |
 
 ## 十四、归因实验(3)
 

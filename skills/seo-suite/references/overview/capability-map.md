@@ -45,7 +45,7 @@ seo-suite
 | 内容运营与 pSEO | 6 | content_queue / pseo_pattern_mining / pseo_batch_gate / pseo_cohort / prune_gate / content_inventory |
 | 数据接入 | 5 | gsc_api(`query --dimensions` 可含 country/device/hour/searchAppearance) / backlink_import / indexnow / bing_wmt(`stats` / `pagequery` / `urlstatus` / `submit`) / byo_import |
 | 内链架构 | 2 | link_graph / orphan_fix |
-| 外链与数字 PR | 2 | outreach_tracker / directory_tracker |
+| 外链与数字 PR | 3 | outreach_tracker / directory_tracker / link_intel |
 | 归因实验 | 3 | split_test / synthetic_control / geo_experiment |
 | 垂直场景 | 3 | local_audit / news_sitemap_check / multimodal_report |
 

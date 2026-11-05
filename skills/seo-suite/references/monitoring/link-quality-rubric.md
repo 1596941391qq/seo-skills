@@ -50,6 +50,8 @@ DR、DA、Authority Score 等是各工具基于自己抓到的链接图算出来
 
 不要追求复制竞品的每一条链接，也不要追求链接数量。
 
+没有付费外链工具时，第 1、2 步用 `scripts/link_intel.py`：Common Crawl 域名级链接图查各家入链域，`intersect` 直接列出「链了 ≥2 个竞品、没链我们」的域；整套流程见 [link-intelligence](../research/link-intelligence.md)。
+
 ## 常见误区
 
 - 用 DR 或 DA 阈值一刀切，判定链接好坏。

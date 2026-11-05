@@ -538,13 +538,14 @@ class CsvContractTests(GscApiCase):
                            capture_output=True, text=True, encoding="utf-8", timeout=60,
                            env=dict(os.environ, PYTHONIOENCODING="utf-8"))
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("striking distance(pos5-20, 曝光≥20): 3 词", r.stdout)  # 6.2/8.1/12.0
+        # query×page 导出先按词合并(2026-11-06):cheap flights 两页合成一个词(加权 6.6),加 tiny ctr 12.0 共 2 词
+        self.assertIn("striking distance(pos5-20, 曝光≥20): 2 词", r.stdout)
         self.assertIn("cheap flights", r.stdout)
         r2 = subprocess.run([sys.executable, os.path.join(SCRIPTS, "gsc_mining.py"),
                              p, "--mode", "matrix"],
                             capture_output=True, text=True, encoding="utf-8", timeout=60,
                             env=dict(os.environ, PYTHONIOENCODING="utf-8"))
-        self.assertIn("蚕食(同query≥2页, 加权位次): 1 组", r2.stdout)
+        self.assertIn("已去掉 #锚点和语言版本): 1 组", r2.stdout)   # cheap flights 次页 150/650=23%
         self.assertIn("cheap flights", r2.stdout)
 
     def test_ctr_fraction_safe_for_parse_ctr(self):

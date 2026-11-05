@@ -23,11 +23,11 @@
   "④": "静默跳过可选增强(核心功能照常)"
  },
  "summary": {
-  "script": 91,
+  "script": 92,
   "template": 25,
   "reference": 13,
   "stable": 76,
-  "beta": 52,
+  "beta": 53,
   "draft": 1
  },
  "entries": [
@@ -1597,6 +1597,23 @@
    "data_source": "目录提交执行器(14 列 CSV/现场核验 dofollow/季度复检队列)",
    "fallback_mode": "③",
    "tests_file": "tests/test_directory_tracker.py",
+   "status": "beta"
+  },
+  {
+   "type": "script",
+   "script": "link_intel.py",
+   "group": "外链与数字 PR",
+   "inputs": [
+    "listicles --input 榜单 URL(search MCP 搜来)",
+    "ccgraph --targets 种子域 [--own] [--ranks]",
+    "crawl --sites [--own-pages]",
+    "intersect --graph [--crawl] [--ledger]",
+    "footprint --serp SERP 样本 JSON"
+   ],
+   "outputs_schema": "json",
+   "data_source": "Common Crawl 域名级链接图(免费,季度)+ 自抓合作/友链/资源页 + 榜单文章 + SERP 抽样;种子站/互换关系/外联候选/竞品页面类型底账",
+   "fallback_mode": "③",
+   "tests_file": "tests/test_link_intel.py",
    "status": "beta"
   },
   {

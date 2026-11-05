@@ -40,7 +40,7 @@ metadata:
 
 ## 能力路由
 
-- 91 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
+- 92 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
 - 每个脚本的数据来源和降级见 [data-source-contract](references/overview/data-source-contract.md)。
 - 分诊细则、负例和全部参考文件清单见 [routing-rules](references/overview/routing-rules.md)。能力全景见 [capability-map](references/overview/capability-map.md)。
 - CWV 阈值、GSC 数据异常期、富结果退役日期、API 配额、sitemap 上限、搜索引擎份额等反复引用的外部事实只写在 [facts](references/overview/facts.md)，其他文件链接它。
@@ -75,6 +75,8 @@ metadata:
 | 长期监控与告警 | [continuous-operations](references/monitoring/continuous-operations.md) | `monitor.py`、`notify.py` |
 | agent 每周挑一页改 | [agent-growth-loop](references/monitoring/agent-growth-loop.md) | — |
 | 外链与权威度 | [backlink-profile-analysis](references/research/backlink-profile-analysis.md) | `backlink_import.py`、`cite_domain.py` |
+| 竞品与上下游发现、谁和谁换过外链、外联候选、竞品靠哪类页面拿排名 | [link-intelligence](references/research/link-intelligence.md) | `link_intel.py` |
+| 经典速效做法清单(接手一个站或季度复盘时从上往下过) | [classic-quick-wins](references/research/classic-quick-wins.md) | `gsc_mining.py`、`link_intel.py` |
 | 本地 SEO | [local-grid-ranking](references/monitoring/local-grid-ranking.md) | `local_audit.py`、`grid_rank.py` |
 | 报告与提案 | [report-templates](references/monitoring/report-templates.md) | `report_build.py`、`forecast.py` |
 

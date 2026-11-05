@@ -5,8 +5,15 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+## 0.41.0 - 2026-11-06
+
 - **例 7 难场景(`tools/evals/scenarios_hard.json`、`tools/testsites/hard_site.py`)**:0.40.0 的 12 个普通场景装与不装只差 3 个百分点(测试站问题一眼可见)。新加 6 个难场景,判据开跑前写在文件里(装 skill 的组结果断言 ≥90%,不装的组低 ≥30 个百分点):三语站 hreflang 回链、`en-UK`、hreflang 指向跳转页,外加诱饵页;响应头 noindex 与 sitemap 冲突、软 404、canonical 指向 404;AI 训练退出(独立的 RFC 9309 解析判分,含 `__usage_ai-training`);按 GSC 逐日数据把掉量对到 2026-05-21 核心更新;CrUX `experimental_*_with_softnavs`;Cloudflare 2026-09-15 默认改动。新加「不联网」条件(提示词注明,跑的时候用了联网工具或 curl 外网就作废)。结果:Sonnet 联网 skill 100% / 不装 91.7%(+8,没过线,不装的联网能查到新事实);Sonnet 不联网 100% / 30%(+70);Opus 不联网 100% / 50%(+50,有效 4 条,1 条用了浏览器作废)。结论:skill 能量出来的价值在不联网时的 2026 新事实,以及不把 robots 改动直接推上 main;站点检查流程两组都找全(5/5、0 误报),不装也能做到。
   Hard eval scenarios with a no-web condition: skill 100% vs baseline 92% (Sonnet, web), 30% (Sonnet, no web), 50% (Opus, no web).
+- **竞品与外链发现(新脚本 `link_intel.py`,文档 `references/research/link-intelligence.md`)**:回答「上下游有哪些站、谁链谁、谁和谁换过链、哪些站会和我们换、哪些榜单该把我们加进去、竞品靠哪类页面赢词」。八个子命令,只用标准库:`listicles`(榜单正文外链按「几家发布方提到」计数)出种子站;`ccgraph` 流式读 Common Crawl 域名级链接图(顶点 1GB + 边 8GB,不落盘,16MB 分段顺序取、主站和镜像轮换);`crawl` 抓合作 / 集成 / 友链页和路径带品牌词的页,给出页面级 A↔B 互链;`exchangers` 出互换池(自己有合作页的站 + 这些页上列着的站,按被几家列出排,可多轮滚雪球);`intersect` 出求收录候选(同一页正文里链了 ≥N 家同类、没链我们);`footprint` 把 SERP 抽样按赢家页面类型归组;`deadlinks`、`unlinked`。
+  在 everyinfra.com 上实测(判据开跑前写定):① 运营台人工核实过的 6 家静态页互换全部找回;一次抓 196 个站时首轮只找回 3 家(别家品牌词的博客把 30 页上限占满),改成「我们的品牌词页 → 合作页 → 别家品牌词页」的顺序后 6/6。② 互换池:57 个站有合作页,页上列出外站 1,262 个,被 ≥2 家列出、没联系过的 462 个;自己有合作页的已知伙伴 5 家全部认成「在做互换的站」。③ 求收录候选两轮独立核验(各抽 20 个,核验代理没看过脚本):第一轮只看脚本输出,链接属实 85%、值得联系 30%,没过 70% 的线(引用链接、页脚、直接竞品、品类不对);修了只算正文链接、引用和组件类域名不当种子、记 follow 数,加上逐个判断这一步,第二轮链接属实 100%、值得联系 50%(算上「弱」85%),仍没到 70%;之后又改成同一页要链 ≥2 家、同名不同后缀算一家、种子只留同类厂商,这一版没有再做独立核验。Common Crawl 当天整天回 503 SlowDown(整桶限流,换 IP 没用),链接图只有单元测试验证。`tests/test_link_intel.py` 21 条,其中 7 条是两轮核验和实跑发现的问题的回归测试。
+- **经典速效做法清单(`references/research/classic-quick-wins.md`)**:33 条,分站内(几天见效)、找外链(几周)、新页面类型(要业务方定)三张表,逐条指到本套件的脚本或文档;另写外链落点(跟踪短链和 302 的风险)、资源页查询模板、记者请求平台、不要做的事。起因:对照 everyinfra.com 逐条核了 44 条经典做法,skill 只有文字没有脚本或数据源的 14 条,完全没有的 2 条。
+- **`gsc_mining.py` 关键词互抢不再误报**:原来把品牌词的站点链接、同一页的 #锚点、同一页的不同语言版本都算成互抢(everyinfra 29 天数据报 64 组)。现在去掉锚点、按语言分组,次页占 ≥20% 且合计 ≥10 才算,`--brand` 排除品牌词;query 模式先按词合并 query×page 行(原来低 CTR 模式把品牌词的 7 条站点链接各报一次)。同一份数据现在报 5 组,和不看脚本的人工口径逐条一致(`tests/test_gsc_mining_cannibal.py`)。
+  Link intelligence (`link_intel.py`): seed sites from listicles, Common Crawl domain graph, partner-page crawl and exchange detection, exchange pool, listicle outreach candidates, competitor SERP footprint, dead and unlinked mentions; classic quick-wins checklist; `gsc_mining.py` cannibalization no longer counts brand sitelinks, #fragments or language versions.
 
 ## 0.40.1 - 2026-11-05
 
