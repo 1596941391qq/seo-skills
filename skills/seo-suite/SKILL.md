@@ -40,7 +40,7 @@ metadata:
 
 ## 能力路由
 
-- 87 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
+- 90 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
 - 每个脚本的数据来源和降级见 [data-source-contract](references/overview/data-source-contract.md)。
 - 分诊细则、负例和全部参考文件清单见 [routing-rules](references/overview/routing-rules.md)。能力全景见 [capability-map](references/overview/capability-map.md)。
 - CWV 阈值、GSC 数据异常期、富结果退役日期、API 配额、sitemap 上限、搜索引擎份额等反复引用的外部事实只写在 [facts](references/overview/facts.md)，其他文件链接它。
@@ -69,8 +69,9 @@ metadata:
 | JS 渲染 / 移动 | [rendering-seo](references/technical/rendering-seo.md)、[mobile-seo](references/technical/mobile-seo.md) | `site_audit.py` |
 | 实体与品牌事实 | [entity-signal-checklist](references/technical/entity-signal-checklist.md)、[brand-records](references/content/brand-records.md) | `grounding_page.py`、`oracle_check.py` |
 | Programmatic SEO | [programmatic-seo-gates](references/technical/programmatic-seo-gates.md) | `pseo_batch_gate.py`、`pseo_cohort.py` |
-| 归因埋点 | [ga4-implementation](references/technical/ga4-implementation.md) | `did_attribution.py`、`ai_referral_log.py` |
+| 归因埋点 | [ga4-implementation](references/technical/ga4-implementation.md) | `did_attribution.py`、`ai_referral_log.py`、`ga4_api.py` |
 | 掉量查根因 | [capability-map](references/overview/capability-map.md) 任务链#9 | `monitor.py diff` → `sensor_volatility.py --context` → `changelog.py` |
+| 每周运营单(长期运营一个站) | [ops-agenda](references/monitoring/ops-agenda.md) | `project.py ops weekly`、`ops.py change add` |
 | 长期监控与告警 | [continuous-operations](references/monitoring/continuous-operations.md) | `monitor.py`、`notify.py` |
 | agent 每周挑一页改 | [agent-growth-loop](references/monitoring/agent-growth-loop.md) | — |
 | 外链与权威度 | [backlink-profile-analysis](references/research/backlink-profile-analysis.md) | `backlink_import.py`、`cite_domain.py` |

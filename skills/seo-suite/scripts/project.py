@@ -185,8 +185,8 @@ def write_project_yaml(path, site, market, site_type, created):
          "created: %s" % created,
          "schema_version: %d" % SCHEMA_VERSION,
          "history_dir: history",
-         "# 状态收敛说明(R1-2):本工作区收敛 project 实体与 history/ 快照;下列既有",
-         "# 散落状态不自动迁移,references 指回旧位置;`project.py adopt` 列可迁移文件。",
+         "# 状态收敛说明(RQ-229):长期运营的状态只放本目录。旧版状态如果还在下列位置,",
+         "# 用 `project.py migrate` 搬进来(先复制核对,旧位置改名保留)。",
          "references:"]
     for name, _desc in SCATTERED_STATE:
         L.append("  - %s" % name)
@@ -370,8 +370,9 @@ def cmd_init(ns):
         print("## init: %s" % site)
         print("- 工作区: %s(project.yaml + history/)" % ws)
         print("- market=%s type=%s created=%s" % (ns.market, ns.type or "-", created))
-        print("- 状态收敛: 不迁移散落状态;%d 处旧位置记于 references;`adopt` 可列可迁移文件"
+        print("- 状态收敛: 旧版状态(%d 处旧位置,见 references)用 `project.py migrate` 搬进来"
               % len(SCATTERED_STATE))
+        print("- 每周运营: `project.py ops weekly`(详见 references/monitoring/ops-agenda.md)")
     return 0
 
 
@@ -1023,6 +1024,7 @@ def build_parser():
                     "状态机(体检→优先级→修复→验证→监控)导航(stdlib only)",
         epilog=USAGE_EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("ops", help="每周 / 每月运营单、变更台账、已读、通知(转给 ops.py;`ops weekly --help` 看参数)")
 
     p = sub.add_parser("init", help="建立/刷新 seo-ops/ 工作区(project.yaml+history/+ledger/;幂等)")
     p.add_argument("--site", required=True, metavar="URL", help="站点 URL 或裸域名(自动补 https://)")
@@ -1068,6 +1070,11 @@ def build_parser():
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["ops"]:                   # 运营单入口转给 ops.py(weekly / monthly / change / ack / notify)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ops
+        return ops.main(argv[1:])
     ns = build_parser().parse_args(argv)      # 用法错 argparse 自带退出码 2
     try:
         return ns.func(ns)

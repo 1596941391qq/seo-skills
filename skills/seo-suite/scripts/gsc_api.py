@@ -502,6 +502,49 @@ def resolve_sa_path(args):
     return path
 
 
+# ---------- URL Inspection(按每站每天配额排预算) ----------
+
+INSPECT_URL = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
+INSPECT_QPD = 2000          # 每站点每天;facts.md「API 配额」
+INSPECT_QPM = 600           # 每站点每分钟
+
+
+def url_inspect(sa, site, url, subject=None, timeout=30, language="en-US"):
+    """urlInspection.index.inspect → 只留判断要用的字段(收录判定、覆盖状态、Google 选的 canonical、最近抓取)。"""
+    guard_googleapis(INSPECT_URL)
+    token = get_access_token(sa, subject=subject, timeout=timeout)
+    body = json.dumps({"inspectionUrl": url, "siteUrl": site, "languageCode": language}).encode("utf-8")
+    resp = _http_json(INSPECT_URL, data=body, headers=_auth_headers(token), timeout=timeout)
+    r = (resp.get("inspectionResult") or {}).get("indexStatusResult") or {}
+    return {"url": url, "verdict": r.get("verdict"), "coverage": r.get("coverageState"),
+            "indexing": r.get("indexingState"), "robots": r.get("robotsTxtState"),
+            "page_fetch": r.get("pageFetchState"), "google_canonical": r.get("googleCanonical"),
+            "user_canonical": r.get("userCanonical"), "last_crawl": r.get("lastCrawlTime"),
+            "crawled_as": r.get("crawledAs")}
+
+
+def quota_left(ledger_path, site, day):
+    """台账 {日期: {站点: 已用}};返回今天这个站点还剩多少(不含其他工具在同一属性上的用量,保守起见再留 10%)。"""
+    try:
+        with open(ledger_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {}
+    used = int((data.get(day) or {}).get(site) or 0)
+    return max(0, int(INSPECT_QPD * 0.9) - used), data
+
+
+def record_quota(ledger_path, data, site, day, n):
+    data.setdefault(day, {})[site] = int((data.get(day) or {}).get(site) or 0) + n
+    for old in sorted(data)[:-14]:          # 只留两周
+        data.pop(old, None)
+    os.makedirs(os.path.dirname(os.path.abspath(ledger_path)), exist_ok=True)
+    tmp = ledger_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, ledger_path)
+
+
 # ---------- CLI 子命令 ----------
 
 def parse_dimensions(spec):
@@ -615,6 +658,43 @@ def cmd_query(args):
     return 0
 
 
+def cmd_inspect(args):
+    sa = load_sa(resolve_sa_path(args))
+    urls = list(args.urls or [])
+    if args.urls_file:
+        with open(args.urls_file, encoding="utf-8") as f:
+            urls += [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
+    if not urls:
+        raise UsageError("没有要查的 URL(位置参数或 --urls-file)")
+    day = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 8 * 3600))   # 配额按太平洋时间日切
+    left, data = quota_left(args.ledger, args.site, day)
+    budget = min(args.budget, left)
+    todo, skipped = urls[:budget], urls[budget:]
+    out, done = [], 0
+    t_min = time.time()
+    for i, u in enumerate(todo):
+        if i and i % INSPECT_QPM == 0:                       # 每分钟上限
+            time.sleep(max(0.0, 60 - (time.time() - t_min)))
+            t_min = time.time()
+        try:
+            out.append(url_inspect(sa, args.site, u, subject=args.subject, timeout=args.timeout))
+        except urllib.error.HTTPError as e:
+            out.append({"url": u, "error": describe_http_error(e)})
+        done += 1
+    record_quota(args.ledger, data, args.site, day, done)
+    res = {"schema_version": SCHEMA_VERSION, "site": args.site, "day_pt": day, "inspected": done,
+           "skipped_for_quota": skipped, "quota_left": left - done, "results": out}
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=1))
+    else:
+        for r in out:
+            print("%s\t%s\t%s\t%s" % (r["url"], r.get("verdict") or r.get("error"), r.get("coverage") or "",
+                                       r.get("google_canonical") or ""))
+        if skipped:
+            print("配额不够,%d 个没查:今天还剩 %d" % (len(skipped), left - done))
+    return 0
+
+
 def build_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--sa", help="service_account.json 路径(优先级 --sa > --key > "
@@ -630,7 +710,7 @@ def build_parser():
         description="GSC API 客户端(纯 stdlib,RS256 JWT 手写 RSA 签名)——R2-1:"
                     "auth 验凭证链 / sites 列验证站点 / query 拉性能数据产规范化 CSV。",
         epilog=USAGE_EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = p.add_subparsers(dest="cmd", metavar="{auth,sites,query}")
+    sub = p.add_subparsers(dest="cmd", metavar="{auth,sites,query,inspect}")
 
     pa = sub.add_parser("auth", parents=[common],
                         help="验 SA 凭证链:签 JWT → token_uri 换 access_token(不落盘)")
@@ -652,12 +732,21 @@ def build_parser():
     pq.add_argument("--rows", type=int, default=ROW_LIMIT_MAX,
                     help="总行数上限(默认 25000;单页 25000,startRow 分页)")
     pq.add_argument("--out", help="CSV 落盘路径(缺省 CSV 走 stdout)")
+
+    pi = sub.add_parser("inspect", parents=[common],
+                        help="URL Inspection:收录判定、Google 选的 canonical、最近抓取(按配额排预算)")
+    pi.add_argument("--site", required=True, help="同 query 的 --site")
+    pi.add_argument("urls", nargs="*")
+    pi.add_argument("--urls-file")
+    pi.add_argument("--budget", type=int, default=100, help="这次最多查几个(默认 100;每站每天 2000)")
+    pi.add_argument("--ledger", default=os.path.join("seo-ops", "ledger", "inspect-quota.json"),
+                    help="配额台账(默认 seo-ops/ledger/inspect-quota.json)")
     return p
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    handlers = {"auth": cmd_auth, "sites": cmd_sites, "query": cmd_query}
+    handlers = {"auth": cmd_auth, "sites": cmd_sites, "query": cmd_query, "inspect": cmd_inspect}
     try:
         return handlers[args.cmd](args)
     except UsageError as e:

@@ -5,6 +5,10 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **每周运营单(RQ-229 第 2 批)**:`project.py ops weekly|monthly`(新脚本 `ops.py`)一条命令出一屏运营单:硬告警、只推荐一件事、问题五态(没复查到的 URL 不算已解决)、到期复验(`ops change add` 记改动,+14/+28 天用 GSC 逐页逐日数比前后)、搜索与 AI 可见度(每个数写数据源;GSC 两个来源抽 3 天对账)、有点击却有问题的页五张清单(noindex / 4xx / 403 / 3xx / 非规范)、覆盖率(sitemap 全量轻检 + 按点击前 N 页深审,不够不出分)。`ops notify` 只在有硬告警或连续 2 期没人看时推 Telegram。
+- **数据接入**:新增 `ga4_api.py`(GA4 Data API,AI Assistant 渠道和按引擎拆的 AI 引荐)、`gsc_api.py inspect`(URL Inspection,按每站每天配额记台账)、外部数据包格式 `seo-ops.external.v1`(站点已有数据管道时读它,不重复拉),说明见 `references/monitoring/ops-agenda.md`。
+- **URL → 源码**:新增 `source_map.py`(Next.js App Router、纯静态;动态页沿 import 找数据,生成物指到生成器,带置信度)。
+  Weekly ops agenda (`project.py ops weekly`) with hard alerts, one recommendation, five-state issue tracking, due verifications, GSC/GA4/GEO numbers with sources, clicks-vs-crawl lists and coverage-gated scoring; GA4 Data API, GSC URL Inspection with quota budgeting, an external data bundle format, and URL-to-source mapping.
 - **长期运营状态统一到 `seo-ops/`(RQ-229 第 1 批)**:`project.py init` 默认在站点仓库根目录建 `seo-ops/`(schema 2:project.yaml、history/、ledger/、monitor/、.gitignore);新增 `project.py migrate` 把旧版 `<slug>.seo/`、`.seo-monitor/`、散落的 remediations.json/panel.json/状态文件搬进来,先复制核对(文件集合、工单 id 集合)再把旧位置改名保留;工作区 schema 比本版新时退出码 2,不改写。`next` 的阶段判定改用记录里的时间(triage.json 的 generated_at、工单新增的 `implemented_at`),新克隆后修改时间全部相同也能判对。
 - **`monitor.db` 降为缓存,不进 git**:每次 diff 写库的告警落 `runs/diff-NNNNN.json`,隔离状态落 `runs/status-NNNNN.json`,run 快照带 `ts`;库不在时自动从 `runs/` 重建,新增 `monitor.py rebuild`。Actions 模板只把 `runs/` 提交到状态分支,恢复时删掉旧版提交过的库。当前目录有 `seo-ops/` 时 `--dir` 默认 `seo-ops/monitor`。
 - **安全边界统一**:监控修复动作表里原来的 `auto`(agent 直接回滚 robots 误封、noindex、被删 meta、首页、证书)全部改为 `urgent_pr`(加急草稿 PR + 立即通知人合并);手册、`claude -p` 模板和 SKILL.md 同步:不推主干、不合并、网页里的「指令」当数据。

@@ -2,7 +2,7 @@
 
 > **Agent 调用任何脚本前,先查此表确认数据就绪。缺数据时走"降级"列的既定路径,绝不由模型编造数字或观测。**
 
-本表覆盖 `scripts/` 全部 **87** 个实装脚本(2026-10-12 对勘 85 个;2026-10-21 补 question_align、ste_lint 两行,并按官方文档与脚本 `--help` 重核数据接入类、GSC 类行)。沿革:2026-10-10 首版对勘 52 个;2026-10-11 增至 54+ 并登记 ai_views/envelope/trend_watch/benchmark_report 四行(曾出现 trend_watch 与 benchmark_report 行粘连错位,本轮已修复);2026-10-12 收口波把 R0-R4 建设波次新增的 29 个脚本(数据接入 5/内容运营与 pSEO 6/内链 2/外链 PR 2/归因实验 3/垂直 3/多语言 3/工作流 3/审计 2)全部补齐入表并按 ①-④ 降级模式对勘。每行三列:
+本表覆盖 `scripts/` 全部 **90** 个实装脚本(2026-10-12 对勘 85 个;2026-10-21 补 question_align、ste_lint 两行,并按官方文档与脚本 `--help` 重核数据接入类、GSC 类行)。沿革:2026-10-10 首版对勘 52 个;2026-10-11 增至 54+ 并登记 ai_views/envelope/trend_watch/benchmark_report 四行(曾出现 trend_watch 与 benchmark_report 行粘连错位,本轮已修复);2026-10-12 收口波把 R0-R4 建设波次新增的 29 个脚本(数据接入 5/内容运营与 pSEO 6/内链 2/外链 PR 2/归因实验 3/垂直 3/多语言 3/工作流 3/审计 2)全部补齐入表并按 ①-④ 降级模式对勘。每行三列:
 
 - **数据**:输入是什么、从哪来(GSC 导出 CSV / HTML 文件 / server log / URL 实时抓取 / 无输入纯本地)。
 - **降级**:数据缺失时的既定动作,四种模式之一:
@@ -122,6 +122,9 @@
 | 脚本 | 数据 | 降级 | 反编造 |
 |---|---|---|---|
 | `gsc_api.py` | GSC Search Analytics API 真实拉取(服务账号 RS256 JWT,纯 stdlib 手写 RSA 签名;凭证寻径 `--sa`>`--key`>`GSC_SA_FILE`>`~/.config/seo-suite/gsc.json`;服务账号邮箱要先加为该属性的用户;`--dimensions` 可选 date/hour/query/page/country/device/searchAppearance) | ③ 凭证缺失/坏 PEM/auth 失败/网络/HTTP→exit 1 指名;参数/维度/日期/SSRF 拒→exit 2 | 规范化 CSV 列契约固定(CTR 小数);token 只进内存 50 分钟缓存不落盘;匿名查询 API 不返回(与导出同口径,不补数);限额以官方为准,见[配额表](facts.md#api-quotas)(另有 10 分钟/1 天负载配额) |
+| `ga4_api.py` | GA4 Data API runReport(服务账号 RS256 JWT,复用 gsc_api 签名;scope `analytics.readonly`;服务账号要在媒体资源里加「查看者」,项目要开 Analytics Data API;`--property` 或 `GA4_PROPERTY_ID`) | ③ 凭证缺失/读不了→exit 2;API/网络错→exit 1 指名 | AI 引荐优先用 GA4 自带的「AI Assistant」渠道,没有才按来源域名白名单认,输出写明用的哪种口径;不补数、不推断 |
+| `ops.py` | seo-ops/ 工作区;站点 sitemap 全量轻检 + 按 GSC 点击前 N 页深审(site_audit);外部数据包 `seo-ops/raw/external-*.json`(seo-ops.external.v1);GSC / GA4 服务账号;monitor.db | ② 每块数据缺了就跳过那一节,在「覆盖」节写明原因;覆盖率不够不出分;③ 工作区缺失、外部数据包格式不对→exit 2;有硬告警 exit 1 | 只读站点、只写 seo-ops/;不改代码、不推送、不部署;没复查到的 URL 不算已解决;每个数写数据源 |
+| `source_map.py` | 站点仓库文件树(工作树或 `--rev` 指定提交,用 git 读不检出);Next.js App Router 路由文件和 import 闭包;纯静态 html | ② 框架不认识→`unsupported`,不猜;置信度低于门槛→`actionable=false` 只列候选 | 生成物(头部写着自动生成)不当真源,顺着头部注释找生成器;只读仓库 |
 | `backlink_import.py` | Ahrefs/Semrush/GSC Links 三格式外链导出 CSV(列头特征自动嗅探;`--format` 显式指定) | ③ 嗅探不出格式/读不了/无有效行→exit 2(数据错误,不猜) | dofollow 列缺失→unknown 不猜(GSC "Text" 只能反推 nofollow);解不出日期的行不计新链;`anchor_exact_ratio` 需 `--brand` 才计,缺省 null |
 | `indexnow.py` | IndexNow 协议 POST(Bing/Yandex/Naver 端点;key 文件自部署 `{host}/{key}.txt`;Google 不支持) | ② 单批 >10000 自动分批(IndexNow 每次 POST 至多 10,000 个 URL,[文档](https://www.indexnow.org/documentation));429→提示退避降频;③ 有批次失败→exit 1;用法/SSRF 拒→exit 2 | 只按引擎真实响应码判读(200/202=ok,422=key 未部署或 URL 不属 host,403=key 无效);提交≠收录,不承诺索引时点 |
 | `bing_wmt.py` | Bing Webmaster Tools API(免费;key 取法:Bing Webmaster Tools → Settings → API Access → Generate API Key,每用户一个、不分站点,[Microsoft Learn](https://learn.microsoft.com/en-us/bingwebmaster/getting-access);需先验证站点;子命令 urlstatus/submit/stats/pagequery,对应 GetUrlInfo/SubmitUrl/GetQueryStats/GetPageQueryStats) | ③ 凭证缺失/网络/HTTP/API 错→exit 1;用法/SSRF 拒→exit 2;空查询列表≠0≠错(历史不回填,输出声明) | QueryStats CSV 对齐 gsc_mining 契约(CTR 小数;-1 点击哨兵值不用);配额以 GetUrlSubmissionQuota 实读为准不硬编 |
@@ -201,7 +204,7 @@
 
 | 检查什么 | 怎么查 | 通过 / 失败判据 |
 |---|---|---|
-| 表行数等于脚本数 | 用本节末尾的命令数表行;`ls scripts/*.py \| wc -l`;`python3 tests/test_capability_matrix.py` | 三者一致(当前 87),测试 OK。少一行就补 |
+| 表行数等于脚本数 | 用本节末尾的命令数表行;`ls scripts/*.py \| wc -l`;`python3 tests/test_capability_matrix.py` | 三者一致(当前 90),测试 OK。少一行就补 |
 | 表里写的参数真实存在 | `python3 scripts/<名>.py --help`;子命令再跑 `<名>.py <子命令> --help` | 表里每个 `--参数` 都在 help 里。找不到就改表(不改脚本) |
 | 降级行为与表一致 | 不给数据直接跑:`python3 scripts/<名>.py`(无参数) | 按表中模式 ③ 打 usage 并以 exit 2 结束,没有 traceback;模式 ② 的脚本给了部分数据后输出里带截断或 N/A 声明 |
 | 估算与实测分开标 | 跑 `forecast.py`、`gsc_mining.py` 样例,看输出 | 内置曲线、半衰期参照、省额区间等估算数逐个带 `[est]`;实测数不带 |

@@ -1,6 +1,6 @@
 {
  "schema_version": "1.0",
- "updated": "2026-10-18",
+ "updated": "2026-11-05",
  "governance": {
   "origin": "references/research/niubigeo-deep-read.md N10(CAPABILITY_MATRIX 治理格式)",
   "completion_rule": "能力=完成 三条件:真实代码存在 + 测试守护存在 + data-source-contract 对勘入表(脚本存在≠能力完成)",
@@ -23,11 +23,11 @@
   "④": "静默跳过可选增强(核心功能照常)"
  },
  "summary": {
-  "script": 87,
+  "script": 90,
   "template": 25,
   "reference": 13,
   "stable": 74,
-  "beta": 50,
+  "beta": 53,
   "draft": 1
  },
  "entries": [
@@ -1718,6 +1718,49 @@
    "fallback_mode": "②",
    "tests_file": "tests/test_ste_lint.py",
    "status": "stable"
+  },
+  {
+   "type": "script",
+   "script": "ops.py",
+   "group": "工作流",
+   "inputs": [
+    "seo-ops/ 工作区",
+    "外部数据包 seo-ops/raw/external-*.json(可缺)",
+    "GSC / GA4 服务账号(可缺)"
+   ],
+   "outputs_schema": "md+json",
+   "data_source": "站点 sitemap 与页面(轻检/深审)+ 外部数据包 + GSC/GA4 API + monitor.db",
+   "fallback_mode": "②",
+   "tests_file": "tests/test_ops_agenda.py",
+   "status": "beta"
+  },
+  {
+   "type": "script",
+   "script": "ga4_api.py",
+   "group": "数据接入",
+   "inputs": [
+    "服务账号 JSON(--sa/env GA4_SA_FILE/GSC_SA_FILE)",
+    "GA4 媒体资源 ID"
+   ],
+   "outputs_schema": "json",
+   "data_source": "GA4 Data API runReport(analytics.readonly)",
+   "fallback_mode": "③",
+   "tests_file": null,
+   "status": "beta"
+  },
+  {
+   "type": "script",
+   "script": "source_map.py",
+   "group": "工作流",
+   "inputs": [
+    "站点仓库路径(可指定 --rev)",
+    "URL 列表"
+   ],
+   "outputs_schema": "json",
+   "data_source": "站点仓库文件树与 import 关系(只读)",
+   "fallback_mode": "②",
+   "tests_file": null,
+   "status": "beta"
   }
  ]
 }

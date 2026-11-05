@@ -25,7 +25,7 @@ seo-suite
 | 单页审计、技术 SEO 检查、结构化数据、内链、站点架构、实体优化、Programmatic SEO、Core Web Vitals / 性能、审计工具输出解读、修复物生成、SEO 归因埋点 | technical |
 | 排名追踪、外链分析、效果报告、告警、域名权威度评估、惩罚恢复、本地网格排名、引用面板与衰减、引用缺口诊断、SERP 波动、页面变更审计 | monitoring |
 
-## 可执行层(87 个 stdlib 脚本 + markets.json 数据层)
+## 可执行层(90 个 stdlib 脚本 + markets.json 数据层)
 
 **唯一事实来源**:脚本清单看 [script-catalog.md](script-catalog.md)(2026-10-21 从 SKILL.md 第 3 节搬出);登记状态看 `data/capability-matrix.json`(每个脚本一行,含 `group`、`status`、`tests_file`);每个脚本的数据、降级和反编造规则看 [data-source-contract.md](data-source-contract.md)。**对应任务先跑脚本拿事实,再按能力文件解读。**
 
