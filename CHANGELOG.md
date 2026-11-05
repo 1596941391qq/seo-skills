@@ -11,6 +11,8 @@ RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条
 - **AI 爬虫与内容授权**:`ai-crawler-policy.md` 加「Cloudflare 2026-09-15 起的新控制与默认」:7 月预告(新域名广告页默认拦 Training 和 Agent、混合爬虫按最严用途拦)和 9 月上线(改成按是否靠广告给推荐设置、新增 Disallow AI Training、Apple/Google/Microsoft 认定为 Accountable、Block AI Bots 和托管 robots.txt 被取代)两种说法逐项对照,以上线为准;老用户迁移表、审计四条。OpenAI 宣布会读 `__usage_ai-training`(原文「coming months」,标「已宣布、未实现」),写进 `ai-crawler-policy.md` 和 `agent-protocols.md` 第 1 卡。`agent-protocols.md` 加第 15 卡 RSL 1.0(用途词表、五种发现方式、检查命令),附 IAB CoMP v1(2026-04-28 定稿)和微软 PCM(2026-02-03 试点)各一段;三者都没找到 AI 厂商公开承诺读取。
 - **Google 政策与文档小更新**:`penalty-recovery.md` 补 2026-04-14 起垃圾举报可能直接触发人工操作(举报原文会发给被举报站)、2026-05-15 起垃圾政策适用于生成式 AI 回答、第三方 SEO/AEO/GEO 服务评估指引;`geo-evidence.md` 加「GEO 手法风险线」表(安全 / 越线 / 灰);`report-templates.md` 检查清单加「工具或服务声称 Google 认可」;`intel-sources.md` 更正「生成式 AI 垃圾条款没有单列日期」的旧说法(更新记录 2026-05-15 有单列)。`rendering-seo.md` 加「Read more」深链三条和审计第 9 项;`video-geo-guide.md`、`schema-examples.md` 加 VideoObject `creator`(2026-09-24)和 `interactionStatistic` 四种类型;`domain-strategy.md` 补迁站指南 2026-06-17「旧域所有已验证变体都要提交地址变更」。评价摘要新准则(2026-07-24)已在 `schema-examples.md`,补了原文两例。
 - **Search Console 平台属性**:`video-geo-guide.md` 加平台属性一段(四个平台、报告、计数口径、指南里的五种分析)和检查项;`kpi-definitions.md` 加 KPI「平台内容的 Google 点击」口径。
+- **电商 agent**:`ecommerce-geo-ladder.md` 第四节加微软 Copilot Checkout(2026-01-08,美国,商家仍是记录商户;2026-04-21 Microsoft Merchant Center 支持 UCP-ready feeds)、Web IQ(2026-06-02,建在 Bing 索引上的 grounding API)、Google AP2(2026-04-28 捐给 FIDO Alliance、v0.2 加 Human Not Present 支付);第五节和检查清单各加一行。
+- **本地**:`local-grid-ranking.md` 加「Ask Maps」一节(2026-03-12 美印上线、2026-08-06 扩到 150 多个国家和地区;对本地 SEO 的四条含义,网格测不到),盲区清单加 Q&A API 2025-11-03 停用;`site-type-playbooks.md`、`gap-analysis-frameworks.md` 同步。`local_audit.py` 本来没有 Q&A 检查项,不用改。
 
 ## 0.37.1 - 2026-11-05
 

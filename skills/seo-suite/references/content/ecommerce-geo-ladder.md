@@ -1,6 +1,6 @@
 # 电商 GEO 阶梯(五级)与市场分叉
 
-> 建立于 2026-10-09;2026-10-21 逐条重新核对:Google 商家与结构化数据文档、Merchant Center 帮助、blog.google、[ucp.dev](https://ucp.dev)(UCP 官方,Apache-2.0)、[agentic-commerce-protocol](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol)(ACP,OpenAI 与 Stripe 维护,Apache-2.0,仓库标注 beta)、[Shopify/ucp-cli](https://github.com/Shopify/ucp-cli)(MIT)。没有一手出处的市场份额和平台算法数字已删除。「本套件口径」是做法约定,不是 Google 规则。UCP 与 AI 面里的 free listings 仍在分阶段推出,不承诺排名与转化。
+> 建立于 2026-10-09;2026-10-21 逐条重新核对:Google 商家与结构化数据文档、Merchant Center 帮助、blog.google、[ucp.dev](https://ucp.dev)(UCP 官方,Apache-2.0)、[agentic-commerce-protocol](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol)(ACP,OpenAI 与 Stripe 维护,Apache-2.0,仓库标注 beta)、[Shopify/ucp-cli](https://github.com/Shopify/ucp-cli)(MIT)。没有一手出处的市场份额和平台算法数字已删除。「本套件口径」是做法约定,不是 Google 规则。UCP 与 AI 面里的 free listings 仍在分阶段推出,不承诺排名与转化。2026-11-05 补微软 Copilot Checkout、Web IQ 和 Google AP2,复核于 2026-11-05。
 
 ## 一、五级阶梯(从基础到 agent 交互,逐级验收)
 
@@ -121,6 +121,10 @@ Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、�
 
 - **Google**:AI Mode、Gemini、Search 里的购物功能依赖 Merchant Center 与 Shopping Graph;UCP 结账见上节。
 - **OpenAI**:ChatGPT Instant Checkout 于 2025-09-29 推出(Forbes 2026-03-10)。OpenAI 在 2026-03-24 的官方文章里说,初版 Instant Checkout 灵活性不够,改为允许商家使用自己的结账流程,自己专注产品发现;商家通过 ACP 共享商品 feed 和促销信息;想要更深整合的商家可以开发 ChatGPT apps(Walmart 是首个例子)([OpenAI](https://openai.com/index/powering-product-discovery-in-chatgpt/))。CNBC 2026-03-20 报道 OpenAI 确认结束 Instant Checkout([CNBC](https://www.cnbc.com/2026/03/20/open-ai-agentic-shopping-etsy-shopify-walmart-amazon.html),第三方)。
+- **微软 Copilot**(核对 2026-11-05):
+  - **Copilot Checkout**:2026-01-08 公布,先在美国 Copilot.com 推出,商家仍是记录商户(merchant of record),交易、客户数据和关系归商家;接入走 PayPal、Shopify、Stripe:PayPal 和 Stripe 商家申请,Shopify 商家在退出窗口期后自动加入;首批有 Urban Outfitters、Anthropologie、Ashley Furniture 和 Etsy 卖家;微软称会随 Copilot 扩到 Bing、MSN、Edge 等入口。同时发布 Brand Agents(装在商家自己站上的购物助手)([Microsoft Advertising 2026-01-08](https://about.ads.microsoft.com/en/blog/post/january-2026/conversations-that-convert-copilot-checkout-and-brand-agents))。2026-04-21 起 Microsoft Merchant Center 在美国对所有人支持「UCP-ready feeds」,Copilot Checkout 设置只给 beta 参与者;Shopify Catalog 经微软 commerce API 接入 Copilot,商家不必单独建 feed([2026-04-21 博客](https://about.ads.microsoft.com/en/blog/post/april-2026/win-across-all-three-eras-of-the-web))。博客里的转化提升数字(53%、194%、2 倍)是微软自述,不入证据库。
+  - **Web IQ**:2026-06-02 发布,一组给 AI 系统和 agent 用的 grounding API,建在 Bing 全球索引上,返回段落和结构化证据而不是整页;微软称它遵守 robots 排除协议和出版方的访问偏好([Bing 博客 2026-06-02](https://blogs.bing.com/search/2026/6/Announcing-Microsoft-Web-IQ/))。对电商的含义(本套件口径):用 Web IQ 的第三方 agent 看到的商品信息来自 Bing 索引,所以商品页要能被 Bing 抓取和索引,`NOARCHIVE`/`NOCACHE` 会限制 Copilot 对内容的使用(见 [geo-evidence.md](geo-evidence.md) 官方事实)。
+- **Google AP2(Agent Payments Protocol)**:agent 支付协议,2025-09-16 由 Google Cloud 公布([公告](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol));2026-04-28 捐给 FIDO Alliance,同日发布 v0.2,加入「Human Not Present」支付(按用户事先授权,agent 自主下单,例如开售瞬间抢票),并配合与 Mastercard 共同开发、也捐给 FIDO 的 Verifiable Intent(用户授权 agent 动作的防篡改记录)([blog.google 2026-04-28](https://blog.google/products-and-platforms/platforms/google-pay/agent-payments-protocol-fido-alliance/)、[GitHub](https://github.com/google-agentic-commerce/AP2))。它管「agent 怎么安全付款」,和 UCP(商品、购物车、结账接口)、ACP 不是一层;对 SEO 没有直接作用,商家只在接 agent 结账时碰到。
 - 本套件口径的判断:AI 管发现,结算多回到商家网站。把 L5 当期货,把 L1–L4 当现货。公开的商家采用率和转化数据仍然缺失,对客户写「基建预备」,不写「流量渠道」。
 
 ## 五、UCP 与 ACP
@@ -131,6 +135,9 @@ Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、�
 | 机制 | 商家在 `/.well-known/ucp` 发布 profile;传输层 REST、MCP、A2A、Embedded;商家保持 Merchant of Record | 连接买家、AI agent 与商家;2026-03 扩展到产品发现(商家共享 feed 和促销) |
 | 状态 | 规格按日期版本,当前最新 2026-08-25;垂直扩展:Lodging 草案、Food 即将推出;Google 侧结账见上节 | Instant Checkout 已改为允许商家自有结账 |
 | 实操入口 | [ucp.dev](https://ucp.dev)、[Shopify/ucp-cli](https://github.com/Shopify/ucp-cli) | [ACP 规范仓库](https://github.com/agentic-commerce-protocol/agentic-commerce-protocol) |
+| 微软侧 | Microsoft Merchant Center 2026-04-21 起在美国支持 UCP-ready feeds,供 Copilot 购物使用 | — |
+
+支付层另有 Google 发起、现归 FIDO Alliance 的 AP2(见第四节),它不替代 UCP 或 ACP。
 
 ## 六、检查清单
 
@@ -144,6 +151,7 @@ Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、�
 | 评价与平台一致 | 官网 `reviewCount` 对照平台店铺页 | 一致为通过;官网数大于平台实有评价数为失败 |
 | AI 爬虫可达价格页 | `curl -s -A "GPTBot" -o /dev/null -w "%{http_code}\n" URL`;`python3 scripts/robots_posture.py URL/robots.txt --json` | 返回 200,且 robots 立场与客户的决策一致为通过 |
 | UCP profile(已接入时) | `curl -s https://shop.example.com/.well-known/ucp \| python3 -m json.tool` | 能解析为 JSON 为通过 |
+| Bing 侧可索引(Copilot、Web IQ) | Bing Webmaster Tools 网址检查抽 10 个商品页;`curl -s URL \| grep -ioE '<meta[^>]*(noarchive\|nocache)[^>]*>'` | 已索引且无 `noarchive`/`nocache` 为通过(除非客户决定退出 Copilot) |
 | 官方 AI 面份额 | Merchant Center → Analytics → AI performance(仅在可用国家,英语查询) | 能看到 share of voice 并记录口径为通过 |
 | 内容层引用 | 20 个 best、vs 查询,手工在目标 AI 面检查,记录引用的域名 | 有记录为通过(采样纪律见 [ai-citation-patterns.md](ai-citation-patterns.md)) |
 
@@ -156,5 +164,6 @@ Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、�
 
 ## 来源
 
+- 官方(2026-11-05 补):Microsoft Advertising 博客 2026-01-08、2026-04-21;Bing 博客 2026-06-02(Web IQ);Google Cloud AP2 公告、blog.google 2026-04-28(AP2 捐给 FIDO)。
 - 官方:[merchant listing 结构化数据](https://developers.google.com/search/docs/appearance/structured-data/merchant-listing)、[product snippet](https://developers.google.com/search/docs/appearance/structured-data/product-snippet)、[review snippet](https://developers.google.com/search/docs/appearance/structured-data/review-snippet)、Merchant Center 帮助([free listings](https://support.google.com/merchants/answer/9826670)、[UCP 结账](https://support.google.com/merchants/answer/16837055)、[conversational attributes](https://support.google.com/merchants/answer/17085370)、[AI performance insights](https://support.google.com/merchants/answer/17200695))、blog.google(2026-01-11、2026-09-16、2026-10-15 三篇)、[ucp.dev](https://ucp.dev)、[OpenAI 2026-03-24](https://openai.com/index/powering-product-discovery-in-chatgpt/)。
 - 第三方:CNBC、Forbes(Instant Checkout 时间线)。
