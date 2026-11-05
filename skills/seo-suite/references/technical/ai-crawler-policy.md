@@ -1,7 +1,7 @@
 # AI 爬虫政策参考（robots.txt 决策）
 
 > 用途：回答「robots.txt 里该放行或禁止哪些 AI 爬虫」。
-> 口径：bot 名、用途、是否遵守 robots.txt、IP 表，一律以运营方官方页为准。2026-10-18 逐个打开核对。没有官方页的 bot 标「第三方观察」。「决策」类内容是本套件口径。
+> 口径：bot 名、用途、是否遵守 robots.txt、IP 表，一律以运营方官方页为准。2026-10-18 逐个打开核对，复核于 2026-11-05（补 OpenAI 训练信号、Cloudflare 2026-09-15 新默认、微软 2027-02-01 起的训练与 grounding 新偏好）。没有官方页的 bot 标「第三方观察」。「决策」类内容是本套件口径。
 > 分工：agent 协议（Content Signals、ARD、WebMCP、Web Bot Auth 等）的规范出处与状态见 [agent-protocols.md](agent-protocols.md)；Lighthouse 与站点准备见 [agent-readiness.md](agent-readiness.md)；Naver 细则见 [naver-searchadvisor.md](naver-searchadvisor.md)。
 
 ## 一、先分清三类 bot（最常见错误在这里）
@@ -17,6 +17,7 @@
 | `ClaudeBot` | [Anthropic](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) | 训练 | 收集可能用于训练的内容 | 是；支持 Crawl-delay；2026-10-30 起另认 `__usage_ai-training`，点名 `ClaudeBot` 的规则优先（见第二节） | `claude.com/crawling/bots.json` |
 | `Claude-SearchBot` | Anthropic | 搜索 | 为搜索结果建索引 | 是 | 同上 |
 | `Claude-User` | Anthropic | 用户触发 | 禁止后，Claude 不再按用户请求取回该站内容 | 是 | 同上 |
+| `Claude-Agent` | [Anthropic](https://support.claude.com/en/articles/18234133) | 用户触发（托管浏览器） | Anthropic 托管的真实浏览器按用户指示办事（如 Claude Duet）；UA 是浏览器自己的，另加 `Claude-Agent` token，按 token 匹配，不按整串 | 官方没说按 robots.txt；放行或拦截靠 UA 加 IP，和上面三个 bot 的设置互相独立 | `claude.com/.well-known/sail`（`Claude-Agent` 段，格式见 IETF 个人草案 draft-kelley-webbotauth-sail-00）；只看 UA 不够，要核 IP |
 | `PerplexityBot` | [Perplexity](https://docs.perplexity.ai/guides/bots) | 搜索 | 在搜索结果中展示和链接网站；不用于训练基础模型 | 是 | `perplexity.com/perplexitybot.json` |
 | `Perplexity-User` | Perplexity | 用户触发 | 用户提问时访问页面 | 官方：「generally ignores robots.txt」 | `perplexity.com/perplexity-user.json` |
 | `Googlebot` | [Google](https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers) | 搜索 | Google 搜索，含 Discover 和全部搜索功能（AI Overviews、AI Mode 在内） | 自动抓取时总遵守 | `common-crawlers.json`；反向 DNS `*.googlebot.com` |
@@ -45,7 +46,7 @@
 
 **关键事实**（官方，核对 2026-10-18）：
 1. **禁 `GPTBot` 不影响 ChatGPT 搜索。** OpenAI 写明各 token 设置互相独立；引用走 `OAI-SearchBot`。
-2. **Copilot 没有单独的 bot。** Bing Webmaster Guidelines 写明 Bing 与 Copilot 共用抓取和索引。控制 Copilot 用页面 meta：`NOARCHIVE` 让内容不进 Copilot 回答和 grounding；`NOCACHE` 只允许用 URL、标题、摘要（[Bing 文档](https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240)）。
+2. **Copilot 没有单独的 bot。** Bing Webmaster Guidelines 写明 Bing 与 Copilot 共用抓取和索引。控制 Copilot 用页面 meta：`NOARCHIVE` 让内容不进 Copilot 回答和 grounding；`NOCACHE` 只允许用 URL、标题、摘要（[Bing 文档](https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240)）。**这套 2027 年要换掉**：微软 2026-10-30 宣布新的训练和 grounding 偏好，2027-02-01 起随抓取生效，2027-03-01 后 `NOARCHIVE`/`NOCACHE` 不再当作训练或 grounding 偏好，见第二节「微软新偏好」。
 3. **`Google-Extended` 不是 AI Overviews 开关。** 它不影响搜索收录。退出 AI Overviews/AI Mode 的做法见第二节第 3 条。
 4. **用户触发类 bot 的 robots 行为各家不同。** OpenAI（may not apply）、Perplexity（generally ignores）、Google（generally ignore）、Meta（may bypass）、Amazon（may not follow all）声明可能不遵守；Anthropic 声明 `Claude-User` 遵守。
 5. **日志按 token 子串匹配，不写死版本号。** OpenAI 示例 UA 为 `OAI-SearchBot/1.4`、`GPTBot/1.4`，官方注明版本会变；抓 robots.txt 时 UA 可能多一个 `robots.txt;` 标记。Google 的 `Chrome/W.X.Y.Z` 也会变。
@@ -83,7 +84,12 @@ Disallow: /
 
 - 搜索类和用户触发类 bot 不动。
 - `Google-Extended` 要单独决定。禁它会同时停止 Gemini Apps 和 Vertex AI grounding 使用你的内容（官方），不只是训练。想保留 Gemini App 里的引用，就不要禁。
-- **跨厂商训练偏好 token `__usage_ai-training`（草案，2026-10-30 起）。** Anthropic 2026-10-30 起开始逐步在全部服务上遵守这个「不要 AI 训练」信号；robots.txt 里点名 `ClaudeBot` 的规则比它更具体，优先执行（[Anthropic 帮助页](https://privacy.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)「How Anthropic honors website preferences for AI training」一节）。Google 宣布计划 2027 年和其他 AI 厂商一起支持：站点用这个 policy token 表示退出训练、且没有单独写 `Google-Extended` 时，Google 按「禁了 `Google-Extended`」处理；单独写的 `Google-Extended` 规则照旧生效，并且优先（[Google 博客 2026-10-30](https://developers.google.com/search/blog/2026/10/ai-training-control)）。语法来自 IETF 个人草案 [draft-kelley-aipref-training-preference-signal-00](https://datatracker.ietf.org/doc/draft-kelley-aipref-training-preference-signal/)（作者单位 Anthropic，2027-05-03 过期）：写成普通 robots.txt 组，`User-Agent: __usage_ai-training` 加 `Disallow`/`Allow`，可按路径；`User-Agent: *` **不算**对它表态；文件里没有这一组 = 没有表态；它只表达用途偏好，不管抓取，抓取仍看各家 bot 自己的组（草案 §4.2–4.4）。本套件口径：想禁训练的站现在就加这一组（不认识它的解析器会当成未知 bot 跳过，没有副作用）；但目前只有 Anthropic 在铺开、Google 要到 2027 年，上面按 bot 写的组一条都不能删。
+- **跨厂商训练偏好 token `__usage_ai-training`（草案，2026-10-30 起）。** Anthropic 2026-10-30 起开始逐步在全部服务上遵守这个「不要 AI 训练」信号；robots.txt 里点名 `ClaudeBot` 的规则比它更具体，优先执行（[Anthropic 帮助页](https://privacy.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)「How Anthropic honors website preferences for AI training」一节）。Google 宣布计划 2027 年和其他 AI 厂商一起支持：站点用这个 policy token 表示退出训练、且没有单独写 `Google-Extended` 时，Google 按「禁了 `Google-Extended`」处理；单独写的 `Google-Extended` 规则照旧生效，并且优先（[Google 博客 2026-10-30](https://developers.google.com/search/blog/2026/10/ai-training-control)）。语法来自 IETF 个人草案 [draft-kelley-aipref-training-preference-signal-00](https://datatracker.ietf.org/doc/draft-kelley-aipref-training-preference-signal/)（作者单位 Anthropic，2027-05-03 过期）：写成普通 robots.txt 组，`User-Agent: __usage_ai-training` 加 `Disallow`/`Allow`，可按路径；`User-Agent: *` **不算**对它表态；文件里没有这一组 = 没有表态；它只表达用途偏好，不管抓取，抓取仍看各家 bot 自己的组（草案 §4.2–4.4）。OpenAI 同日宣布会遵守这个共享信号，原文是「aim to implement the signal in the coming months」，实现时另发说明；现有按 bot 的 robots.txt 控制（`GPTBot` 等）照旧生效（[OpenAI 公告](https://openai.com/index/helping-websites-express-ai-training-preferences/)，页面正文没写日期，链接指向上面这份草案；核对 2026-11-05）。状态：**OpenAI 已宣布、未实现**。微软同样宣布采用这个共享信号，并给出生效日期，见下一条。本套件口径：想禁训练的站现在就加这一组（不认识它的解析器会当成未知 bot 跳过，没有副作用）；但目前只有 Anthropic 在铺开、OpenAI 和 Google 都还没实现（Google 定在 2027 年），上面按 bot 写的组一条都不能删。
+- **微软新偏好：训练和 grounding 分开设（2026-10-30 宣布，2027-02-01 起随抓取生效）。** 一手原文：[Bing 搜索博客](https://blogs.bing.com/search/2026/10/your-content-your-choice-clearer-preferences-for-training-and-grounding/)，FAQ 在 [Bing Webmaster Tools 帮助](https://www.bing.com/webmasters/help/new-ai-pref-2t1cc16d)；核对 2026-11-05。两种偏好互相独立、都默认 Allow，都不影响普通 Bing 搜索结果的收录资格，也不管抓取（robots.txt 禁了 `Bingbot`，设 Allow 也抓不到）。
+  - **AI Training**：站点或路径级用上面的共享组 `User-Agent: __usage_ai-training` + `Disallow`；页面级可以覆盖 robots.txt：`<meta name="Bingbot" content="ai-training:disallow">` 或响应头 `X-Robots-Tag: Bingbot: ai-training:disallow`。
+  - **AI Grounding**（拿内容给生成式回答做依据）：**只有页面级**，没有 robots.txt 写法。`<meta name="Bingbot" content="ai-grounding:disallow">`（不用于生成式回答）或 `ai-grounding:disallowextended`（只给微软自家的 AI Mode、AI Overview、Copilot、Microsoft 365 用，不给 Web IQ 和 Foundry 里的 grounding API 这类对第三方的服务）；响应头写法同上。原文提醒：选 `disallow` 或 `disallowextended` 会明显降低在 AI 回答里的品牌可见度。
+  - **迁移日期**：2026-12-15 Bing Webmaster Tools 开放临时 grounding 偏好（只给当天还在用 `NOARCHIVE`/`NOCACHE` 的站）；2027-02-01 新偏好开始生效；2027-03-01 前要发布新偏好，之后 `NOARCHIVE`/`NOCACHE` 不再读作训练或 grounding 偏好，没登记临时偏好的页在重新抓取前按 Allow 处理；临时偏好最晚 2027-09-30 失效。站点出现新偏好后，微软会忽略同站残留的 `NOARCHIVE`/`NOCACHE`。
+  - 本套件口径：现在用 `NOARCHIVE`/`NOCACHE` 挡 Copilot 的站，2027-03-01 前要换成新写法并在 Bing Webmaster Tools 登记临时偏好；想被 Copilot 引用的站什么都不用做（默认 Allow）。只想禁训练、保留引用：robots.txt 加共享组，grounding 不设。
 
   ```
   User-Agent: __usage_ai-training
@@ -100,7 +106,7 @@ Disallow: /
 | Google AI Overviews / AI Mode / Discover 生成式功能 | Search Console → 设置 → Search generative AI，选 Exclude；或页面级 `nosnippet`、`data-nosnippet`、`max-snippet` | 已对所有网站开放（[日期](../overview/facts.md#gsc-genai)）；一般 1–2 天生效；不影响训练（训练用 `Google-Extended`）；不作为其他搜索排名信号（[帮助页](https://support.google.com/webmasters/answer/16908024)、[AI 功能文档](https://developers.google.com/search/docs/appearance/ai-features)） |
 | Perplexity | `Disallow` `PerplexityBot` | `Perplexity-User` 仍可能按用户请求抓取 |
 | Claude | `Disallow` `Claude-SearchBot`（索引）与 `Claude-User`（用户触发） | 两者都声明遵守 robots.txt |
-| Copilot | 页面 meta `NOARCHIVE`（或 `NOCACHE`，只给 URL/标题/摘要） | robots.txt 只管抓取，不管索引 |
+| Copilot | 现在：页面 meta `NOARCHIVE`（或 `NOCACHE`，只给 URL/标题/摘要）；2027-02-01 起改用 `<meta name="Bingbot" content="ai-grounding:disallow">`（或 `disallowextended`），2027-03-01 后旧标签不再算数（见第二节「微软新偏好」） | robots.txt 只管抓取，不管索引；新偏好也只管用途，不管抓取 |
 | Apple Siri / 搜索的 AI 回答 | 页面 `nosnippet`；付费墙页标 `isAccessibleForFree: false` | 训练另用 `Applebot-Extended` |
 | DuckDuckGo AI 辅助答案 | `Disallow` `DuckAssistBot` | 72 小时生效；不影响自然排名 |
 | Yandex AI 回答 | `User-agent: YandexAdditional` + `Disallow: /` | 必须点名，`*` 规则管不到它 |
@@ -193,11 +199,41 @@ robots.txt 只有封和放两态。Cloudflare AI Crawl Control（原名 AI Audit
 - 条件：Pro、Business、Enterprise 套餐；只处理 `text/html` 响应；canonical 必须在解压后 HTML 的前 256 KB 内；Single/Bulk Redirects 先于它执行。
 - 审计：日志里「AI Crawler 类 bot 请求重复页 → 301 → Location 等于该页 canonical」是这个功能的正常形态，不要当重定向链错误去修。日志字段 `redirects_for_ai_training_target` 记录跳转目标（GraphQL Analytics API 或 Logpush）。没开这个功能却出现同样的 301，要查边缘层是谁做的（见 [edge-seo.md](edge-seo.md) 第三节决策表）。
 
+### Cloudflare 2026-09-15 起的新控制与默认（核对 2026-11-05）
+
+站在 Cloudflare 后面时，robots.txt 之外还有一层边缘拦截。2026-07-01 的预告和 2026-09-15 的上线说法不一样，以上线时的为准：
+
+| 项目 | 2026-07-01 预告（[博客](https://blog.cloudflare.com/content-independence-day-ai-options/)） | 2026-09-15 上线（[新闻稿](https://www.cloudflare.com/press/press-releases/2026/cloudflare-helps-end-the-search-or-ai-training-tradeoff/)、[博客](https://blog.cloudflare.com/accountable-mixed-use-ai-crawlers/)） |
+|---|---|---|
+| 开关 | 「Block AI Bots」之外加 Search、Agent、Training 三类可分别管理（含免费版） | 「Block AI Bots」被三个独立控制取代；托管 robots.txt 被 Bot Preference Sync 取代 |
+| 新域名默认 | 所有新接入域名：广告页上默认拦 Training 和 Agent，Search 放行 | 改成接入时「推荐设置」，按是否靠广告变现给两套，接入时和之后都能改（见下表） |
+| 混合用途爬虫（一个爬虫同时做搜索和训练，如 Googlebot、Bingbot、Applebot） | 按最严格的用途处理：选了拦 Training 就连搜索一起拦 | 新增 Training 选项「Disallow AI Training」：在 robots.txt 发布不许训练的偏好，被认定为 Accountable 的混合爬虫照常抓搜索，其他训练爬虫被拦。选「Block」或「Block on pages with ads」才会连 Googlebot、Bingbot、Applebot 的搜索一起拦 |
+| 老用户迁移 | — | 旧「Block AI Bots」选了拦截的 → Search 放行、Training = Disallow AI Training、Agent = 广告页拦截；此前在细分控制里把 Training 设为拦截的，迁成 Disallow AI Training |
+
+新域名推荐设置（2026-09-15 博客原表）：
+
+| 设置 | 不靠广告变现 | 靠广告变现 |
+|---|---|---|
+| Bot Preference Sync | 开 | 开 |
+| Search | 放行 | 放行 |
+| Training | 放行 | Disallow AI Training |
+| Agent | 放行 | 广告页拦截 |
+
+**Accountable（问责）认定**：运营方要满足或承诺在限期内满足四条：robots.txt 或同类标准能退出训练；能退出 AI 摘要；给 URL 级的使用可见性；公开承诺退出训练不影响传统搜索排名。Apple、Google、Microsoft 被认定为 Accountable（部分条件是带期限的承诺）；Amazon、Anthropic、Meta、OpenAI 因为搜索和训练用不同爬虫，相关爬虫也算 Accountable。名单在 [Cloudflare Radar](https://radar.cloudflare.com/ai-insights#ai-bot-transparency)。Cloudflare 博客转述：Bing 目前靠 `NOARCHIVE` 表达不许训练，robots.txt 域级「不许训练」计划 2027 年初支持。微软 2026-10-30 的一手公告证实了这一点并给出日期：2027-02-01 起认 `__usage_ai-training`（见第二节「微软新偏好」）。
+
+**2026-11-04 补充：按单个个人 agent 设访问策略**（[Cloudflare 博客](https://blog.cloudflare.com/personal-agents-visibility-control/)，核对 2026-11-05）。设置改名为「AI Crawler and Agent access policies」；Agent 一栏除了整体策略，还能对每个受支持的个人 agent 单独选 Allow (do not block)、Block on pages with ads 或 Block（例如整体按广告页拦、某个想要的 agent 单独放行）；Search、Training 两栏不变。Security Analytics 的 Bot Analysis 图新增「Personal Assistants」类，Top statistics 能按单个 agent 看它请求的路径、状态码和来源网络。审计时多看一项：电商和带结账的站，别让整体 Agent 拦截挡住正在替用户下单的 agent（和 [ecommerce-geo-ladder.md](../content/ecommerce-geo-ladder.md) 第四节一起看）。
+
+审计怎么用（本套件口径）：
+1. Cloudflare 后面的站先看后台三项设置，再看线上 robots.txt（Bot Preference Sync 会插托管段，见第四节第 2 条）。
+2. Training 设成「Block」或「Block on pages with ads」= Googlebot、Bingbot、Applebot 也被拦，搜索可见性会掉。只想禁训练、要保留搜索，选「Disallow AI Training」。
+3. 靠广告的站接入时如果接受了推荐设置，Agent 在广告页被拦：ChatGPT-User 这类用户触发的抓取和浏览器 agent 在这些页拿不到内容。想被 AI 助手实时引用的页，要么不放广告，要么把 Agent 改回放行。
+4. 「Agent」目前没有 Disallow 选项，只有放行或拦截（Cloudflare：还没有成熟的指令能向 agent 表达偏好）。
+
 **与证据口径的衔接**：禁训练类 bot 不影响 ChatGPT、Claude、Perplexity 的搜索引用，因为引用走搜索类 bot（第一节，官方）。所以三态决策是商业决策（内容许可收入 vs 训练曝光），不是 SEO 手段。例外：`Google-Extended` 还管 Gemini Apps 的 grounding，禁它会影响 Gemini App 里的引用（官方）。审计报告不把「封 GPTBot」写成 SEO 建议，也不把「放行训练 bot」写成 GEO 优化。证据分级见 [geo-evidence.md](../content/geo-evidence.md)。
 
 ## 七、来源与已知偏差
 
-**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。2026-11-05 补核：Anthropic 爬虫帮助页（2026-10-30 新增训练偏好一节）、Google 共享训练控制博客（2026-10-30）、IETF 草案 draft-kelley-aipref-training-preference-signal-00、[Control what you share](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)（2026-10-21 更新，列出 Search generative AI control，与第二节第 3 条一致）。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。
+**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。2026-11-05 补核：OpenAI 训练偏好公告、Cloudflare 2026-07-01 博客、2026-09-15 新闻稿与 Accountable 博客。2026-11-05 补核：Anthropic 爬虫帮助页（2026-10-30 新增训练偏好一节）、Google 共享训练控制博客（2026-10-30）、IETF 草案 draft-kelley-aipref-training-preference-signal-00、[Control what you share](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)（2026-10-21 更新，列出 Search generative AI control，与第二节第 3 条一致）。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。2026-11-05 处理信源工单 #10 时读 Anthropic 爬虫帮助页，页首新增托管浏览器说明，链到 [Claude-Agent 说明](https://support.claude.com/en/articles/18234133)，补进第一节表格。2026-11-05 扩信源回放时在 Bing 搜索博客 feed 里发现微软 2026-10-30 训练与 grounding 偏好公告，打开原文核对后写进第二节。
 
 **第三方**：StatCounter 搜索引擎份额（全平台月度 CSV，2026-01 至 2026-09）；[Mozilla Foundation 2024-02](https://www.mozillafoundation.org/en/research/library/generative-ai-training-data/common-crawl/)（Common Crawl 与生成式 AI 训练数据）。
 

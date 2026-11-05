@@ -1,10 +1,10 @@
 # Skill 自更新协议(信源变更→直接更新 skill)
 
-> 建立于 2026-10-10;2026-10-15 改写为「云端检测 + issue 工单 + 本地处理」;2026-10-21 按 `.github/workflows/intel-update.yml` 和 `scripts/intel_check.py` 的当前内容重核。配合 intel_check.py 使用:当信源变更被检测到,本协议规定 agent 如何**直接更新 skill 文件**(不只是知识文档——规则/阈值/脚本/清单都改)。
+> 建立于 2026-10-10;2026-10-15 改写为「云端检测 + issue 工单 + 本地处理」;2026-10-21 按 `.github/workflows/intel-update.yml` 和 `scripts/intel_check.py` 的当前内容重核;复核于 2026-11-05(映射表加 9 个新源)。配合 intel_check.py 使用:当信源变更被检测到,本协议规定 agent 如何**直接更新 skill 文件**(不只是知识文档——规则/阈值/脚本/清单都改)。
 
 ## 两端分工
 
-- **云端检测(自动)**:`.github/workflows/intel-update.yml` 每天 UTC 01:11 跑一次 `intel_check.py check`(20 个注册源)。有变更就把本轮报告写进 label=`intel-update-pending` 的 issue(没有 open issue 就新开,已有就追加一条评论)。云端不改 skill 文件,也不自动关单。
+- **云端检测(自动)**:`.github/workflows/intel-update.yml` 每天 UTC 01:11 跑一次 `intel_check.py check`(29 个注册源)。有变更就把本轮报告写进 label=`intel-update-pending` 的 issue(没有 open issue 就新开,已有就追加一条评论)。云端不改 skill 文件,也不自动关单。
 - **云端只提交基线**:每轮 check 后,workflow 把 `skills/seo-suite/.intel-state.json` 复制到 `.github/state/intel-state.json` 并提交(提交信息 `chore(intel): state update [skip ci]`)。原因:脚本的状态路径写死、且在 `.gitignore` 里;只靠 Actions cache 时,缓存 7 天没被访问就会被驱逐([GitHub 文档](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching),核对 2026-10-21),基线会静默重置。所以本地改文件前先 `git pull --rebase`,避免和这个每日提交冲突。
 - **云端附带两项守卫**(job `capability-drift`):`tests/test_capability_matrix.py`(矩阵与磁盘漂移)和 `freshness.py --fail-stale`(references 里 >90 天的证据)。任一失败 → job 变红并上传说明 artifact。它们不开 issue,红了要人去看。
 - **定时器会被停**:公开仓库 60 天没有任何仓库活动,GitHub 会自动停用定时工作流([GitHub 文档](https://docs.github.com/actions/managing-workflow-runs/disabling-and-enabling-a-workflow),核对 2026-10-21)。长期没提交的 fork 要在 Actions 页手动重新启用。
@@ -72,6 +72,11 @@ intel_check.py 输出 `[CHANGED] <源名>: <详情>` + `→ 应更新: <文件�
 | statcounter-search | **改 multilingual-workflow 的市场总表** |
 | statcounter-ai、bing-wm | **改 geo-platform-differences 的引擎份额和 Copilot 行** |
 | seroundtable | **改 penalty-recovery 的案例库**/rendering-seo |
+| chrome-blog、web-dev-blog | **改 cwv-playbook 的指标口径**/rendering-seo/agent-readiness、agent-protocols 的 Chrome 侧支持/agent-growth-loop 的工具节 |
+| cloudflare-blog、openai-news、bing-search-blog | **改 ai-crawler-policy 的配置和平台默认**/agent-protocols 的「谁支持」/geo-platform-differences |
+| msads-blog、google-shopping-blog | **改 ecommerce-geo-ladder 的 agent 结账和协议行** |
+| google-maps-blog | **改 local-grid-ranking 的 Ask Maps 与盲区清单**/site-type-playbooks |
+| arxiv-geo | **按证据分级入库 geo-evidence-bank**,影响打分的同步改 citability-scoring |
 
 完整映射以 `scripts/intel_check.py` 里 `SOURCES[...]["modules"]` 为准;文字版见 [intel-sources.md](intel-sources.md) 第五节。
 
@@ -115,7 +120,7 @@ gh issue close <N> -R <OWNER/REPO> -c "已处理: <摘要>"   # 有工单时
 | 云端检测在跑 | `gh run list -R <OWNER/REPO> -w intel-update --limit 5` | 最近 5 次里有当天(UTC 01:11 后)的运行,且 `check-and-flag` 为 success。超过 2 天没有运行 → 查 Actions 页是否被停用 |
 | 工单没积压 | `gh issue list -R <OWNER/REPO> -l intel-update-pending --state open` | 0 张,或最老一张不超过 72 小时 |
 | 本地基线与云端一致 | `git pull --rebase` 后看 `.github/state/intel-state.json` 的 `checked_at` | 日期是今天或昨天。落后 → 云端状态提交失败,看 workflow 日志 |
-| 注册源数量与文档一致 | `python3 -c "import sys; sys.path.insert(0,'skills/seo-suite/scripts'); import intel_check as i; print(len(i.SOURCES))"` | 等于本文写的 20 和 intel-sources.md 的数字 |
+| 注册源数量与文档一致 | `python3 -c "import sys; sys.path.insert(0,'skills/seo-suite/scripts'); import intel_check as i; print(len(i.SOURCES))"` | 等于本文写的 29 和 intel-sources.md 的数字 |
 | 改完不留红 | `python3 skills/seo-suite/scripts/self_check.py`;`python3 skills/seo-suite/scripts/link_check.py` | 全绿,无死链 |
 | 过期断言 | `python3 skills/seo-suite/scripts/freshness.py skills/seo-suite/references --fail-stale` | 退出码 0。1 = 有 >90 天 stale,回写头部日期前先重核事实 |
 | 没带运行态文件 | `git status --short` | 不含 `.intel-state.json`、`findings.json`、`crawl.json`、`briefs/` |

@@ -5,7 +5,7 @@
 - 看门:`tests/test_fact_single_source.py`。有人在别的文件里重新硬写这些值,测试就红,并列出文件和行号。
 - 改值:先在本表改(值、来源、核对日期),再改各条明细里「脚本常量」写到的脚本。测试会核对两边相等。
 - 份额的例外:各市场的明细表留在 `references/markets/<市场>.md`。本表只收跨文件引用的 5 个市场的头条读数,测试核对两边一致。
-- 选哪些事实:2026-10-24 在 `SKILL.md`、`references/`、`templates/` 里按出现次数统计,取前 11 类外部事实(本套件自己的口径不进表)。
+- 选哪些事实:2026-10-24 在 `SKILL.md`、`references/`、`templates/` 里按出现次数统计,取前 11 类外部事实(本套件自己的口径不进表)。2026-11-05 加第 12 类 CrUX 软导航实验指标(要和 `field_data.py` 常量对齐)。
 
 ## 总表
 
@@ -21,6 +21,7 @@
 | [googlebot-size](#googlebot-size) | Googlebot 抓取文件上限 | 每个受支持文件类型的前 2MB(按解压后计),PDF 前 64MB;CSS、JS 等资源各自单独计 | Search Central | 2026-10-24 |
 | [api-quotas](#api-quotas) | API 配额与行数上限 | 见下方分表 | Search Console API / Indexing API / CrUX API | 2026-10-24 |
 | [indexnow-batch](#indexnow-batch) | IndexNow 单次 POST 上限 | 10,000 个 URL | indexnow.org | 2026-10-24 |
+| [crux-softnav](#crux-softnav) | CrUX 软导航实验指标(SPA) | 2026-10-13 发布(CrUX 2026-09 数据集起,BigQuery、CrUX API、History API 都有);三个 `experimental_*_with_softnavs` 指标;目标 2027-05 转正,转正后 Search Console 换用;转正前稳定版 Core Web Vitals 不变 | web.dev / Chrome for Developers | 2026-11-05 |
 | [search-share](#search-share) | 搜索引擎份额(StatCounter,2026-10,全设备) | 见下方分表 | StatCounter | 2026-11-05 |
 
 ## 机器可读值
@@ -60,6 +61,8 @@ gsc.api.rows_per_day = 50000
 indexing.publish_per_day = 200
 crux.api.qpm = 150
 indexnow.max_urls_per_post = 10000
+crux.softnav.released = 2026-10-13
+crux.softnav.graduate_target = 2027-05
 share.ru.yandex = 70.15
 share.ru.google = 28.43
 share.ko.google = 48.64
@@ -156,6 +159,17 @@ share.tr.yandex = 23.74
 - 一次 POST 最多 10,000 个 URL,可混用 http 和 https。各引擎自定每日阈值。参与引擎不含 Google。
 - 来源:[IndexNow 文档](https://www.indexnow.org/documentation)原句 "You can submit up to 10,000 URLs per post"。核对 2026-10-24。
 - 脚本常量:`scripts/indexnow.py` 的 `BATCH_LIMIT`。
+
+<a id="crux-softnav"></a>
+### CrUX 软导航实验指标(SPA)
+
+- Chrome 151 上线 Soft Navigations API 后,CrUX 从 2026-10-13 发布的数据集(2026-09 采集)起,给三项 Core Web Vitals 各加一个含软导航的实验版:`experimental_largest_contentful_paint_with_softnavs`、`experimental_interaction_to_next_paint_with_softnavs`、`experimental_cumulative_layout_shift_with_softnavs`。软导航 = SPA 用 JS 换内容并改 URL、不整页重载。实验版把软导航和硬导航合在一起算;CrUX API 里软导航的数据记在用户导航到的那个 URL 下(满足常规收录条件时)。
+- 类型同稳定版:CLS 为 2 位小数字符串,LCP、INP 为整数毫秒,都有 p75 和三档直方图。
+- 稳定版 Core Web Vitals 分数不变,实验版并列评估;官方目标 2027-05 转正(视反馈而定),转正后 Search Console 换用新数据。11 月的 CrUX 发布预计再加导航类型和 FCP 的软导航实验版。
+- 影响面:全部 origin 里约 70% 几乎没有软导航(软导航 <5% 页面浏览),只有约 7–11% 的 origin 一半以上页面浏览是软导航;前 1,000 站里这个比例是 35%(Android)和 42%(桌面)。软导航占多数的站,LCP、CLS 良好率大幅上升,INP 约翻倍但仍落后多页站。
+- 用法:SPA 站做基准时稳定版和实验版并列,不混用;转正前不拿实验版当达标证据。
+- 来源:[web.dev 2026-10-13 博文](https://web.dev/blog/crux-experimental-soft-navs);[CrUX API 文档](https://developer.chrome.com/docs/crux/api)「Metric value types」表;[CrUX 指标方法论](https://developer.chrome.com/docs/crux/methodology/metrics)「Experimental soft navigation core web vitals metrics」;[CrUX 发布说明](https://developer.chrome.com/docs/crux/release-notes)「September 2026」。核对 2026-11-05。
+- 脚本常量:`scripts/field_data.py` 的 `CRUX_SOFTNAV_METRICS`。
 
 <a id="search-share"></a>
 ### 搜索引擎份额(StatCounter,2026-10,全设备)

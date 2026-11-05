@@ -106,6 +106,10 @@ class AiReferralRosterTests(unittest.TestCase):
     def test_added_tokens_classified(self):
         self.assertEqual(ar.classify_ua(UA["meta-webindexer"]), ("meta-webindexer", "search_index"))
         self.assertEqual(ar.classify_ua(UA["Google-Agent"]), ("Google-Agent", "on_demand_fetcher"))
+        # Anthropic 帮助页 18234133(核对 2026-11-05):真实浏览器 UA + Claude-Agent token
+        self.assertEqual(ar.classify_ua("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                                        "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Claude-Agent"),
+                         ("Claude-Agent", "on_demand_fetcher"))
         self.assertEqual(ar.classify_ua(UA["Baiduspider"]), ("Baiduspider", "search_index"))
         self.assertEqual(ar.classify_ua(UA["YandexAdditional"])[0], "YandexAdditional")
         tok, tier = ar.classify_ua(UA["OAI-AdsBot"])

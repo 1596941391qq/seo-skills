@@ -1,6 +1,6 @@
-# Agent 协议速查卡(14 协议一页对照)
+# Agent 协议速查卡(15 协议一页对照)
 
-> 核对 2026-10-18。事实以各卡「规范」链接的原文为准;[specification.website](https://github.com/jdevalk/specification.website) 只作二手索引(它的 ARD 路径与字段、NLWeb 响应、DNS-AID 标签、Web Bot Auth 签名厂商、RFC 8288 章节号与原文不符,已按原文改)。部署取舍见 [agent-readiness.md](agent-readiness.md);robots.txt UA 表见 [ai-crawler-policy.md](ai-crawler-policy.md)。
+> 核对 2026-10-18;复核于 2026-11-05(第 1 卡补 OpenAI,新增第 15 卡内容授权)。事实以各卡「规范」链接的原文为准;[specification.website](https://github.com/jdevalk/specification.website) 只作二手索引(它的 ARD 路径与字段、NLWeb 响应、DNS-AID 标签、Web Bot Auth 签名厂商、RFC 8288 章节号与原文不符,已按原文改)。部署取舍见 [agent-readiness.md](agent-readiness.md);robots.txt UA 表见 [ai-crawler-policy.md](ai-crawler-policy.md)。
 > 状态标签:**stable**=冻结的正式版(RFC、W3C CG 定稿报告、开放治理项目的 1.x);**draft**=还在改的草案(IETF WG/个人草案、W3C CG 草案、多方 0.x 提案、社区约定);**vendor**=一家公司或一个项目自定版本的规范;**none**=单站约定,未成标准。
 
 ## 1. Content Signals(robots.txt 使用偏好声明)— vendor(IETF 对应物为 WG 草案)
@@ -8,7 +8,7 @@
 - **规范**:Cloudflare [Content Signals Policy](https://contentsignals.org/)(2025-09-24,CC0;原文自述是 Cloudflare 的实现;旧版写的「IAB Tech Lab 平行规范」无出处,已删)。IETF aipref 的 WG 草案:[vocab-08](https://datatracker.ietf.org/doc/draft-ietf-aipref-vocab/)(2026-09-14)、[attach-05](https://datatracker.ietf.org/doc/draft-ietf-aipref-attach/)(2026-08-19)。
 - **规则**:Cloudflare 写 `Content-Signal: search=yes, ai-input=yes, ai-train=no`。IETF 写 `Content-Usage: train-ai=n`(标签 `train-ai`/`ai-use`/`search`,值 `y`/`n`,robots.txt 规则与 HTTP 头同名)。两套不混写。指令名单数;放在 `User-agent:` 组内;可带路径前缀;不写某项=不表态;被 `Disallow` 的路径不带偏好(attach §3.1)。它是偏好声明,不是技术拦截。
 - **谁支持**:Cloudflare 托管 robots.txt 写 `Content-signal: search=yes, ai-train=no, use=reference`(`use=` 是测试中的第四字段,[文档](https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/));Markdown for Agents 也在响应头发。未找到 AI 厂商承诺读取它的一手文档。
-- **第三种写法(2026-10-30 出现)**:IETF 个人草案 [draft-kelley-aipref-training-preference-signal-00](https://datatracker.ietf.org/doc/draft-kelley-aipref-training-preference-signal/) 不加新指令,用 policy token `__usage_ai-training` 当 `User-Agent:` 写普通组(`Disallow` = 反对训练,`Allow` = 同意;`*` 组不算表态)。Anthropic 2026-10-30 起开始逐步遵守(点名 `ClaudeBot` 的规则优先,[帮助页](https://privacy.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler));Google 宣布计划 2027 年支持,并把它的退出解读为禁 `Google-Extended`([博客](https://developers.google.com/search/blog/2026/10/ai-training-control))。这是目前唯一有 AI 厂商公开承诺读取的训练偏好写法,上面 Cloudflare 和 `Content-Usage` 两种仍没有;用法和决策见 [ai-crawler-policy.md](ai-crawler-policy.md) 第二节。
+- **第三种写法(2026-10-30 出现)**:IETF 个人草案 [draft-kelley-aipref-training-preference-signal-00](https://datatracker.ietf.org/doc/draft-kelley-aipref-training-preference-signal/) 不加新指令,用 policy token `__usage_ai-training` 当 `User-Agent:` 写普通组(`Disallow` = 反对训练,`Allow` = 同意;`*` 组不算表态)。Anthropic 2026-10-30 起开始逐步遵守(点名 `ClaudeBot` 的规则优先,[帮助页](https://privacy.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler));Google 宣布计划 2027 年支持,并把它的退出解读为禁 `Google-Extended`([博客](https://developers.google.com/search/blog/2026/10/ai-training-control))。OpenAI 同日宣布会遵守,原文「aim to implement the signal in the coming months」,状态是**已宣布、未实现**([公告](https://openai.com/index/helping-websites-express-ai-training-preferences/),核对 2026-11-05)。微软 2026-10-30 宣布 2027-02-01 起随抓取认这个信号,另加只能页面级设置的 `Bingbot` grounding 偏好([Bing 搜索博客](https://blogs.bing.com/search/2026/10/your-content-your-choice-clearer-preferences-for-training-and-grounding/),核对 2026-11-05)。这是目前唯一有 AI 厂商公开承诺读取的训练偏好写法,上面 Cloudflare 和 `Content-Usage` 两种仍没有;用法和决策见 [ai-crawler-policy.md](ai-crawler-policy.md) 第二节。
 
 ## 2. ARD / AI Catalog(域级能力目录)— draft
 
@@ -87,6 +87,19 @@
 - **兼容性坑**:Cloudflare 现行验证只认旧的字符串形,收到字典形会验证失败([文档](https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/))。
 - **谁签名**:OpenAI 的 ChatGPT Cloud browser(`"https://chatgpt.com"`,旧形,[帮助中心](https://help.openai.com/en/articles/11845367-chatgpt-works-cloud-browser-allowlisting));Google-Agent 的部分请求(`g="https://agent.bot.goog"`,实验阶段,[文档](https://developers.google.com/crawling/docs/crawlers-fetchers/web-bot-auth))。旧版写的 Anthropic、Perplexity 无文档,主域名下也无目录(实测 404),已删。不要拦未签名流量:Google 说明并非所有请求都签名。
 
+## 15. RSL(Really Simple Licensing,机读授权条款)— stable(行业规范,非标准组织)
+
+- **规范**:[RSL 1.0](https://rslstandard.org/rsl)(RSL-SPEC-1.0,状态 Recommendation,2025-12-10 发布;编辑来自 RSL Collective、Condé Nast、Ziff Davis、Schema.org、Yahoo、Automattic、O'Reilly、Fastly;命名空间 `https://rslstandard.org/rsl`)。核对 2026-11-05。
+- **规则**:一份 XML 文件,`<rsl>` 下若干 `<content url="…">`,每个至少一个 `<license>`,里面写 `<permits>`/`<prohibits>`(用途、用户、地域)、`<payment>`(按次抓取 `crawl`、署名 `attribution`、捐助 `contribution` 等)。用途词表:`ai-all`(含下面三项及其他 AI 用途)、`ai-train`、`ai-input`(RAG、grounding、生成式搜索摘要)、`ai-index`(进 AI 系统的内部索引)、`search`(建搜索索引、给链接和短摘录,**不含** AI 摘要)。所以「留在传统搜索、退出 AI 摘要」= 写 `<prohibits type="usage">ai-all</prohibits>`,`search` 不受影响。发现方式(客户端 MUST 全部检查):robots.txt 的 `License: <绝对 URL>` 指令、HTTP `Link: <…>; rel="license"`、HTML `<link>`/`<script>`、RSS `<rsl:content>`、文件元数据(XMP、ID3、EPUB)。另有三个**可选**网络协议:OLP(基于 OAuth 2.0 取授权)、CAP(授权爬虫的 HTTP 认证方案)、EMS(加密媒体)。只写 XML 加发现方式就算合规实现。
+- **谁支持**:[1.0 发布新闻稿](https://rslstandard.org/press/rsl-1-specification-2025)列的支持方是 Cloudflare、Akamai、Creative Commons、IAB Tech Lab 和 1,500 多家出版商与机构。**截至 2026-11-05 未找到任何 AI 厂商公开承诺读取 RSL 的一手文档**:它是出版方单方面的条款声明,AI 爬虫读不读、付不付,取决于各家;Cloudflare 说的是把授权放进 402 响应里有用。
+- **和其他卡的关系**:RSL 写「条款和价格」,第 1 卡写「用途偏好」,第 7 卡 TDMRep 写「欧盟法下的权利保留」。三者可以并存,但同一用途的意思不能互相矛盾(例如 RSL 禁 `ai-train` 而 Content-Signal 写 `ai-train=yes`,本套件口径判为口径矛盾)。
+
+**同类方案(不单独成卡,都没有 AI 厂商公开承诺按它们的信号抓取)**:
+
+- **IAB Tech Lab CoMP v1**(Content Monetization Protocols):2026-04-09 结束公开征求意见,2026-04-28 定稿([官方页](https://iabtechlab.com/standards/comp-content-monetization-protocols-initiative/),规范在 [GitHub](https://github.com/IABTechLab/CoMP),CC BY 3.0)。流程:AI bot 先请求许可 → 没有协议时被拒并指向授权 URL → 签了协议后 bot 带上访问理由申请,拿到访问令牌再取内容;长期设想是 AI 系统和一个内容市场签约,市场按相关性、质量、时效、延迟供内容。官方页自己说它只是一部分,内容方还得自己做拦截。同组 2026 年另发了 AI bot 管理指南(征求意见到 2026-06-25)。核对 2026-11-05。
+- **微软 Publisher Content Marketplace(PCM)**:2026-02-03 公布,试点阶段([Microsoft Advertising 博客](https://about.ads.microsoft.com/en/blog/post/february-2026/building-toward-a-sustainable-content-economy-for-the-agentic-web))。出版方自定授权和使用条款,AI 方按具体 grounding 场景买授权,按交付的价值付费,出版方能看到按用量的报告;先在企业版和消费版 Copilot 的部分场景里用授权内容做 grounding,需求方开始接入 Yahoo。和 RSL、CoMP 不同,它是一个商业市场,不是公开协议:要申请加入,不是在站上放一个文件。核对 2026-11-05。
+- **SEO 上怎么看**(本套件口径):这三种都管「AI 用你内容要不要付钱」,不是排名或引用手段。写了 RSL 不会让 AI 多引用你;禁了 `ai-input` 反而可能让遵守它的系统不引用你。按商业模式决定,和 [ai-crawler-policy.md](ai-crawler-policy.md) 第六节的三态决策一起定。
+
 ## 否决记录(specification.website `considered/`)
 
 - AGENTS.md:`out-of-scope`(2026-09-12)。它是仓库文件,网站侧没有可检查的 URL;由 LF AAIF 托管,6 万+ 项目采用([LF](https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation))。另六条 `too-early`:Cache-Status(RFC 9211)、DPP 发现、HTTP Cache Groups(RFC 9875)、增量转发(RFC 10036)、`<meta name="text-scale">`、419 Purpose Declined。
@@ -111,12 +124,14 @@
 12. **DNS-AID** → `curl -s -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=_index._agents.example.com&type=SVCB"`,再查 `type=HTTPS`;`iar $D dnsAid` → 通过:有 Answer、优先级 ≥1、`"AD":true`;失败:无记录、优先级 0、AD 为 false。DoH 不受本地代理改写 DNS 影响。
 13. **auth.md** → `curl -s -o /dev/null -w '%{http_code} %{content_type}\n' $D/auth.md`;`curl -s $D/.well-known/oauth-protected-resource | jq .authorization_servers`;`iar $D authMd` → 通过:无凭证返回 200,文中端点与元数据一致;失败:登录墙、端点不一致。
 14. **Web Bot Auth(bot 运营方)** → `curl -sI https://<bot域>/.well-known/http-message-signatures-directory`;抓一条出站请求 → 通过:200 + 目录媒体类型,`Signature-Input` 含 `@authority`、`"signature-agent"`、`created`、`expires`、`keyid`、`tag="web-bot-auth"`,形式匹配目标验证方;改动任一被签组件后验证失败。
+15. **RSL** → `curl -s $D/robots.txt | grep -i '^license:'`;`curl -sI $D/ | grep -i 'rel="license"'`;取到的 URL 跑 `curl -s <URL> | python3 -c 'import sys,xml.etree.ElementTree as E; r=E.fromstring(sys.stdin.read()); n="{https://rslstandard.org/rsl}"; print(r.tag==n+"rsl", all(c.get("url") and c.find(n+"license") is not None for c in r.iter(n+"content")))'` → 通过:两个 `True`,且用途词只出现规范里的值;失败:XML 解析错、`<content>` 缺 `url` 或 `<license>`、与 Content-Signal 矛盾。
 
 ## 状态一览(核对 2026-10-18)
 
 | 协议 | 标签 | 实际状态 |
 |---|---|---|
 | Link 头 | stable | RFC 8288 / 9727 / 9264;只用注册 rel |
+| RSL | stable | RSL 1.0 Recommendation(2025-12-10,行业规范);无 AI 厂商公开承诺读取(核对 2026-11-05) |
 | TDMRep | stable | W3C CG 定稿报告(2024-02-02) |
 | A2A | stable | LF 项目 1.0(2026-03-12) |
 | WebMCP | draft | W3C CG 草案;Chrome M149–M156 与 Edge origin trial |

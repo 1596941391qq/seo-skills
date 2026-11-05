@@ -1,6 +1,6 @@
 # intel-update: SEO skill 自更新 cron(信源变更 → agent 更新 skill → commit+push)
 # ----------------------------------------------------------------------------
-# 每日 UTC 01:11 跑一次。拉 18 个信源(intel_check.py)检测变更,
+# 每日 UTC 01:11 跑一次。拉 29 个信源(intel_check.py)检测变更,
 # 有变更 → 工单(本轮报告)写进 label=intel-update-pending 的 issue:无 open issue 则新开,
 # 已有则追加评论(触发人工/agent 后续处理)。工单不再提交成仓根文件——运行态不入库。
 # 无变更不自动关 issue:关单只由处理方在按协议处理完后执行,避免未处理的工单被静默关掉。

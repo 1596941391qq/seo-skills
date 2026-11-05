@@ -1,8 +1,8 @@
 # Core Web Vitals 优化手册（2026-10 口径）
 
-> 建立于 2026-10-09，2026-10-18 与 2026-10-21 两次逐条核对 web.dev、Chrome 文档、CrUX 发布说明和 Google Search Central。本手册是 CWV 总纲：四指标全景、INP/CLS/TTFB 深度、第三方脚本治理、优化优先级。LCP 的四段拆解与诊断顺序见 [LCP.md](LCP.md)；JS 渲染策略见 [rendering-seo.md](rendering-seo.md)；审计扣分规则见 [audit-rule-catalog.md](audit-rule-catalog.md)。
+> 建立于 2026-10-09，2026-10-18 与 2026-10-21 两次逐条核对（2026-11-05 补第九节 SPA 软导航，复核于 2026-11-05） web.dev、Chrome 文档、CrUX 发布说明和 Google Search Central。本手册是 CWV 总纲：四指标全景、INP/CLS/TTFB 深度、第三方脚本治理、优化优先级。LCP 的四段拆解与诊断顺序见 [LCP.md](LCP.md)；JS 渲染策略见 [rendering-seo.md](rendering-seo.md)；审计扣分规则见 [audit-rule-catalog.md](audit-rule-catalog.md)。
 
-> **CrUX 软导航（实验性）**：2026-10-13 发布的 CrUX 2026-09 数据集新增 LCP/INP/CLS 的软导航实验变体（SPA 路由切换），BigQuery 和 CrUX API 都可查；API 指标名为 `experimental_largest_contentful_paint_with_softnavs` 等（[CrUX 发布说明](https://developer.chrome.com/docs/crux/release-notes)、[CrUX API](https://developer.chrome.com/docs/crux/api)，核对 2026-10-21）。同期全量统计：18,376,044 个 origin；LCP 良好 68.3%、CLS 81.7%、INP 85.4%、三项全过 55.9%；计入软导航后分别为 72.1%、85.1%、87.4%、59.5%。做竞品基准时注明「含/不含软导航」，两种口径不混用。2026-09-08 的发布说明提到 INP 持续回退，官方没有给出原因。引用软导航指标时标 [experimental]。
+> **CrUX 软导航（实验性）**：2026-10-13 发布的 CrUX 2026-09 数据集新增 LCP/INP/CLS 的软导航实验变体（SPA 路由切换），BigQuery 和 CrUX API 都可查；API 指标名为 `experimental_largest_contentful_paint_with_softnavs` 等（[CrUX 发布说明](https://developer.chrome.com/docs/crux/release-notes)、[CrUX API](https://developer.chrome.com/docs/crux/api)，核对 2026-10-21）。同期全量统计：18,376,044 个 origin；LCP 良好 68.3%、CLS 81.7%、INP 85.4%、三项全过 55.9%；计入软导航后分别为 72.1%、85.1%、87.4%、59.5%。做竞品基准时注明「含/不含软导航」，两种口径不混用。2026-09-08 的发布说明提到 INP 持续回退，官方没有给出原因。引用软导航指标时标 [experimental]。发布日期、指标名和转正时间只写在[事实表](../overview/facts.md#crux-softnav)；SPA 怎么用见第九节。
 
 ## 一、四指标全景
 
@@ -255,11 +255,30 @@ Link: </img/hero.webp>; rel=preload; as=image; fetchpriority=high
 
 纪律：一次只改一类；改完等 CrUX 窗口（[长度](../overview/facts.md#crux-window)）滚动满再评估，不被单日波动带偏。
 
+## 九、SPA 与软导航（2026-11-05）
+
+SPA（单页应用）点链接时不重载整页，只用 JS 换内容并改 URL，这叫软导航。以前 CrUX 只记首次硬加载：后续路由切换不单独计，整个会话的交互和布局偏移都算在落地页头上。现在有了含软导航的实验指标（[日期、名称、转正时间](../overview/facts.md#crux-softnav)）。
+
+- **先判断你是不是受影响的站**：多页站（每次点击都从服务器拿新 HTML）数字不会变。变化集中在「SPA + 后续导航多」的站（官方统计见事实表）。查法：CrUX API 返回里有没有 `*_with_softnavs`，再和稳定版比。
+- **三项各怎么变**（[web.dev 2026-10-13](https://web.dev/blog/crux-experimental-soft-navs)，核对 2026-11-05）：
+  - LCP：后续软导航复用已下载的代码和资源，通常变好。这是「后续点击本来就快」，不是 SPA 比多页站快。
+  - INP：按每次页面浏览算，不再取整个会话里最慢的一次，通常变好；但路由切换时主线程上的重 JS 仍会让 INP 差。
+  - CLS：按每次页面浏览分段，不再累计整个会话，通常变好。
+- **怎么用**：
+  1. SPA 站的基线表并列两列：稳定版和含软导航版。改动前后两列都记，不拿一列和另一列比。
+  2. 实验版转正前，Search Console 的 CWV 报告和排名系统仍按稳定版（官方原话：稳定版 Core Web Vitals 分数不变）。达标判定、退出码、告警都只看稳定版；实验版只作诊断参考。
+  3. 实验版的 INP 仍差 → 查路由切换时的长任务（第二节），不要指望「换口径」自动变好。
+  4. 软导航的数据记在用户导航到的那个 URL 下，按页定位问题比以前容易：先按 URL 查实验版，找出哪个路由差。
+  5. 自建 RUM：按 Chrome 的[测量软导航文档](https://developer.chrome.com/docs/web-platform/soft-navigations)接入，口径和 CrUX 对齐。
+- **脚本**：`python3 scripts/field_data.py --url URL --key KEY` 有软导航数据时单列「含软导航（experimental）」一节，没有就不显示；实验值不进退出码、不进 `--as-cwv-csv`。
+- **会变的地方**：官方说转正前每月都可能调整测量方法；11 月的发布预计加导航类型和 FCP 的软导航版。按月复核事实表。
+
 ## 检查清单
 
 | 检查什么 | 怎么查 | 通过 / 失败 |
 |---|---|---|
 | 三项现场值 | `python3 scripts/field_data.py --url URL --strategy both --json` | 退出码 0 且三项 p75 都在良好区间 → 通过；退出码 1 → 有一项为差 |
+| SPA 软导航口径 | 同上加 `--key KEY`，看 JSON 的 `field_softnav` | 有值 → 基线表并列两列；空 → 该 URL/origin 没有软导航实验数据，按多页站处理 |
 | origin 级基线 | `python3 scripts/field_data.py --url https://example.com/ --crux-scope origin` | 用作改动前基线，记录日期 |
 | CrUX 原始数据 | `curl -s -X POST "https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=KEY" -H 'Content-Type: application/json' -d '{"origin":"https://example.com","formFactor":"PHONE"}'`，读 `record.metrics.<名称>.percentiles.p75` 和 `record.collectionPeriod` | 记录 p75 和数据窗口；SPA 另查 `*_with_softnavs` 变体 |
 | Search Console 分组 | Search Console → 体验 → Core Web Vitals → 移动设备/桌面设备 | 组状态 = 最差一项；「差」的组排第一优先 |
@@ -273,5 +292,6 @@ Link: </img/hero.webp>; rel=preload; as=image; fetchpriority=high
 
 本文由 EveryInfra 自行编写，只保留要点，未复制原文。官方口径优先，第三方数字均已标注。
 
+- 一手（核对 2026-11-05）：web.dev [CrUX 软导航实验指标博文](https://web.dev/blog/crux-experimental-soft-navs)、Chrome [测量软导航](https://developer.chrome.com/docs/web-platform/soft-navigations)、[CrUX 指标方法论](https://developer.chrome.com/docs/crux/methodology/metrics)。
 - 一手（核对 2026-10-21）：web.dev [Web Vitals](https://web.dev/articles/vitals)、[LCP](https://web.dev/articles/lcp)、[INP](https://web.dev/articles/inp)、[优化 INP](https://web.dev/articles/optimize-inp)、[CLS](https://web.dev/articles/cls)、[优化 CLS](https://web.dev/articles/optimize-cls)、[TTFB](https://web.dev/articles/ttfb)、[优化长任务](https://web.dev/articles/optimize-long-tasks)、[INP 公告](https://web.dev/blog/inp-cwv-march-12)；Chrome [CrUX 方法论](https://developer.chrome.com/docs/crux/methodology)、[CrUX API](https://developer.chrome.com/docs/crux/api)、[CrUX 发布说明](https://developer.chrome.com/docs/crux/release-notes)、[scheduler.yield](https://developer.chrome.com/blog/use-scheduler-yield)、[预渲染与 Speculation Rules](https://developer.chrome.com/docs/web-platform/prerender-pages)、[Early Hints](https://developer.chrome.com/docs/web-platform/early-hints)、[跨文档 View Transitions](https://developer.chrome.com/docs/web-platform/view-transitions/cross-document)；Google Search Central [页面体验](https://developers.google.com/search/docs/appearance/page-experience)、[Search Console CWV 报告帮助](https://support.google.com/webmasters/answer/9205520)；[web-vitals README](https://github.com/GoogleChrome/web-vitals)；[MDN browser-compat-data](https://github.com/mdn/browser-compat-data) v8.1.6。
 - 第三方：[Deloitte《Milliseconds Make Millions》](https://www.deloitte.com/ie/en/services/consulting/research/milliseconds-make-millions.html)（2020）；[Cloudflare Early Hints 文档](https://developers.cloudflare.com/cache/advanced-configuration/early-hints/)。

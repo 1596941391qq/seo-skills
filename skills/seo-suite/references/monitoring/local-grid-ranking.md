@@ -1,6 +1,6 @@
 # 本地网格排名(geo-grid rank tracking)
 
-> 三指标(ARP/ATRP/SoLV)源码级口径 + 网格参数公式 + 5 层审计法 + GBP 信号(官方三因素与从业者观察分开写) + API 盲区。本地业务站点结构、六行业速查与 GBP 深读见 [site-type-templates.md](../technical/site-type-templates.md);通用指标口径规范见 [kpi-definitions.md](kpi-definitions.md)。
+> 复核于 2026-11-05(补第五节之二 Ask Maps、第六节 Q&A API 停用)。三指标(ARP/ATRP/SoLV)源码级口径 + 网格参数公式 + 5 层审计法 + GBP 信号(官方三因素与从业者观察分开写) + API 盲区。本地业务站点结构、六行业速查与 GBP 深读见 [site-type-templates.md](../technical/site-type-templates.md);通用指标口径规范见 [kpi-definitions.md](kpi-definitions.md)。
 
 ## 用途
 
@@ -144,6 +144,17 @@ lng(r, c) = 中心lng + (c − half) × spacing ÷ metersPerDegreeLng
 
 AI 检索补充:各 AI 平台怎么选本地商家，官方没有逐平台的说明，本套件不写成规则；证据分级见 [geo-evidence](../content/geo-evidence.md)。Google 的 AI 功能与整体搜索共用商家资料，官方建议保持 Merchant Center 与商家资料信息最新（[AI 功能说明](https://developers.google.com/search/docs/appearance/ai-features)）。Bing Places、Apple Maps 是各自独立的商家资料，需要分别认领。
 
+## 五之二、Ask Maps:地图里的对话式答案(核对 2026-11-05)
+
+- **是什么**:Google 地图里的「Ask Maps」按钮,用 Gemini 模型回答复杂的地点问题(例如「现在哪能充电、不用排长队」「今晚哪有开灯的公共网球场」),给出定制地图、路线和来自贡献者的「insider tips」,能直接订位、存列表、分享。2026-03-12 先在美国和印度的 Android、iOS 推出,桌面版随后;官方说它分析 3 亿多个地点和 5 亿多贡献者的评价,并按用户在地图里搜索、保存过的地点做个性化([blog.google 2026-03-12](https://blog.google/products-and-platforms/products/maps/ask-maps-immersive-navigation/))。
+- **2026-08-06 扩展**:澳大利亚、巴西、加拿大、印度尼西亚、日本、墨西哥,外加 150 多个国家和地区的英语版;美国先上线代点外卖(合作方 Square、Toast,Uber Eats 随后,并和伙伴共建 UCP for Food)、酒店比价、活动发现,以及用对话提交地点修改(拍招牌识别新营业时间,用户确认后提交)([blog.google 2026-08-06](https://blog.google/products-and-platforms/products/maps/order-food-in-ask-maps/))。
+- **对本地 SEO 的含义**(本套件口径,官方没有说 Ask Maps 怎么选商家):
+  1. 回答依赖评价正文、贡献者提示和商家资料属性里的细节(「安静」「有灯」「后面有停车位」)。资料属性填全、鼓励顾客在评价里写具体场景,比堆关键词有用。
+  2. 回答是个性化的,网格排名(第一至三节)测不到 Ask Maps 的推荐;报告里把它列为盲区,不拿网格 SoLV 代替。
+  3. 餐饮商家:代点外卖走 Square、Toast 等合作方,没接入的店在 Ask Maps 里只能被推荐、不能被直接下单。
+  4. 营业时间可能被用户拍照修改并提交,商家要定期看资料里的「Google 更新」并确认。
+- **怎么观察**:没有官方报表。用目标城市的真实问题在 Ask Maps 里手工抽样,记录是否被推荐、引用了哪条评价或属性;样本纪律同 [ai-citation-patterns.md](../content/ai-citation-patterns.md)。
+
 ## 六、数据盲区清单
 
 **Places API / Maps API 拿不到**的数据，报告里明说「不可测」，不要拿代理指标冒充:
@@ -152,7 +163,9 @@ AI 检索补充:各 AI 平台怎么选本地商家，官方没有逐平台的说
 2. 直接搜索 vs 发现式搜索的比例;
 3. 本地 3-Pack 出现率（只能用网格 SoLV 近似）;
 4. 评价回复率、外部引用、Google Posts 活跃度（上表已标）;
-5. 网格工具自身盲区:`locationBias` 是偏置非过滤;排名 >20 与未收录不可区分（可翻页到 60）;单次扫描只覆盖一种语言 / 设备 / 个性化条件;`search_nearby` 的 keyword 对中文类目名不支持（cablate 工具的行为，不是 Google 规定）。
+5. Ask Maps 的对话式推荐(见五之二):个性化,网格测不到;
+6. 商家资料的问答(Q&A):My Business Q&A API 2025-11-03 已停用,不能再用 API 读写问答,相关的 `NEW_QUESTION` 等通知类型也一并废弃;官方说正在更新问答的功能和体验([Q&A API 变更日志](https://developers.google.com/my-business/content/qanda/change-log),核对 2026-11-05)。审计不再取 Q&A 数据,常见问题写进网站和商家描述;
+7. 网格工具自身盲区:`locationBias` 是偏置非过滤;排名 >20 与未收录不可区分（可翻页到 60）;单次扫描只覆盖一种语言 / 设备 / 个性化条件;`search_nearby` 的 keyword 对中文类目名不支持（cablate 工具的行为，不是 Google 规定）。
 
 **商家自己能拿到**的数据:用商家的 OAuth（scope `business.manage`）调 [Business Profile Performance API](https://developers.google.com/my-business/reference/performance/rest/v1/DailyMetric)（核对 2026-10-21），可以按日取 Google 搜索和地图 × 桌面 / 移动的商家展示（同一用户一天内多次只算一次）、通话点击、网站点击、路线请求、消息点击、预订和订餐，另有按月的搜索关键词展示。这类数据只有商家资料的所有者或管理者能取，不在 Places API 里。
 
