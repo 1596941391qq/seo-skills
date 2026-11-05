@@ -5,6 +5,10 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+(暂无)
+
+## 0.39.0 - 2026-11-05
+
 - **每周运营单(RQ-229 第 2 批)**:`project.py ops weekly|monthly`(新脚本 `ops.py`)一条命令出一屏运营单:硬告警、只推荐一件事、问题五态(没复查到的 URL 不算已解决)、到期复验(`ops change add` 记改动,+14/+28 天用 GSC 逐页逐日数比前后)、搜索与 AI 可见度(每个数写数据源;GSC 两个来源抽 3 天对账)、有点击却有问题的页五张清单(noindex / 4xx / 403 / 3xx / 非规范)、覆盖率(sitemap 全量轻检 + 按点击前 N 页深审,不够不出分)。`ops notify` 只在有硬告警或连续 2 期没人看时推 Telegram。
 - **数据接入**:新增 `ga4_api.py`(GA4 Data API,AI Assistant 渠道和按引擎拆的 AI 引荐)、`gsc_api.py inspect`(URL Inspection,按每站每天配额记台账)、外部数据包格式 `seo-ops.external.v1`(站点已有数据管道时读它,不重复拉),说明见 `references/monitoring/ops-agenda.md`。
 - **URL → 源码**:新增 `source_map.py`(Next.js App Router、纯静态;动态页沿 import 找数据,生成物指到生成器,带置信度)。

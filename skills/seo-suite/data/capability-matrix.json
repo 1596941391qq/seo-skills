@@ -1728,7 +1728,7 @@
     "外部数据包 seo-ops/raw/external-*.json(可缺)",
     "GSC / GA4 服务账号(可缺)"
    ],
-   "outputs_schema": "md+json",
+   "outputs_schema": "json",
    "data_source": "站点 sitemap 与页面(轻检/深审)+ 外部数据包 + GSC/GA4 API + monitor.db",
    "fallback_mode": "②",
    "tests_file": "tests/test_ops_agenda.py",
