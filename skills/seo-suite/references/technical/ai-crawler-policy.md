@@ -14,7 +14,7 @@
 | `GPTBot` | OpenAI | 训练 | 抓取可能用于训练基础模型的内容 | 是 | `openai.com/gptbot.json` |
 | `ChatGPT-User` | OpenAI | 用户触发 | 不做自动抓取；不决定搜索收录 | 官方：robots 规则「may not apply」 | `openai.com/chatgpt-user.json` |
 | `OAI-AdsBot` | OpenAI | 广告审核 | 只访问作为 ChatGPT 广告提交的落地页；数据不用于训练 | 官方未说明 | `openai.com/adsbot.json` |
-| `ClaudeBot` | [Anthropic](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) | 训练 | 收集可能用于训练的内容 | 是；支持 Crawl-delay | `claude.com/crawling/bots.json` |
+| `ClaudeBot` | [Anthropic](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler) | 训练 | 收集可能用于训练的内容 | 是；支持 Crawl-delay；2026-10-30 起另认 `__usage_ai-training`，点名 `ClaudeBot` 的规则优先（见第二节） | `claude.com/crawling/bots.json` |
 | `Claude-SearchBot` | Anthropic | 搜索 | 为搜索结果建索引 | 是 | 同上 |
 | `Claude-User` | Anthropic | 用户触发 | 禁止后，Claude 不再按用户请求取回该站内容 | 是 | 同上 |
 | `PerplexityBot` | [Perplexity](https://docs.perplexity.ai/guides/bots) | 搜索 | 在搜索结果中展示和链接网站；不用于训练基础模型 | 是 | `perplexity.com/perplexitybot.json` |
@@ -83,6 +83,13 @@ Disallow: /
 
 - 搜索类和用户触发类 bot 不动。
 - `Google-Extended` 要单独决定。禁它会同时停止 Gemini Apps 和 Vertex AI grounding 使用你的内容（官方），不只是训练。想保留 Gemini App 里的引用，就不要禁。
+- **跨厂商训练偏好 token `__usage_ai-training`（草案，2026-10-30 起）。** Anthropic 2026-10-30 起开始逐步在全部服务上遵守这个「不要 AI 训练」信号；robots.txt 里点名 `ClaudeBot` 的规则比它更具体，优先执行（[Anthropic 帮助页](https://privacy.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler)「How Anthropic honors website preferences for AI training」一节）。Google 宣布计划 2027 年和其他 AI 厂商一起支持：站点用这个 policy token 表示退出训练、且没有单独写 `Google-Extended` 时，Google 按「禁了 `Google-Extended`」处理；单独写的 `Google-Extended` 规则照旧生效，并且优先（[Google 博客 2026-10-30](https://developers.google.com/search/blog/2026/10/ai-training-control)）。语法来自 IETF 个人草案 [draft-kelley-aipref-training-preference-signal-00](https://datatracker.ietf.org/doc/draft-kelley-aipref-training-preference-signal/)（作者单位 Anthropic，2027-05-03 过期）：写成普通 robots.txt 组，`User-Agent: __usage_ai-training` 加 `Disallow`/`Allow`，可按路径；`User-Agent: *` **不算**对它表态；文件里没有这一组 = 没有表态；它只表达用途偏好，不管抓取，抓取仍看各家 bot 自己的组（草案 §4.2–4.4）。本套件口径：想禁训练的站现在就加这一组（不认识它的解析器会当成未知 bot 跳过，没有副作用）；但目前只有 Anthropic 在铺开、Google 要到 2027 年，上面按 bot 写的组一条都不能删。
+
+  ```
+  User-Agent: __usage_ai-training
+  Disallow: /
+  Allow: /press-kit/
+  ```
 - `Amazonbot`、`meta-externalagent` 的官方用途是「训练或改进产品」。禁它们不只影响训练，按业务决定（本套件口径）。
 
 ### 3. 退出特定引擎的 AI 答案
@@ -190,7 +197,7 @@ robots.txt 只有封和放两态。Cloudflare AI Crawl Control（原名 AI Audit
 
 ## 七、来源与已知偏差
 
-**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。
+**官方来源**：第一节表格的「运营方」列和各节正文里的链接，全部 2026-10-18 打开核对。2026-11-05 补核：Anthropic 爬虫帮助页（2026-10-30 新增训练偏好一节）、Google 共享训练控制博客（2026-10-30）、IETF 草案 draft-kelley-aipref-training-preference-signal-00、[Control what you share](https://developers.google.com/search/docs/crawling-indexing/control-what-you-share)（2026-10-21 更新，列出 Search generative AI control，与第二节第 3 条一致）。另读了 [Google 验证请求文档](https://developers.google.com/crawling/docs/crawlers-fetchers/verify-google-requests)、[Common Crawl FAQ](https://commoncrawl.org/faq)、OpenAI bots 更新 RSS（`/api/docs/bots/rss.xml`，当日没有条目）。
 
 **第三方**：StatCounter 搜索引擎份额（全平台月度 CSV，2026-01 至 2026-09）；[Mozilla Foundation 2024-02](https://www.mozillafoundation.org/en/research/library/generative-ai-training-data/common-crawl/)（Common Crawl 与生成式 AI 训练数据）。
 

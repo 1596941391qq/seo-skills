@@ -15,7 +15,7 @@
 - **重点是质量。** Google 关注内容质量，而不是内容怎么生产；合理使用 AI 或自动化不违反其指南（[Search Central 博客 2023-02-08](https://developers.google.com/search/blog/2023/02/google-search-and-ai-content)）。
 - **红线是操纵排名。** 用自动化（包括 AI）生成内容，主要目的是操纵排名，违反垃圾内容政策；SpamBrain 等系统按模式和信号识别垃圾内容，不论它怎么生产（同上）。
 - **大规模滥用内容。** 为操纵排名、而不是帮助用户，大量生成页面，属于「大规模滥用内容」；例子之一是用生成式 AI 工具生成大量页面却不给用户增加价值（[垃圾内容政策](https://developers.google.com/search/docs/essentials/spam-policies#scaled-content)）。
-- **发布前人工核对。** 生成式模型会出错，发布前要人工核对全部 AI 生成内容的准确性，包括 `<title>`、meta description、结构化数据和图片替代文字（[生成式 AI 内容指南](https://developers.google.com/search/docs/fundamentals/using-gen-ai-content)，2026-10-01 更新）。Merchant Center 另有规定：AI 生成的商品标题和描述要单独标注（同上）。
+- **发布前人工核对。** 生成式模型会出错，发布前要人工核对全部 AI 生成内容的准确性，包括 `<title>`、meta description、结构化数据和图片替代文字（[生成式 AI 内容指南](https://developers.google.com/search/docs/fundamentals/using-gen-ai-content)，2026-10-01 更新）。Merchant Center 另有规定：AI 生成的商品标题和描述要单独标注，AI 生成的图片要带 IPTC `DigitalSourceType` = `TrainedAlgorithmicMedia` 元数据（同上）。2026-10-01 这次更新还指向质量评估员指南的两节：4.6.5 大规模滥用内容、4.6.6 几乎没有投入、原创和附加价值的主体内容；官方同时说明评估员打分不直接影响排名（同上，2026-11-05 补核）。
 - **Who、How、Why。** 读者可能想问「这是怎么做出来的」时，说明自动化或 AI 怎么参与；不要编造作者资料，例如 AI 生成的头像、假名字、假资历。质量评估员的「投入」一项把「用生成式 AI 产出大量文本、没有人工把关」视为几乎没有投入（[有用内容](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)）。
 - **不要把 AI 写成署名作者。** 博客 FAQ：给 AI 署名「probably not the best way」让读者知道 AI 参与了创作；应在读者会问「怎么做出来的」时另写说明。
 

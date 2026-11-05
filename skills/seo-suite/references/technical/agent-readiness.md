@@ -7,7 +7,7 @@
 
 - Google 于 2026-06-17 [宣布](https://developers.googleblog.com/announcing-the-agentic-resource-discovery-specification/),Microsoft、Hugging Face 等参与;数据模型沿用 Linux Foundation 下 AI Catalog 工作组。规范 [v0.91](https://agenticresourcediscovery.org/spec/)(2026-08-26,Proposal)。
 - 发现机制(§5.1):`/.well-known/ard.json` 和 `<link rel="ard">`(消费方 MUST 处理);robots.txt `Agentmap: <URL>`;页内 JSON-LD;DNS。
-- `/.well-known/ai-catalog.json`、`rel="ai-catalog"` 是前身名字,消费方只是 MAY 查;只放旧路径可能不被发现。Lighthouse 13.5.0 等实现仍读旧路径,两条路径发同一份文件(本套件口径)。条目字段见第 2 卡。
+- `/.well-known/ai-catalog.json`、`rel="ai-catalog"` 是前身名字,消费方只是 MAY 查;只放旧路径可能不被发现。Lighthouse 13.6.0(2026-10-27)起按 ARD v0.91 改读 `ard.json`(Link 头、`<link rel="ard">`、`/.well-known/ard.json`),只在旧路径会报警告;Hugging Face 等目录仍只发 `ai-catalog.json`。两条路径发同一份文件(本套件口径)。条目字段见第 2 卡。
 
 ## 二、WebMCP(页面级工具注册)
 
@@ -31,7 +31,7 @@
 
 ## 四、Lighthouse Agentic Browsing 类别(7 项审计)
 
-- 版本([releases](https://github.com/GoogleChrome/lighthouse/releases)):13.2.0(2026-05-01)建类别,13.4.1(2026-07-20)经 PSI API 提供,13.5.0(2026-09-18)加 `ard-schema`。
+- 版本([releases](https://github.com/GoogleChrome/lighthouse/releases)):13.2.0(2026-05-01)建类别,13.4.1(2026-07-20)经 PSI API 提供,13.5.0(2026-09-18)加 `ard-schema`,13.6.0(2026-10-27)把 `ard-schema` 改到 ARD v0.91、CLI 支持一条命令批量审多个 URL(`--url-file`、`--fail-fast`),官方说一周内进 PSI([发布说明](https://github.com/GoogleChrome/lighthouse/releases/tag/v13.6.0))。
 - 类别 id `agentic-browsing`,只显示通过比例,不出 0–100 分([文档](https://developer.chrome.com/docs/lighthouse/agentic-browsing/scoring))。PSI API 文档只列 4 个旧类别,viewer 源码发 `category=agentic-browsing`,未实测。
 
 | 审计 id | 判什么(据源码) | 计分 |
@@ -44,7 +44,7 @@
 | `llms-txt` | 有 H1、至少 1 个 Markdown 链接、≥50 字符 | 4xx = n/a;5xx/429 = 0 |
 | `ard-schema` | 按 ARD 官方一致性逻辑校验目录 | 有错误 0;只有警告或只在旧路径 0.9 |
 
-- 浏览器不支持 WebMCP 时三项 WebMCP 审计为 n/a,不等于通过。13.5.0 校验 `ai-catalog.json`;main 分支 2026-10-09 起先找 `ard.json`(#17259,未发版)。
+- 浏览器不支持 WebMCP 时三项 WebMCP 审计为 n/a,不等于通过。13.5.0 校验 `ai-catalog.json`;13.6.0 起先找 `ard.json`(#17259),旧位置只报 legacy 警告,报告页脚写 ARD 规范版本。用 PSI 时看结果里的 `lighthouseVersion` 判断走的是哪一版。
 
 ## 五、语言中立层的多语言部署
 

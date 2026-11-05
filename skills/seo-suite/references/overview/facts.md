@@ -21,7 +21,7 @@
 | [googlebot-size](#googlebot-size) | Googlebot 抓取文件上限 | 每个受支持文件类型的前 2MB(按解压后计),PDF 前 64MB;CSS、JS 等资源各自单独计 | Search Central | 2026-10-24 |
 | [api-quotas](#api-quotas) | API 配额与行数上限 | 见下方分表 | Search Console API / Indexing API / CrUX API | 2026-10-24 |
 | [indexnow-batch](#indexnow-batch) | IndexNow 单次 POST 上限 | 10,000 个 URL | indexnow.org | 2026-10-24 |
-| [search-share](#search-share) | 搜索引擎份额(StatCounter,2026-09,全设备) | 见下方分表 | StatCounter | 2026-10-24 |
+| [search-share](#search-share) | 搜索引擎份额(StatCounter,2026-10,全设备) | 见下方分表 | StatCounter | 2026-11-05 |
 
 ## 机器可读值
 
@@ -60,15 +60,15 @@ gsc.api.rows_per_day = 50000
 indexing.publish_per_day = 200
 crux.api.qpm = 150
 indexnow.max_urls_per_post = 10000
-share.ru.yandex = 70.35
-share.ru.google = 28.10
-share.ko.google = 47.97
-share.ko.naver = 43.05
-share.ja.google = 59.08
-share.ja.bing = 31.63
-share.ja.yahoo = 7.58
-share.zh.baidu = 46.85
-share.tr.yandex = 25.53
+share.ru.yandex = 70.15
+share.ru.google = 28.43
+share.ko.google = 48.64
+share.ko.naver = 42.10
+share.ja.google = 59.58
+share.ja.bing = 32.26
+share.ja.yahoo = 6.57
+share.zh.baidu = 49.08
+share.tr.yandex = 23.74
 ```
 
 ## 各条明细
@@ -158,16 +158,16 @@ share.tr.yandex = 25.53
 - 脚本常量:`scripts/indexnow.py` 的 `BATCH_LIMIT`。
 
 <a id="search-share"></a>
-### 搜索引擎份额(StatCounter,2026-09,全设备)
+### 搜索引擎份额(StatCounter,2026-10,全设备)
 
 | 市场 | 读数 | 明细 |
 |---|---|---|
-| 俄罗斯 | Yandex 70.35%、Google 28.10% | [ru.md](../markets/ru.md) 第 1 节(另有 Яндекс Радар、LiveInternet 两套口径) |
-| 韩国 | Google 47.97%、Naver 43.05% | [ko.md](../markets/ko.md)(来路构成口径 Naver 更高,四套口径不能互换) |
-| 日本 | Google 59.08%、Bing 31.63%、Yahoo! 7.58% | [ja.md](../markets/ja.md)(桌面单月 Bing 高于 Google) |
-| 中国大陆 | 百度 46.85% | [zh.md](../markets/zh.md)(单月波动大) |
-| 土耳其 | Yandex 25.53% | [tr.md](../markets/tr.md)(本地点击实测比例低得多) |
+| 俄罗斯 | Yandex 70.15%、Google 28.43% | [ru.md](../markets/ru.md) 第 1 节(另有 Яндекс Радар、LiveInternet 两套口径) |
+| 韩国 | Google 48.64%、Naver 42.10% | [ko.md](../markets/ko.md)(来路构成口径 Naver 更高,四套口径不能互换) |
+| 日本 | Google 59.58%、Bing 32.26%、Yahoo! 6.57% | [ja.md](../markets/ja.md)(桌面单月 Bing 高于 Google) |
+| 中国大陆 | 百度 49.08% | [zh.md](../markets/zh.md)(单月波动大) |
+| 土耳其 | Yandex 23.74% | [tr.md](../markets/tr.md)(本地点击实测比例低得多) |
 
 - 读数是 StatCounter CSV 导出(页面浏览样本,不是搜索次数)。页面上的表和 CSV 可能差 0.02–0.03 个百分点;StatCounter 会回溯修订历史月份。
 - 其他市场 Google 主导(多在 88–99%),份额看各市场文件第 1 节。
-- 来源:[StatCounter 搜索引擎份额](https://gs.statcounter.com/search-engine-market-share),各国页面的 CSV 导出(`chart.php?…&csv=1`,2026-09 单月)。核对 2026-10-24。
+- 来源:[StatCounter 搜索引擎份额](https://gs.statcounter.com/search-engine-market-share),各国页面的 CSV 导出(`chart.php?…&csv=1`,2026-10 单月;上一版 2026-09 的读数留在各市场文件)。核对 2026-11-05。

@@ -98,8 +98,10 @@ Mozilla/5.0 (compatible; Yeti/1.1; +https://naver.me/spd)
 - **JobPosting**：employmentType 可用韩文或英文枚举；experienceRequirements、workHours、educationRequirements 用韩文枚举。薪资只填数字（韩元），currency 填 KRW。猎头公告加 `"hiringtype":"headhunting"`。常年招聘不写 validThrough。`[guid: structured-data-job]`
 - **VideoObject**：每页一个顶层对象，不用 `@graph`。搜索结果 URL、浏览器渲染 URL、结构化数据所在 URL 三者须相同。带 `offers` 的影片按付费处理，**被排除出搜索结果**；免费影片不写 offers（含 0 元）。需登录的影片要事先协商。原文允许只对 Naver 爬虫 UA 返回结构化数据。`[guid: structured-data-video]`
 - 表中 job、video 以外的类型页都在 2026-10-15 修订过。HowTo：来源仓 2026-07 快照有 `structured-data-howto`；2026-10-18 该页返回 500、菜单无此篇，不再列入。
+- **2026-10-15 起的显示变化（官方公告）**：网页、博客、카페、지식iN、视频结果统一模板。① 파비콘建议尺寸改为 32px（显示变大，小图会糊）；② 사이트 이동경로显示在站点信息第二行；③ 地址、评分、食谱、评论、餐厅、电视剧、电影、软件这几类 schema 只在正文下方显示精简摘要，部分字段不再显示；④ **HowTo 专属结果停止显示**，改按普通结果显示，不影响收录、索引和排名，已有标记不必删，但不再用于显示（[公告](https://blog.naver.com/naver_webmaster/224442540254)）。
+- **FAQ 卡片 2026-07-09（KST）起停止显示**：留着 FAQ 标记不影响排名和显示，官方说仍可能辅助文档分析（[公告](https://blog.naver.com/naver_webmaster/224340385532)）。审计时 Naver 的 FAQ、HowTo 都不再算「可拿富结果」。
 
-核对 2026-10-18。
+核对 2026-10-18；三条公告 2026-11-05 补核。
 
 ## 八、웹 검색 与서비스 영역：两条通道（官方文档蒸馏）
 
@@ -135,6 +137,8 @@ Mozilla/5.0 (compatible; Yeti/1.1; +https://naver.me/spd)
 | 사이트 최적화 | 리포트 | AI 评估算法打分，是排名的间接指标，不保证排名；四类：검색 로봇 수집/콘텐츠 관리/사이트 구조/사이트 활성화 `[report-seo]` |
 | 사이트 상태 | 리포트 | 보안 인증서/HTTPS 리다이렉션/사이트맵，1–2 天更新；Yeti 优先抓 HTTPS，HTTP 与 HTTPS 并存且不重定向，会重复抓取并可能受罚 `[site-summary]` |
 | 수집 현황、콘텐츠 노출 및 클릭 | 리포트 | 见第二、八节 `[report-crawl-refine, report-expose-ctr]` |
+
+- **2026-10 起报表口径变动**：系统迁移，리포트 里사이트 진단（색인、색인 제외）和콘텐츠 노출/클릭数值从 2026 年 10 月的数据起陆续变化；官方说只是统计显示差异，和收录、显示、排名无关（[公告](https://blog.naver.com/naver_webmaster/224456824688)，2026-10-28）。跨 2026-09/10 做环比要打断点，不当成真实涨跌。
 | robots.txt 도구 | 웹마스터도구 | 수집 및 검증（请求重抓、测试规则）、간단 생성 `[seo-basic-robots]` |
 | 교육 자료 PDF | `/doc/wmt_guide_ps_websearch.pdf`、`/doc/wmt_guide_ps_quality.pdf` | 웹 검색 기초、웹마스터도구 활용 `[education-basic, education-wmt-advanced]` |
 

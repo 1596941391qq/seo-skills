@@ -34,7 +34,10 @@
 | 有规模的活跃社区 | 后审加举报 | 发布延迟会压低参与度 |
 | 任何阶段 | 新用户首帖必审，限制发帖频率 | Google 建议对可疑互动人工审核（见下） |
 
-**官方反垃圾建议**（[Prevent user-generated spam](https://developers.google.com/search/docs/monitor-debug/prevent-abuse)，核对 2026-10-21）：
+**官方反垃圾建议**（[Prevent user-generated spam](https://developers.google.com/search/docs/monitor-debug/prevent-abuse)，核对 2026-10-21；2026-10-26 官方增补「只索引给搜索用的内容」和「监控滥用」两节，2026-11-05 补核）：
+
+- **只索引给搜索用的内容（2026-10-26 新增）。** 用户能生成可分享页面、生成结果或小工具的平台，先判断这类页面是给搜索找的，还是只给拿到链接的人看的；只为直接分享、协作或工具用途生成的页面，默认加 `noindex`（meta 或 `X-Robots-Tag`）或用 robots.txt 不让抓。
+- **监控滥用（2026-10-26 新增）。** 在 Search Console 验证站点或子域名，收人工操作和安全问题邮件；定期看网页索引报告和效果报告，找和平台用途不符的已索引页、展示或查询突增；平台自己统计新公开页数和可索引 URL 数，新页突增或少数用户产生大部分可索引 URL 时报警。
 
 - 对没有信誉的新用户帖子加 `noindex`；用户积累信誉后再放开索引。
 - 给不可信内容里的所有链接加 `rel="ugc"` 或 `rel="nofollow"`。Google 建议评论和论坛帖的链接用 `ugc`；对长期高质量的贡献者可以去掉该属性（[链接属性文档](https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links)）。

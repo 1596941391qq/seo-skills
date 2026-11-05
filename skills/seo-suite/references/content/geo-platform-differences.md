@@ -104,6 +104,7 @@ README 里的数字以本表为准。结论列：V＝原文读到；F＝原文�
 | 西语查询 83–84% 引西语源（Temso） | V | [Temso](https://www.temso.ai/data/-Lost-in-Translation-How-AI-Models-Handle-Local-Language-Sources)（2026-04，700 万条引用，4 个模型）：83–84% 只是 Google AIO 和 Copilot 的数；Grok 为 55% 以上；ChatGPT 本语言源 70.2%、英语源 23.7% |
 | Yandex 在土耳其的份额 | F | StatCounter 读数见[事实表](../overview/facts.md#search-share)，月间波动大，见 [tr.md](../markets/tr.md)；「3 月约 13%」未核 |
 | 印度 ChatGPT 约 1 亿周活 | V | [TechCrunch](https://techcrunch.com/2026/02/15/india-has-100m-weekly-active-chatgpt-users-sam-altman-says/)（2026-02-15）转述 Altman |
+| ChatGPT 全球 12 亿周活、联网搜索类查询约为 Google 的五分之一 | 厂商自述 | OpenAI 消费产品负责人 Adam Fry 接受 Big Technology 采访（2026-11-03，[SER 转述](https://www.seroundtable.com/chatgpt-20-percent-google-42451.html)）；「搜索」按 ChatGPT 每次联网检索计，不是 Google 的查询口径，不能直接拿来和搜索引擎份额比 |
 | 非英语 SEO skill top 仓库 1–5 星 | 未核 | GitHub API 实测值，本轮没有重跑 |
 
 ## 六、市场差异：区域 AI 搜索平台

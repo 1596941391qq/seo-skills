@@ -7,6 +7,18 @@ Future content or structure changes must bump the version and add a dated entry.
 
 (暂无)
 
+## 0.37.0 - 2026-11-05
+
+- **信源工单 #5 积压清理(2026-10-18 至 11-04,17 轮报告、17 个信源)**:逐个打开一手原文,改了 15 个参考文件;确认无影响的也记下来。
+  - **AI 训练偏好新写法**:IETF 草案 `draft-kelley-aipref-training-preference-signal-00` 定义 robots.txt 里的 policy token `__usage_ai-training`(`User-Agent: *` 不算表态,只表达用途、不管抓取)。Anthropic 2026-10-30 起开始逐步遵守,点名 `ClaudeBot` 的规则优先;Google 宣布 2027 年支持,并把它的退出当作禁 `Google-Extended`。写进 `ai-crawler-policy.md`(第一节表、第二节禁训练配置)和 `agent-protocols.md` 第 1 卡。
+  - **Lighthouse 13.6.0(2026-10-27)**:`ard-schema` 改按 ARD v0.91 读 `ard.json`,旧 `ai-catalog` 位置报 legacy 警告;CLI 支持 `--url-file` 批量审。改 `agent-readiness.md`。
+  - **Google 文档**:防 UGC 垃圾指南 10-26 增补「只索引给搜索用的内容」和「监控滥用」(`ugc-site-search.md`);生成式 AI 内容指南补质量评估员指南 4.6.5/4.6.6 和 IPTC `TrainedAlgorithmicMedia`(`ai-writing-detection.md`);网页索引报告「已抓取 - 尚未编入索引」的新官方写法(`seo-drift-monitoring.md`)。URL 结构、Indexing API 配额、Control what you share 三条已和现有写法一致。
+  - **Search Status Dashboard**:用 incidents.json 补齐此前漏记的 2025-12 核心更新、2026-02 Discover 更新、2026-03 垃圾内容更新、2026-05 核心更新;记下 2026-10-31~11-03 Search Console 点击虚高(第三方报告,Google 未确认)。
+  - **市场数据**:StatCounter 搜索份额事实表换成 2026-10(俄、韩、日、中、土),各市场文件保留 2026-09 读数;Yandex 改用 2026 Q3 财报(Алиса AI 回答覆盖 44% 查询、搜索框下回答月受众 5,480 万);Naver 三条官方公告(10-15 起 HowTo 停显和摘要化、FAQ 卡片 07-09 停显、10 月起报表口径迁移)。
+  - **GEO**:ChatGPT 12 亿周活、联网搜索量约为 Google 五分之一,按厂商自述入库并注明口径。
+  - **确认无影响**:OpenAI bots(四个 bot、UA 1.4 未变)、schema.org(仍是 30.1)、CrUX(最新仍是 2026-09 数据集)、ARD 规范(只加了非规范性的可观测性说明)、Yandex 新功能页(页面改成前端渲染外壳,2026-04-07 之后无新条目)、Semrush Sensor(动态页)。StatCounter AI 聊天份额 2026-10 单月 ChatGPT 从 80% 掉到 51%,疑似口径变动,本版不入库。
+  Cleared intel backlog #5 (17 sources, 2026-10-18 to 11-04): the shared `__usage_ai-training` robots.txt token (Anthropic honoring it since 2026-10-30, Google planned for 2027), Lighthouse 13.6.0 ARD v0.91, Google UGC-spam and gen-AI guidance updates, Search Status Dashboard backfill, StatCounter 2026-10 shares, Yandex Q3 and Naver notices.
+
 ## 0.36.0 - 2026-10-24
 
 - **事实单一来源(2026-10-24)**:新增 `references/overview/facts.md`,收 11 类在多个文件里反复出现的外部事实(CWV 阈值、CrUX 窗口、Search Console 数据异常期、FAQ / HowTo 富结果退役日期、生成式 AI 效果报告日期、Search Console 保留期、sitemap 上限、Googlebot 抓取上限、API 配额、IndexNow 单批上限、搜索引擎份额),每条写值、一手来源和核对日期(2026-10-24 逐条重读原文)。74 个文件里 204 处硬写改成链接事实表。新看门 `tests/test_fact_single_source.py`:有人在别处重新硬写这些值就红(修前在改动前的树上实测 204 处 + 2 条一致性失败);事实表的值与脚本常量(`field_data`、`did_attribution`、`sitemap_audit`、`indexnow`、`gsc_api`)和市场文件份额自动核对。顺带修:`split_test.py` 写的 GSC 异常期结束日 2026-04-30 → 2026-04-27。记录在仓根 `deployments/2026-10-24-k2/`。

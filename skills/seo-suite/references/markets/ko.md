@@ -9,7 +9,7 @@
 | 口径 | 读数 | 它到底量什么 |
 |---|---|---|
 | 인터넷트렌드(BizSpring)搜索**来路构成** | 2025 年 Naver 均值 62.86%(2024 年 58.14%);2026-04 Naver 62.6% / Google 30.0%;2026 上半年 Naver 64.39% / Google 28.27%;2026-09 Naver 66.8% / Google 27.6% | 装了其分析代码的站点,收到的搜索来路比例(【三方】[Yonhap 2026-01-02](https://www.yna.co.kr/view/AKR20260102129700017)、[2026-04 页](https://internettrend.co.kr/insights/2026-04-search-engine)、[月度汇总](https://internettrend.co.kr/insights/topic/search-engine)、[引用案例](https://internettrend.co.kr/citations)) |
-| StatCounter 页面浏览 | 2026-09 全设备 Google 47.97% / Naver 43.06%(CSV 导出 47.97 / 43.05,取数 2026-10-24);桌面 Google 62.5% / Naver 23.31%;移动 Naver 59.56% / Google 35.77% | 样本里的搜索引擎页面浏览(【三方】[StatCounter 韩国](https://gs.statcounter.com/search-engine-market-share/all/south-korea),取数 2026-10-21) |
+| StatCounter 页面浏览 | 2026-10 全设备 Google 48.64% / Naver 42.10%(CSV,取数 2026-11-05);2026-09 全设备 Google 47.97% / Naver 43.06%(CSV 导出 47.97 / 43.05,取数 2026-10-24);桌面 Google 62.5% / Naver 23.31%;移动 Naver 59.56% / Google 35.77% | 样本里的搜索引擎页面浏览(【三方】[StatCounter 韩国](https://gs.statcounter.com/search-engine-market-share/all/south-korea),取数 2026-10-21) |
 | 应用 MAU(IGAWorks Mobile Index) | 2026-07 应用 MAU:Google 4,702 万、Naver 4,684 万,Google 首次超过 Naver | 手机应用的月活,不是搜索次数(【三方】经 Chosun 报道,转引自 [wiztheplanning](https://wiztheplanning.com/guide/naver-google-share),原报道未读) |
 | 使用率调查(Nasmedia 类) | 「最近 3 个月使用 Naver」85.3% → 81.6%(调查期 2025 年内)| 受访者自报使用过,不是份额(【三方】[aimatters 2026-01-27](https://aimatters.co.kr/news-report/ai-report/37299/)) |
 

@@ -14,7 +14,7 @@
 | 台湾([原图](https://gs.statcounter.com/search-engine-market-share/all/taiwan)) | Google 79.41%、Yahoo! 11.38%、Bing 8.29% | Google 66.09%、Bing 17.69% | Google 90.49% |
 | 香港([原图](https://gs.statcounter.com/search-engine-market-share/all/hong-kong)) | Google 90.36%、Bing 3.99%、Yahoo! 3.67% | Google 81.78%、Bing 11.04% | Google 94.31% |
 
-- 中国大陆数据单月波动大:2026-08 百度 59.10%,2026-09 46.85%;Yandex 11.42% → 15.01%。只作参考,不作预算依据。预算看自己站点的来源报表。
+- 中国大陆数据单月波动大:2026-08 百度 59.10%,2026-09 46.85%,2026-10 49.08%(CSV,取数 2026-11-05);Yandex 11.42% → 15.01% → 11.58%。只作参考,不作预算依据。预算看自己站点的来源报表。
 - Google AI Overviews:可用国家含香港、台湾,不含中国大陆;语言含简体中文、繁体中文(【官】[Google 帮助中心](https://support.google.com/websearch/answer/14901683?hl=en),核对 2026-10-18)。
 
 **平台事实**:

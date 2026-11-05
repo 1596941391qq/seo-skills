@@ -8,13 +8,13 @@
 
 | 口径 | 读数 | 来源 |
 |---|---|---|
-| StatCounter(页面浏览样本) | 2026-09:页面表 Yandex 70.33%、Google 28.12%(同月 CSV 导出 70.35% / 28.10%,两个读数差 0.02 个百分点);2025-10 至 2026-09 的 12 个月里 Yandex 在 70.32–73.72% 之间;移动 Yandex 68.90%,桌面 71.55%(CSV) | [StatCounter 俄罗斯](https://gs.statcounter.com/search-engine-market-share/all/russian-federation),取数 2026-10-21 |
+| StatCounter(页面浏览样本) | 2026-10(CSV,取数 2026-11-05):Yandex 70.15%、Google 28.43%。2026-09:页面表 Yandex 70.33%、Google 28.12%(同月 CSV 导出 70.35% / 28.10%,两个读数差 0.02 个百分点);2025-10 至 2026-09 的 12 个月里 Yandex 在 70.32–73.72% 之间;移动 Yandex 68.90%,桌面 71.55%(CSV) | [StatCounter 俄罗斯](https://gs.statcounter.com/search-engine-market-share/all/russian-federation),取数 2026-10-21 |
 | Яндекс Радар(Metrica 聚合) | 2026 Q1:Yandex 份额 69.8% | 【官】[Yandex 2026 Q1 财报](https://yandex.ru/company/news/28-04-2026) 脚注 8「по данным … Яндекс Радар」 |
 | LiveInternet(ru 统计组「переходы из поисковых систем」) | 2026-09:Google 55.8%、Яндекс 44.0% | [LiveInternet](https://www.liveinternet.ru/stat/ru/searches.html),取数 2026-10-18 |
 
 - 三套口径的样本不同。StatCounter 数页面浏览;Радар 数 Metrica 站点;LiveInternet 数装其计数器站点的搜索来路。三者方向冲突时,用自己站点的 Metrica 来源报表和 GSC 实测来路比例定预算。
 - 俄语用户不只在俄罗斯。StatCounter 2026-09:哈萨克斯坦 Google 68.13%、Yandex 29.73%;白俄罗斯 Google 58.96%、Yandex 38.57%。俄语版要同时做 Google 与 Yandex。
-- **Алиса AI 已进入搜索结果页**【官】:2026 Q2 有 42% 的查询出现 Алиса AI 回答,环比 +7 个百分点;搜索框下回答的月受众 4,950 万。来源:[Yandex 2026 Q2 财报](https://yandex.ru/company/news/29-07-2026)。2025-05-22 起 Алиса 接替 Нейро 进入搜索(官方原话「унаследует и расширит возможности Нейро」,[新闻稿](https://yandex.ru/company/news/01-22-05-2025))。
+- **Алиса AI 已进入搜索结果页**【官】:2026 Q3 有 44% 的查询出现 Алиса AI 回答;搜索框下回答的月受众 5,480 万,环比 +11%;每周在聊天里用 Алиса AI 的用户 4,500 万。来源:[Yandex 2026 Q3 财报](https://yandex.ru/company/news/29-10-2026-01)(2026-11-05 核对)。上一季:Q2 为 42%(环比 +7 个百分点)、4,950 万([Q2 财报](https://yandex.ru/company/news/29-07-2026))。2025-05-22 起 Алиса 接替 Нейро 进入搜索(官方原话「унаследует и расширит возможности Нейро」,[新闻稿](https://yandex.ru/company/news/01-22-05-2025))。
 - 盲测成对评测:被测的 Yandex 自研模型(Alice AI Search)对 Google AI Overviews 胜 56.7%。RG 的报道没有写评测方,按「厂商侧数据」对待,不当独立评测。来源:[RG 2026-07-29](https://rg.ru/2026/07/29/ii-otvety-v-poiske-iandeksa-oboshli-google-po-kachestvu-i-nabrali-495-mln-polzovatelej.html)。
 - 【三方】Ашманов и партнёры:2025-08 至 2026-01,Алиса 回答引用的非 top-10 站点占比从 40% 降到 10%;约第 5 位之后入选概率下降。Yandex 方面回应:回答平均基于约 10 个来源,入选看内容的专业性和充实度。来源:[Коммерсантъ 2026-06-10](https://www.kommersant.ru/doc/8728568)。
 - 【三方】同一机构的电商查询样本:2026-04 只有千分之一出现 Алиса 快速回答,2026-07 约 15%,且常位于全部结果之上。来源:[CNews 2026-10-06](https://www.cnews.ru/news/line/2026-10-06_alisa_ai_aktivno_vstraivaetsya)。
