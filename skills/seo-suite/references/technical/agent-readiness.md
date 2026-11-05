@@ -69,7 +69,7 @@
 | 检查什么 | 怎么查 | 通过/失败 |
 |---|---|---|
 | 引用型 bot 放行 | `python3 scripts/robots_posture.py https://site/robots.txt --json` | 通过:`citation.ok` 为 true 且 `visibility_failures` 为空;封训练层不算失败(本套件口径) |
-| llms.txt | `python3 scripts/llmstxt.py check https://site`;下载后 `python3 scripts/llmstxt.py validate llms.txt` | 通过:`/llms.txt` 行为 `200 [PASS]`,validate 退出码 0;失败:`[FAIL] llms.txt is HTML not markdown` |
+| llms.txt | `python3 scripts/llmstxt.py check https://site`;下载后 `python3 scripts/llmstxt.py validate llms.txt` | 通过:`/llms.txt` 行为 `200 [PASS]`,validate 退出码 0;失败:`/llms.txt` 行为 `[FAIL] /llms.txt 返回 HTML 页面`(其他文件各自写自己的路径;`/llms-full.txt` 不在规范里,首页 Markdown 版本 `index.html.md`/`index.md` 有一个即可,没有只记 `[NONE]`) |
 | ARD 目录 | `curl -s https://site/.well-known/ard.json \| jq '.entries \| length'`;`curl -s https://site/robots.txt \| grep -i '^Agentmap:'`;官方工具 `conformance-test publisher site`(ard-spec 仓) | 通过:200、entries ≥1、工具无 error;失败:只在 `ai-catalog.json` |
 | Agentic Browsing 与 ARIA | `lighthouse https://site --only-categories=agentic-browsing --output=json --output-path=./lh.json`(Node 22+,13.5.0+) | 通过:无 0 分审计(`agent-accessibility-tree` 的 33 条规则全过);记下通过比例 |
 | WebMCP 工具 | 开 `chrome://flags/#enable-webmcp-testing` 后,控制台跑 `typeof document.modelContext?.registerTool` | 通过:返回 `function`,关键操作有命令式工具,schema 无错误 |

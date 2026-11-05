@@ -6,7 +6,7 @@
   1. charset: 声明须完整落在文档前 1024 字节内(WHATWG 硬约束);HTTP 头已声明则 meta 可省
   2. title: 必须存在且非空;报告位置
   3. 推荐顺序(charset → viewport → title → 其余 meta)只是风格建议,无 SEO 依据 → 最多 INFO
-  4. og:image: 须存在且为绝对 URL(https://…)
+  4. og:image: 须存在且为绝对 URL(https://…);og:url 有就须是 http(s):// 绝对 URL(ogp.me URL 类型)
   5. geo meta(ICBM / geo.*): Google 支持的 meta 列表里没有,Google 忽略 → 只记 INFO,缺失不告警
   6. 中文浏览器 meta: itemprop 三件套(name / image / description)——显式 --market 优先;
      未传 --market 时按 lang/内容识别中文;日文(假名)/韩文(谚文)/无汉字页跳过
@@ -282,6 +282,16 @@ def check(raw, text, enc, ctype, out, market=None):
         out("ok", f"og:image 为绝对 URL: {ogs[0][:80]}")
     else:
         out("warn", f'og:image 非绝对 URL: "{ogs[0][:80]}" → 建议: 改为 https:// 绝对地址(部分抓取器不解析相对路径)')
+
+    # --- 4b. og:url:ogp.me 定义为对象的规范 URL(永久 ID),Types 表里 URL 类型 =「All valid URLs that
+    # utilize the http:// or https:// protocols」→ 相对路径("/"、"/about")不合规。sspai 首页 og:url="/" 实测漏报。
+    og_urls = [m["content"].strip() for m in metas if m["property"] == "og:url"]
+    if og_urls:
+        if re.match(r"^https?://", og_urls[0], re.I):
+            out("ok", f"og:url 为绝对 URL: {og_urls[0][:80]}")
+        else:
+            out("warn", f'og:url 非绝对 URL: "{og_urls[0][:80]}" → 建议: 写成 https:// 开头的完整规范 URL'
+                        f'(ogp.me:URL 类型须 http(s)://;分享抓取器按它归并同一对象)')
 
     # --- 5. geo meta:不在 Google 支持的 meta 列表里(special-tags 文档),Google 忽略 → 只记 INFO ---
     names = {m["name"] for m in metas if m["name"]}

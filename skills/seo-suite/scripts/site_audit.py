@@ -75,7 +75,125 @@ CHALLENGE_PHRASES = ("verify you are human", "checking your browser", "unusual t
                      "challenge-platform", "you don't have permission to access")
 CHALLENGE_MAX_TEXT = 600          # 可见文本 <600 字视为"正文极短"(本套件口径)
 
-USAGE = """usage: site_audit.py URL [URL...] [--market XX] [--json] [--export-dir DIR]
+# ---- 插件内容(Lighthouse「Document uses plugins」源码口径,core/audits/seo/plugins.js v12;
+# Ahrefs Site Audit 的同名项在 Usability and performance 类,https://ahrefs.com/blog/seo-issues/ 第 4 节)。
+# applet 一律算;embed/object 的 type 命中 MIME 名单,或 src/code/data/<param name=code|movie|source|src>
+# 指向 swf/flv/class/xap 文件才算——<object type="image/svg+xml">、<embed src="x.pdf"> 不算。
+PLUGIN_TYPES = ("application/x-shockwave-flash", "application/x-java-applet", "application/x-java-bean",
+                "application/x-silverlight", "application/x-silverlight-2")
+PLUGIN_EXTS = ("swf", "flv", "class", "xap")
+PLUGIN_SOURCE_PARAMS = ("code", "movie", "source", "src")
+
+# ---- 按爬虫名写的 robots meta(Bing:「you can replace the generic name="robots" with
+# name="bingbot" to limit the meta tag to only apply to Bing」;Google 同理认 name="googlebot"):
+BOT_META_NAMES = ("googlebot", "googlebot-news", "bingbot", "msnbot")
+# robots 指令里自带冒号的指令名——X-Robots-Tag「bingbot: noindex」里冒号前若不是这些,就是爬虫名
+DIRECTIVES_WITH_VALUE = ("max-snippet", "max-image-preview", "max-video-preview", "unavailable_after")
+
+
+def _plugin_url(u):
+    """Lighthouse isPluginURL:取 URL 路径最后一个点后的扩展名比对名单(相对 URL 也认)。"""
+    try:
+        path = urlparse(urljoin("http://example.com/", u.strip())).path
+    except ValueError:
+        return False
+    parts = path.split(".")
+    return len(parts) >= 2 and parts[-1].strip().lower() in PLUGIN_EXTS
+
+
+def _plugin_type(t):
+    t = (t or "").strip().lower()
+    return t in PLUGIN_TYPES or t.startswith(("application/x-java-applet", "application/x-java-bean"))
+
+
+def plugin_elements(embeds):
+    """命中 Lighthouse plugins 规则的元素 → 简短描述列表。"""
+    hits = []
+    for it in embeds:
+        tag, why = it["tag"], None
+        if tag == "applet":
+            why = "applet"
+        elif it["type"] and _plugin_type(it["type"]):
+            why = "type=" + it["type"].strip()
+        elif tag == "embed" and (it["src"] or it["code"]) and _plugin_url(it["src"] or it["code"]):
+            why = "src=" + (it["src"] or it["code"])
+        elif tag == "object" and it["data"] and _plugin_url(it["data"]):
+            why = "data=" + it["data"]
+        else:
+            for name, val in it["params"]:
+                if name.strip().lower() in PLUGIN_SOURCE_PARAMS and _plugin_url(val):
+                    why = 'param %s=%s' % (name, val)
+                    break
+        if why:
+            hits.append("<%s %s>" % (tag, why[:80]))
+    return hits
+
+
+def robots_tokens(value):
+    """robots 指令串 → [(name, value)](小写,逗号分隔;max-video-preview:-1 → ("max-video-preview","-1"))。"""
+    out = []
+    # 逗号是规范分隔符;实际站点也有用空格分隔的("noindex nofollow"),修前按子串判 noindex 能命中,
+    # 这里按逗号与空白都切,冒号两侧的空格先并掉("max-snippet: 20" → "max-snippet:20")
+    for part in re.split(r"[,\s]+", re.sub(r"\s*:\s*", ":", value or "")):
+        part = part.strip().lower()
+        if not part:
+            continue
+        name, _, val = part.partition(":")
+        out.append((name.strip(), val.strip()))
+    return out
+
+
+def split_x_robots(value):
+    """X-Robots-Tag 值 → (通用指令串, {爬虫名: 指令串})。「bingbot: noindex」冒号前不是已知
+    带值指令名时按爬虫名处理(Google robots meta 文档:X-Robots-Tag 可指定 user agent)。"""
+    generic, agents = [], {}
+    m = re.match(r"\s*([a-z][\w-]*)\s*:\s*(.+)$", value or "", re.I)
+    if m and m.group(1).lower() not in DIRECTIVES_WITH_VALUE:
+        agents[m.group(1).lower()] = m.group(2)
+    elif value:
+        generic.append(value)
+    return ",".join(generic), agents
+
+
+def robots_directive_findings(meta_robots, meta_agents, xrobots):
+    """robots 指令的 Bing/Google 分路判定 → findings。
+    依据:Bing「Robots meta tags and attributes that Bing supports」
+    (https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240,
+    2026-11-05 读取):name="bingbot" 只对 Bing 生效;max-video-preview:[number] 是整数秒,
+    0=可能只显示视频静态图,-1=不限长度;每个 meta 都能改写成 X-Robots-Tag 响应头。
+    Google 的 noindex 只看通用 robots 与 googlebot(name="bingbot" 不影响 Google)。"""
+    F = []
+    xr_generic, xr_agents = split_x_robots(xrobots)
+    generic = robots_tokens(meta_robots) + robots_tokens(xr_generic)
+    agents = {}
+    for name, v in list(meta_agents.items()) + list(xr_agents.items()):
+        agents.setdefault(name, []).extend(robots_tokens(v))
+    google = generic + agents.get("googlebot", [])
+    g_names = {n for n, _ in google}
+    if "noindex" in g_names or "none" in g_names:
+        F.append(("CRITICAL", "robots", "noindex"))
+    if "nosnippet" in g_names:
+        F.append(("WARN", "robots", "nosnippet(会限制 AI 特性)"))
+    bing_only = agents.get("bingbot", []) + agents.get("msnbot", [])
+    b_names = {n for n, _ in bing_only}
+    if ("noindex" in b_names or "none" in b_names) and "noindex" not in g_names and "none" not in g_names:
+        F.append(("WARN", "robots", "bingbot noindex——只对 Bing 生效:该页不进 Bing 索引(Google 照常收录)"))
+    if bing_only:
+        F.append(("INFO", "robots", "bingbot 专属指令(只对 Bing 生效): %s"
+                  % ", ".join(n + (":" + v if v else "") for n, v in bing_only)))
+    for name, v in generic + bing_only + agents.get("googlebot", []):
+        if name != "max-video-preview":
+            continue
+        if not re.fullmatch(r"-?\d+", v or ""):
+            F.append(("WARN", "robots", "max-video-preview 值 %r 不是整数秒(Bing/Google 只认整数;-1=不限,0=只给静态图)" % v))
+        elif int(v) < -1:
+            F.append(("WARN", "robots", "max-video-preview:%s 无效(最小 -1=不限)" % v))
+        elif int(v) == 0:
+            F.append(("INFO", "robots", "max-video-preview:0——搜索结果只显示视频静态图,不放预览片段"))
+        break
+    return F
+
+USAGE = """usage: site_audit.py URL [URL...] [--market XX] [--json] [--export-dir DIR] [--serp-titles FILE]
 单页全项审计:title/desc 限值(市场单位)/H1/词数/链接/alt/canonical/robots/og/JSON-LD/
 llms.txt/sitemap/AI 爬虫放行/staging 子域。
   --market XX      markets.json 18 市场阈值(chars/fullwidth/grapheme)
@@ -88,6 +206,9 @@ llms.txt/sitemap/AI 爬虫放行/staging 子域。
                    URL;另写 summary.json(每 rule:slug/受影响数/占比/severity)。
                    目录不存在则创建,已存在直接写(输出由调用方隔离,套件惯例)。
                    单 URL 模式同样可用(产出 1 页的清单)。
+  --serp-titles FILE  搜索结果里显示的标题(CSV 表头 url,title 或 JSON [{url,title}]/{url:title});
+                   给了才比「页面 title 与 SERP 标题不一致」(INFO,Ahrefs 同名项);不给时输出
+                   [跳过] 行与 --json 的 skipped 节写明原因(GSC API 不返回标题,不猜)。
 多 URL 审计后输出 findings 汇总(markdown 表):规则×级别×受影响面——N/M 页(XX%),
 SF Coverage 口径的简化:分母=本次已审计页数(拒审 [SKIP] 页剔除)而非全站页数(表头
 注明);单 URL 时每条命中规则即 1/1。--json 模式新增顶层 exports 节列出导出文件名
@@ -239,6 +360,9 @@ class Page(HTMLParser):
         self.mounts, self.ssr_amnesty = set(), False   # CSR 挂载点 / SSR 赦免(__NEXT_DATA__·data-reactroot)
         self.in_noscript, self.noscript_text = False, []
         self.meta_last_modified = None                 # <meta http-equiv="Last-Modified" content=...>(头缺失时回退)
+        self.meta_agents = {}                          # name=googlebot/bingbot/… 的 robots 指令(按爬虫名)
+        self.embeds = []                               # <embed>/<object>/<applet>(Lighthouse plugins 口径)
+        self._obj = None                               # 当前 <object>,收 <param>
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         self.all_tags += 1
@@ -267,10 +391,18 @@ class Page(HTMLParser):
             self.meta_props[k.lower()] = v
             if k.lower() == "description": self.desc = v
             if k.lower() == "robots": self.meta_robots = v
+            if k.lower() in BOT_META_NAMES: self.meta_agents[k.lower()] = v
             if k.lower().startswith("og:"): self.og[k.lower()] = v
             if (a.get("http-equiv") or "").lower() == "last-modified":
                 self.meta_last_modified = a.get("content")
         if tag == "link" and a.get("rel") == "canonical": self.canonical = a.get("href")
+        if tag in ("embed", "object", "applet"):
+            item = {"tag": tag, "type": a.get("type") or "", "src": a.get("src") or "",
+                    "code": a.get("code") or "", "data": a.get("data") or "", "params": []}
+            self.embeds.append(item)
+            if tag == "object": self._obj = item
+        if tag == "param" and self._obj is not None:
+            self._obj["params"].append(((a.get("name") or ""), (a.get("value") or "")))
         if tag in ("h1",): self.h1 += 1
         if re.fullmatch(r"h[1-6]", tag): self.headings.append(int(tag[1]))
         if tag == "a" and a.get("href", "").startswith(("http", "/", "#")): self.links += 1
@@ -280,6 +412,7 @@ class Page(HTMLParser):
             if "alt" not in a: self.img_noalt += 1
         if tag == "body": self.in_head = self.in_title = False
     def handle_endtag(self, tag):
+        if tag == "object": self._obj = None
         if tag == "title": self.in_title = False
         if tag == "script":
             if self.script_ld:
@@ -426,20 +559,26 @@ RULE_SLUGS = [
     ("title", "缺失", "title-missing"),
     ("title", "超上限", "title-too-long"),
     ("title", "<20", "title-too-short"),
+    ("title", "搜索结果显示的标题不一致", "title-serp-mismatch"),
     ("description", "缺失", "description-missing"),
     ("description", "超上限", "description-too-long"),
     ("description", "低于下限", "description-too-short"),
     ("description", "<80", "description-too-short"),          # 旧版消息(读旧审计文件时同一 slug)
     ("h1", "无 H1", "h1-missing"),
     ("h1", "个 H1", "h1-multiple"),
+    ("headings", "第一个 h1 之前", "headings-before-h1"),
     ("headings", "跳级", "headings-skip-level"),
     ("headings", "H2 仅", "headings-h2-few"),
     ("canonical", "相对 URL", "canonical-relative"),
     ("canonical", "指向外域", "canonical-external"),
     ("canonical", "缺失", "canonical-missing"),
+    ("robots", "bingbot noindex", "robots-bingbot-noindex"),
+    ("robots", "bingbot 专属", "robots-bingbot-only"),
+    ("robots", "max-video-preview", "robots-max-video-preview"),
     ("robots", "noindex", "robots-noindex"),
     ("robots", "nosnippet", "robots-nosnippet"),
     ("og", "og:image 非绝对", "og-image-not-absolute"),
+    ("og", "og:url 非绝对", "og-url-not-absolute"),
     ("og", "og:title", "og-title-missing"),
     ("og", "og:description", "og-description-missing"),
     ("og", "og:image", "og-image-missing"),
@@ -449,6 +588,7 @@ RULE_SLUGS = [
     ("links", ">100", "links-too-many"),
     ("images", "alt 缺失", "images-alt-missing"),
     ("schema", "无 JSON-LD", "schema-jsonld-missing"),
+    ("rendering", "插件", "rendering-plugins"),
     ("rendering", "CSR", "rendering-csr"),
     ("rendering", "noscript", "rendering-no-noscript"),
     ("rendering", "JS 重量", "rendering-js-heavy"),
@@ -552,7 +692,61 @@ def write_exports(export_dir, rules, total):
     files.append("summary.json")
     return files
 
-def audit(url, market="en"):
+# ---- 页面 title 与搜索结果标题不一致(Ahrefs「Page and SERP titles do not match」,Content 报告
+# notice;https://ahrefs.com/blog/site-audit-study/:Google 显示的标题和页面 title 不同,即标题被改写)。
+# 搜索结果里显示的标题只能从 SERP 数据拿:GSC Search Analytics API 只回 query/page/clicks 等,
+# 不回标题,所以没有 --serp-titles 文件时不比、写明跳过原因,不猜。
+SERP_SKIP_REASON = ("未提供 --serp-titles(搜索结果里显示的标题只能来自 SERP 导出;"
+                    "GSC Search Analytics API 不返回标题),title 与 SERP 标题一致性未检查")
+
+
+def _url_key(u):
+    pu = urlparse((u or "").strip())
+    path = (pu.path or "/").rstrip("/") or "/"
+    return f"{norm_host(u)}{path}{('?' + pu.query) if pu.query else ''}"
+
+
+def load_serp_titles(path):
+    """SERP 标题文件 → {url_key: 标题}。认 CSV(表头含 url/page/link 与 title/serp_title)、
+    JSON 列表 [{url,title}] 或 JSON 对象 {url: title}。"""
+    import csv
+    with open(path, encoding="utf-8-sig") as f:
+        raw = f.read()
+    out = {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        pairs = list(data.items())
+    elif isinstance(data, list):
+        pairs = [(d.get("url") or d.get("page") or d.get("link"), d.get("title") or d.get("serp_title"))
+                 for d in data if isinstance(d, dict)]
+    else:
+        rows = list(csv.DictReader(raw.splitlines()))
+        pairs = []
+        for r in rows:
+            low = {(k or "").strip().lower(): v for k, v in r.items()}
+            pairs.append((low.get("url") or low.get("page") or low.get("link"),
+                          low.get("serp_title") or low.get("title")))
+    for u, t in pairs:
+        if u and t:
+            out[_url_key(u)] = str(t)
+    return out
+
+
+def serp_title_matches(page_title, serp_title):
+    """一致判据:空白折叠、大小写不敏感后相等;或 SERP 标题以 ... / … 结尾(显示截断)且页面 title
+    以截断前的部分开头。其余算不一致(含 Google 追加站点名、改写措辞)。"""
+    norm = lambda x: re.sub(r"\s+", " ", (x or "")).strip().lower()
+    a, b = norm(page_title), norm(serp_title)
+    if a == b:
+        return True
+    stem = re.sub(r"\s*(\.\.\.|…)$", "", b)
+    return stem != b and bool(stem) and a.startswith(stem)
+
+
+def audit(url, market="en", serp_titles=None):
     F = []  # (severity, area, msg)
     mk = load_market(market)
     tl, dl = mk["title_limit"], mk["desc_limit"]
@@ -581,6 +775,15 @@ def audit(url, market="en"):
     elif tn < TITLE_MIN: F.append(("WARN", "title", f"{tn} {tl['unit']} <{TITLE_MIN}"))
     elif tn > tl["value"]:
         F.append(("WARN", "title", f"{tn} {tl['unit']} 超上限 {tl['value']}({tl.get('note', '')})"))
+    if serp_titles is None:
+        serp_check = {"checked": False, "reason": SERP_SKIP_REASON}
+    else:
+        st_serp = serp_titles.get(_url_key(url))
+        serp_check = ({"checked": True, "serp_title": st_serp, "match": serp_title_matches(t, st_serp)}
+                      if st_serp is not None else {"checked": False, "reason": "--serp-titles 文件里没有这个 URL"})
+    if t and serp_check.get("checked") and not serp_check["match"]:
+        F.append(("INFO", "title", f"与搜索结果显示的标题不一致: 页面「{t[:50]}」/ SERP「{serp_check['serp_title'][:50]}」"
+                  "(Google 改写了标题;Ahrefs Page and SERP titles do not match)"))
     dn = unit_len(p.desc or "", dl["unit"])
     d_lo, d_hi = desc_bounds(mk)
     # S2a B15:描述可选——Google 主要从正文生成摘要(snippet 文档),缺失记 WARN 不记 CRITICAL
@@ -591,9 +794,24 @@ def audit(url, market="en"):
     # S2a B38:SEO 起始指南——标题数量与顺序对 Google 搜索无影响;缺 H1 记 WARN
     if p.h1 == 0: F.append(("WARN", "h1", "无 H1"))
     elif p.h1 > 1: F.append(("WARN", "h1", f"{p.h1} 个 H1"))
-    for i, h in enumerate(p.headings[1:], 1):
-        if p.headings[i-1] and h - p.headings[i-1] > 1:
-            F.append(("WARN", "headings", f"跳级 h{p.headings[i-1]}→h{h}")); break
+    # 第一个 h1 之前出现低级标题(h3–h6)且前面没有它的上一级:标题树从中间开始。W3C WAI Headings
+    # 教程(https://www.w3.org/WAI/tutorials/page-structure/headings/):「Skipping heading ranks can be
+    # confusing and should be avoided」;「Main heading after navigation」写法允许 h1 前出现与正文同级的
+    # 结构标题(h2),所以 h1 前只认 h2 起头,h3 起头算跳级。plausible 首页 h3 h3 h3 h1 h2 实测漏报(2026-11-05)。
+    first_h1 = p.headings.index(1) if 1 in p.headings else None
+    pre = p.headings[:first_h1] if first_h1 else []
+    pre_hit = None
+    for i, h in enumerate(pre):
+        prev = pre[i - 1] if i else 1          # h1 前的结构标题按「h1 之下」起算
+        if h - prev > 1:
+            pre_hit = h
+            break
+    if pre_hit:
+        F.append(("WARN", "headings", f"h{pre_hit} 出现在第一个 h1 之前(之前没有 h{pre_hit - 1},标题树从中间开始)"))
+    else:
+        for i, h in enumerate(p.headings[1:], 1):
+            if p.headings[i-1] and h - p.headings[i-1] > 1:
+                F.append(("WARN", "headings", f"跳级 h{p.headings[i-1]}→h{h}")); break
     if p.canonical:
         # S2a B38:相对路径 Google 支持但不建议(文档 Bad example 即 /dresses/…)——WARN 并提示改绝对
         if not urlparse(p.canonical.strip()).scheme:
@@ -602,12 +820,19 @@ def audit(url, market="en"):
         if urlparse(c).netloc and norm_host(c) != norm_host(url):   # S5 修复⑥:小写+去默认端口后再比
             F.append(("INFO", "canonical", "指向外域(联合发布?让渡权重)"))
     else: F.append(("WARN", "canonical", "缺失"))
-    mr = (p.meta_robots or "").lower() + "," + (get_header(hdrs, "x-robots-tag") or "").lower()   # S5 修复②:大小写无关取头
-    if "noindex" in mr: F.append(("CRITICAL", "robots", "noindex"))
-    if "nosnippet" in mr: F.append(("WARN", "robots", "nosnippet(会限制 AI 特性)"))
+    # S5 修复②:大小写无关取头;RQ-229:按爬虫名分路(bingbot 专属 noindex 不当成 Google noindex)
+    F.extend(robots_directive_findings(p.meta_robots, p.meta_agents, get_header(hdrs, "x-robots-tag") or ""))
     for k in ("og:title", "og:description", "og:image"):
         if k not in p.og: F.append(("WARN", "og", f"{k} 缺失"))
     if p.og.get("og:image") and not p.og["og:image"].startswith("http"): F.append(("WARN", "og", "og:image 非绝对 URL"))
+    # ogp.me Types 表:URL 类型 =「All valid URLs that utilize the http:// or https:// protocols」;
+    # og:url 是对象的规范 URL(永久 ID),写成 "/" 这类相对路径不合规(sspai 首页实测)
+    if "og:url" in p.og and not re.match(r"^https?://", p.og["og:url"].strip(), re.I):
+        F.append(("WARN", "og", f"og:url 非绝对 URL: {p.og['og:url'].strip()[:60]!r}(ogp.me:URL 类型须 http(s)://)"))
+    plugins = plugin_elements(p.embeds)
+    if plugins:
+        F.append(("WARN", "rendering", f"页面用了插件 {len(plugins)} 处: {', '.join(plugins[:3])}"
+                  "——搜索引擎多半索引不到插件内容,移动设备不支持(Lighthouse plugins 口径)"))
     if not p.lang: F.append(("WARN", "a11y", "html 无 lang"))
     body = re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html, flags=re.S | re.I)
     text = re.sub(r"<[^>]+>", " ", body)
@@ -707,7 +932,8 @@ def audit(url, market="en"):
         F.append(("WARN", "content", f"词数 {W} >15000 内容过长(AI 上下文过载,阈值自定[推断])"))
     return F, {"title": t, "title_len": f"{tn} {tl['unit']}/{tl['value']}",
                "desc_len": f"{dn} {dl['unit']}/{dl['value']}",
-               "words": W, "h1": p.h1, "jsonld": p.jsonld, "links": p.links}, ai_health
+               "words": W, "h1": p.h1, "jsonld": p.jsonld, "links": p.links,
+               "serp_title_check": serp_check}, ai_health
 
 CHARSET_SNIFF_BYTES = 2048   # meta charset 嗅探窗口(head_check.py 同款量级)
 
@@ -762,6 +988,16 @@ def main():
         if i + 1 >= len(args) or args[i+1].startswith("-"):
             sys.stderr.write("--export-dir 需要一个目录参数\n"); sys.exit(2)
         export_dir = args[i+1]; del args[i:i+2]
+    serp_titles, serp_path = None, None
+    if "--serp-titles" in args:
+        i = args.index("--serp-titles")
+        if i + 1 >= len(args) or args[i+1].startswith("-"):
+            sys.stderr.write("--serp-titles 需要一个文件参数(CSV url,title 或 JSON)\n"); sys.exit(2)
+        serp_path = args[i+1]; del args[i:i+2]
+        try:
+            serp_titles = load_serp_titles(serp_path)
+        except OSError as e:
+            sys.stderr.write(f"--serp-titles 读不了: {e}\n"); sys.exit(2)
     if "--json" in args: as_json = True; args = [a for a in args if a != "--json"]
     load_market(market)  # 提前校验,未知市场列出可用值
     urls = [a for a in args if not a.startswith("-")]
@@ -777,7 +1013,7 @@ def main():
     def say(*a):
         print(*a, file=human)
     for url in urls:
-        F, meta, ai_h = audit(url, market)
+        F, meta, ai_h = audit(url, market, serp_titles)
         by_url[url] = F
         say(f"\n== {url} ==")
         for sev, area, msg in F:
@@ -802,6 +1038,16 @@ def main():
         say("\n" + render_findings_markdown(rules, total))
     else:
         say(f"\n## findings 汇总:0 规则命中(受影响面分母=已审计 {total} 页,拒审剔除)")
+    skipped = []
+    if serp_titles is None:
+        skipped.append({"check": "title-serp-mismatch", "reason": SERP_SKIP_REASON})
+    else:
+        miss = [u for u in urls if _url_key(u) not in serp_titles]
+        if miss:
+            skipped.append({"check": "title-serp-mismatch", "urls": miss,
+                            "reason": f"{len(miss)}/{len(urls)} 个 URL 在 {serp_path} 里没有 SERP 标题,未比较"})
+    for sk in skipped:
+        say(f"[跳过] {sk['check']}: {sk['reason']}")
     export_files = []
     if export_dir is not None:
         export_files = write_exports(export_dir, rules, total)

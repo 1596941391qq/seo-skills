@@ -2,10 +2,10 @@
 """llms.txt 生成/校验器(stdlib)。适配 v2 规范:H1+摘要+H2 节+[name](url): desc。
 用法:
   python3 llmstxt.py validate FILE        # 校验结构
-  python3 llmstxt.py check https://site   # 探测 /llms.txt /llms-full.txt .md 孪生
+  python3 llmstxt.py check https://site   # 探测 /llms.txt、/llms-full.txt、首页 .md 版本(index.html.md / index.md)
   python3 llmstxt.py generate --sitemap URL [--title T] [--desc D]   # 从 sitemap 生成骨架
 安全:网络仅限 http(s);私网/环回/链路本地/保留段拒连;重定向逐跳复查(SSRF 防护)。"""
-import ipaddress, os, re, socket, sys, urllib.parse, urllib.request
+import ipaddress, os, re, socket, sys, urllib.error, urllib.parse, urllib.request
 
 UA = "Mozilla/5.0 (compatible; seo-suite-audit/1.0)"
 
@@ -96,6 +96,26 @@ def validate(path):
     for i in issues: print("[问题]", i)
     sys.exit(1 if issues else 0)
 
+# check 探测的文件与角色(llmstxt.org v2,2026-11-05 读取):
+#   /llms.txt          规范文件,Markdown,H1 是唯一必需节
+#   /llms-full.txt     不在规范里,是常见约定(文档平台把全文拼成一份);缺失不算问题
+#   /index.html.md、/index.md  规范第二条提议:页面的 Markdown 版本放在同 URL 加 .md;
+#                      「URLs without file names should append index.html.md or index.md instead」——
+#                      根页面两种写法都合规,有一个即可;都没有只是没提供(可选提案)
+# 修前四个文件共用一条「llms.txt is HTML not markdown」:/index.md 返回 HTML 也被说成 llms.txt(sspai 实测)。
+CHECK_FILES = (
+    ("/llms.txt", "llms.txt", "规范文件"),
+    ("/llms-full.txt", "llms-full.txt", "常见约定,非规范"),
+    ("/index.html.md", "首页 Markdown 版本", "规范可选提案"),
+    ("/index.md", "首页 Markdown 版本", "规范可选提案"),
+)
+
+
+def _looks_html(body):
+    head = body.lstrip()
+    return head[:1] == "<" or bool(re.search(r"<(html|head|body|!DOCTYPE)\b", head[:2000], re.I))
+
+
 def check(root):
     try:
         require_http_url(root)
@@ -103,16 +123,26 @@ def check(root):
         print(f"[error] {e}", file=sys.stderr)
         sys.exit(2)
     root = root.rstrip("/")
-    for p in ("/llms.txt", "/llms-full.txt", "/index.md", "/index.html.md"):
+    twin_ok = []
+    for p, label, role in CHECK_FILES:
         try:
             s, body = fetch(root + p)
-            head = body.lstrip()
-            if head[:1] == "<" or re.search(r"<(html|head|body|!DOCTYPE)\b", head[:2000], re.I):
-                print(f"{p:<18} {s}  [FAIL] llms.txt is HTML not markdown")
-            else:
-                print(f"{p:<18} {s}  [PASS] {body[:80].replace(chr(10), ' ')}")
+        except urllib.error.HTTPError as e:
+            # 404/410 = 没提供;llms.txt 缺失是事实陈述,其余三项是可选
+            print(f"{p:<18} {e.code}  [{'MISS' if p == '/llms.txt' else 'NONE'}] {label} 未提供({role})")
+            continue
         except Exception as e:
-            print(f"{p:<18} ✗ {type(e).__name__}")
+            print(f"{p:<18} ✗ {type(e).__name__}  [?] {label} 抓取失败,未判定")
+            continue
+        if _looks_html(body):
+            tag = "FAIL" if p == "/llms.txt" else "SOFT404"   # 可选文件回 HTML:软 404,不算规范失败
+            print(f"{p:<18} {s}  [{tag}] {p} 返回 HTML 页面,不是 Markdown({label};软 404:URL 回 {s} 却没有该文件)")
+        else:
+            if p in ("/index.html.md", "/index.md"):
+                twin_ok.append(p)
+            print(f"{p:<18} {s}  [PASS] {label}: {body[:80].replace(chr(10), ' ')}")
+    if twin_ok:
+        print(f"首页 Markdown 版本: {', '.join(twin_ok)} 可用(规范认 index.html.md 或 index.md,有一个即可)")
 
 def generate(sitemap, title, desc):
     try:

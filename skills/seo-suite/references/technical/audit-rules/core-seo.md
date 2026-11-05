@@ -108,7 +108,7 @@
 - 源表:warn · 权重 5。meta robots 或 X-Robots-Tag 含 noindex/nofollow/noarchive/noimageindex/none。这是清点项,不等于有错。建议优先级 medium。
 **依据**: noindex=不在结果中显示;nofollow=不跟随本页链接;none=noindex+nofollow;noimageindex=不索引本页图片;noarchive 已不被 Google 使用(缓存链接功能已不存在)([robots meta 规范](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag))。核对 2026-10-18。
 **判据**: 通过=指令都是刻意的。失败=误加在本该索引的页上。
-**执行**: `AUDIT URL` 只报 `[CRITICAL] robots: noindex` 与 nosnippet;nofollow、none、noimageindex 与 googlebot meta 用 G6 补查。
+**执行**: `AUDIT URL` 报 `[CRITICAL] robots: noindex`(通用 robots、`name="googlebot"`、X-Robots-Tag 不带爬虫名或带 googlebot;`none` 等同 noindex)与 nosnippet;`name="bingbot"` 或 `X-Robots-Tag: bingbot: noindex` 只对 Bing 生效,报 `[WARN] robots: bingbot noindex——只对 Bing 生效…`,其余 bingbot 指令报 INFO;`max-video-preview` 非整数报 WARN、为 0 报 INFO(依据 [Bing robots meta 文档](https://www.bing.com/webmasters/help/robots-meta-tags-and-attributes-that-bing-supports-5198d240))。nofollow、noimageindex 仍用 G6 补查(只在文档)。
 **修复**: 误加的删除;刻意的归档,并把页面从审计分母剔除。
 **关联**: core-robots-directive-mismatch、crawl-noindex-in-sitemap;[robots-txt-reference.md](../robots-txt-reference.md)
 

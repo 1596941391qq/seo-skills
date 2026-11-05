@@ -61,7 +61,7 @@
 #### content-heading-family [待核 ID]
 - 名称/类型: 标题结构家族(源表 ID `content-heading-hierarchy`、`content-heading-length`、`content-heading-unique`) —— warning · 优先级 low · 输出 WARN(源表现行:层级跳级 H1→H3=invalid;标题 <10 字符或 >70 字符=warn;页内标题重复=warn)
 **这意味(what)**: 页内标题树有问题:层级跳级(H1 直接 H3)、标题过短(<10 字符)或过长(>70 字符)、同页重复标题文本。
-**为什么(why)**: Google 说标题的数量与顺序对搜索没有影响("Number and order of headings",[SEO 入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide),核对 2026-10-21);层级对屏幕阅读器导航有用,Bing 另要求层级有逻辑。这一族是无障碍与内容结构项,不是 Google 排名规则。site_audit 的对应项:`[WARN] headings: 跳级 hN→hM`。
+**为什么(why)**: Google 说标题的数量与顺序对搜索没有影响("Number and order of headings",[SEO 入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide),核对 2026-10-21);层级对屏幕阅读器导航有用,Bing 另要求层级有逻辑。这一族是无障碍与内容结构项,不是 Google 排名规则。site_audit 的对应项:`[WARN] headings: 跳级 hN→hM`;第一个 h1 之前就出现 h3–h6(前面没有上一级)报 `[WARN] headings: hN 出现在第一个 h1 之前`(W3C WAI Headings 教程允许 h1 前有 h2 级结构标题,所以 h2 起头不报)。标题长度 <10/>70 字符、同页重复标题是 SEOmator 工具约定,site_audit 不跑(只在文档)。
 **触发(trigger)**: 1) 相邻标题级别差 >1 即 invalid;2) 标题文本 <10 或 >70 字符即警(源表现行);3) 同页两标题文本相同即 warn。
 **不修的条件(caveat)**: 标题结构不(直接)影响排名,然而影响无障碍与 AI 摘要的章节切分,所以一般建议树形规范。但设计系统组件自带级别(卡片 H3 出现在 H1 区)造成的"跳级"是工程取舍,可按组件规则豁免。
 **修复(fix)**: 模板按语义排 H1→H2→H3;标题写"这节说什么";组件标题级别参数化。
