@@ -13,6 +13,8 @@ RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条
 - **Search Console 平台属性**:`video-geo-guide.md` 加平台属性一段(四个平台、报告、计数口径、指南里的五种分析)和检查项;`kpi-definitions.md` 加 KPI「平台内容的 Google 点击」口径。
 - **电商 agent**:`ecommerce-geo-ladder.md` 第四节加微软 Copilot Checkout(2026-01-08,美国,商家仍是记录商户;2026-04-21 Microsoft Merchant Center 支持 UCP-ready feeds)、Web IQ(2026-06-02,建在 Bing 索引上的 grounding API)、Google AP2(2026-04-28 捐给 FIDO Alliance、v0.2 加 Human Not Present 支付);第五节和检查清单各加一行。
 - **本地**:`local-grid-ranking.md` 加「Ask Maps」一节(2026-03-12 美印上线、2026-08-06 扩到 150 多个国家和地区;对本地 SEO 的四条含义,网格测不到),盲区清单加 Q&A API 2025-11-03 停用;`site-type-playbooks.md`、`gap-analysis-frameworks.md` 同步。`local_audit.py` 本来没有 Q&A 检查项,不用改。
+- **GEO 证据库**:`geo-evidence-bank.md` 第七节入库两篇预印本(B 级):arXiv 2610.15033(多伦多大学,2026-10-10)和 2603.09296(2026-03-10),第 11 条的冲突说明随之更新;`citability-scoring.md` 加对应注记和方法纪律第 7 条。
+- **AI 浏览器与 agent 工具**:`intel-sources.md` 更正 ChatGPT Atlas 已停服(2026-07-09 宣布、08-09 停止工作);`agent-growth-loop.md` 加第八节 Chrome 给 agent 的工具(DevTools for agents 1.0、Modern Web Guidance、Gemini in Chrome auto browse),写清各自在每周循环里怎么用、auto-connect 只用测试账号。
 
 ## 0.37.1 - 2026-11-05
 

@@ -103,7 +103,7 @@
 - 2026-08-28 站点声誉政策更新,内容是调整欧洲经济区内的执法方式([文档更新记录](https://developers.google.com/search/updates))。
 - AI 内容检测的进展会影响「人类化改写」类建议的有效期,每季复核一次(本套件口径)。
 
-**跨行业泛信号**(第三方观察,3–5 个):AI 浏览器普及(Atlas、Comet、Dia 等)、操作系统级 agent、搜索入口变化。
+**跨行业泛信号**(第三方观察,3–5 个):AI 浏览器与浏览器内 agent(Comet、Dia;Chrome 里的 Gemini 和 auto browse,见 [agent-growth-loop.md](../monitoring/agent-growth-loop.md) 第八节)、操作系统级 agent、搜索入口变化。ChatGPT Atlas 已停服:OpenAI 2026-07-09 在 ChatGPT 发布说明里宣布弃用,浏览器类 agent 能力并入 ChatGPT 和 Codex,2026-08-09 停止工作;帮助页「ChatGPT Atlas retirement」写明已退役、不再更新([发布说明](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)、[退役说明](https://help.openai.com/en/articles/20001371-chatgpt-atlas-retirement),核对 2026-11-05)。日志里还看到 Atlas 的 UA 属于残留安装,不再作为 AI 浏览器流量的代表样本。
 
 ## 五、信源 → 套件模块映射(哪个信源变了改哪个文件)
 
