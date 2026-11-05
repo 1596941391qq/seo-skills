@@ -47,8 +47,10 @@ GEN_MARK = re.compile(r"(自动生成|生成物|auto[- ]?generated|@generated|do
 GEN_SCRIPT = re.compile(r"([\w./-]+\.(?:py|mjs|js|ts|sh))")
 STRIP_SUFFIX = ("-api", "-scraper", "-data", "-mcp", "-api-docs")
 TEXT_EXT = DATA_EXT + (".html", ".htm", ".jsx", ".vue", ".svelte", ".astro", ".txt")
+TITLE_KINDS = ("title", "h1", "og_title")
 ANCHOR_WEIGHT = {"title": 3.0, "h1": 2.0, "description": 2.0, "og_title": 1.0, "p": 0.5}   # 正文首段只作旁证
-ENTITY_ONLY = 0.25          # 片段只剩 URL 里的实体词(「SimilarWeb Competitors」):多半是模板拼的,别处同名也会命中
+ENTITY_ONLY = 0.0           # 片段只剩 URL 里的实体词(「SimilarWeb Competitors」):模板拼的,同名词到处都有,不算证据
+                            # (11-05 留出集:0.25 时 4/10 能力页被同名词抢第一)
 MAX_FILE = 20_000_000
 FRAG_SPLIT = re.compile("\\s*(?:[|\u2014\u2013\u00b7\u2022:;!?()\\[\\]{}\"'`\u2018\u2019\u201c\u201d"
                         "\u3002\uff1a\uff1b\uff01\uff1f\uff08\uff09\u300c\u300d\u300a\u300b]|\\.\\s|\\s-\\s)\\s*")
@@ -331,8 +333,77 @@ def entity_only(frag, words):
     return wlen(re.sub(r"[\W_]+", "", rest)) < 4
 
 
-TEMPLATE_RE = re.compile(r"`((?:[^`\\]|\\.)*?\$\{(?:[^`\\]|\\.)*?)`", re.S)
-HOLE_RE = re.compile(r"\$\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}")
+def _skip_str(src, i):
+    q, i = src[i], i + 1
+    while i < len(src) and src[i] != q and src[i] != "\n":
+        i += 2 if src[i] == "\\" else 1
+    return i + 1
+
+
+def _skip_expr(src, i):
+    """从 `${` 之后走到配对的 `}`;里面可以再套字符串和模板字符串。"""
+    depth = 1
+    while i < len(src):
+        c = src[i]
+        if c == "`":
+            i = _template(src, i + 1)[1]
+            continue
+        if c in "\"'":
+            i = _skip_str(src, i)
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if not depth:
+                return i + 1
+        i += 1
+    return i
+
+
+def _template(src, i):
+    """→ (固定片段列表, 结束位置);空位处切开。"""
+    parts, buf = [], []
+    while i < len(src):
+        c = src[i]
+        if c == "\\":
+            buf.append(src[i + 1:i + 2])
+            i += 2
+        elif c == "`":
+            parts.append("".join(buf))
+            return parts, i + 1
+        elif src.startswith("${", i):
+            parts.append("".join(buf))
+            buf = []
+            i = _skip_expr(src, i + 2)
+        else:
+            buf.append(c)
+            i += 1
+    parts.append("".join(buf))
+    return parts, i
+
+
+def js_templates(src):
+    """JS/TS 源码里带空位的模板字符串 → 每个给出固定片段列表(len ≥ 2)。
+    手写扫描而不是正则:`${a ? `${b},` : ""}` 这种嵌套会让正则把反引号配错对,后面整份文件的模板全错位。"""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c == "`":
+            parts, i = _template(src, i + 1)
+            if len(parts) > 1:
+                out.append(parts)
+        elif c in "\"'":
+            i = _skip_str(src, i)
+        elif src.startswith("//", i):
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+        elif src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        else:
+            i += 1
+    return out
 
 
 AFFIX_SEP = re.compile(r"\s+[·|\-\u2014\u2013]\s+")
@@ -346,21 +417,29 @@ def strip_site_affix(text):
     return text
 
 
-def template_hits(repo, files, text):
+def template_hits(repo, files, text, words=()):
     """路由 import 链里的 JS/TS 模板字符串(`${name}爬虫 API:${items}数据采集`)能不能套上这段原文。
-    静态部分合计不少于 8 个加权字符、且按顺序出现,才算命中;返回命中的文件。"""
+    固定部分合计 ≥8 个加权字符:按顺序出现就算;固定部分短(≥3,如 `${platform} ${action} API`)时,
+    要整句完全套上、且每个空位填进去的文字都含 URL 里的实体词,才算——不然 `${x} API` 会套上任何标题。"""
     hits = []
+    low_words = [w.lower() for w in words]
     for f in files:
         if not f.endswith((".ts", ".tsx", ".js", ".jsx", ".mjs")):
             continue
-        for m in TEMPLATE_RE.finditer(repo.read(f)):
-            parts = [x for x in HOLE_RE.split(m.group(1)) if x.strip()]
-            if len(parts) < 1 or sum(wlen(x.strip()) for x in parts) < 8 or len(HOLE_RE.findall(m.group(1))) < 1:
+        for parts in js_templates(repo.read(f)):
+            static = sum(wlen(x.strip()) for x in parts)
+            if static < 3:
                 continue
             pat = "(.+?)".join(re.escape(x) for x in parts)
-            if HOLE_RE.match(m.group(1)):
-                pat = "^.+?" + pat
-            if re.search(pat, text):
+            if static >= 8:
+                loose = "(.+?)".join(re.escape(x) for x in parts if x.strip())
+                if re.search(("^.+?" if not parts[0] else "") + loose, text):
+                    hits.append(f)
+                    break
+                continue
+            mm = re.fullmatch(pat, text)
+            if mm and low_words and all(any(w in g.lower().replace("-", " ") for w in low_words)
+                                        for g in mm.groups()):
                 hits.append(f)
                 break
     return hits
@@ -371,6 +450,7 @@ def anchor_candidates(repo, url, anchors, closure=(), root=""):
     corpus = repo.corpus(root)
     words = url_words(url)
     scores, kinds, cache, solid = {}, {}, {}, set()      # solid:有过不止实体词的证据
+    titled = set()                                        # 标题类(title / H1 / og:title)有实打实的证据
     for kind, text in anchors.items():
         best = {}
         for frag in fragments(text, words):
@@ -381,15 +461,20 @@ def anchor_candidates(repo, url, anchors, closure=(), root=""):
                 continue
             weak = entity_only(frag, words)
             w = ANCHOR_WEIGHT.get(kind, 1.0) * (ENTITY_ONLY if weak else 1.0)
+            if not w:
+                continue
             for f in hits:
                 best[f] = max(best.get(f, 0), w / len(hits))
                 if not weak:
                     solid.add(f)
+                    if kind in TITLE_KINDS:
+                        titled.add(f)
         if closure and kind in ("title", "h1", "og_title"):   # 标题常是模板拼的:拿 import 链里的模板去套
-            th = template_hits(repo, closure, strip_site_affix(text))
+            th = template_hits(repo, closure, strip_site_affix(text), words)
             for f in th if len(th) <= FRAG_MAX_FILES else ():
                 best[f] = max(best.get(f, 0), ANCHOR_WEIGHT.get(kind, 1.0) / len(th))
                 solid.add(f)
+                titled.add(f)
         for f, v in best.items():
             scores[f] = scores.get(f, 0) + v
             kinds.setdefault(f, set()).add(kind)
@@ -409,7 +494,8 @@ def anchor_candidates(repo, url, anchors, closure=(), root=""):
                 scores[f] *= 0.4                              # /es/ 页面却在 en/ 目录里:多半是另一种语言的同文
         elif not loc and fl and fl - zh:
             scores[f] *= 0.6                                  # 无语言前缀(默认语言)页面,别挑外语目录
-    ranked = sorted(scores.items(), key=lambda kv: -kv[1])
+    # 找的是「改这页标题去哪个文件」:标题类证据实打实的文件排在只有描述、正文证据的文件前面
+    ranked = sorted(scores.items(), key=lambda kv: (kv[0] not in titled, -kv[1]))
     total = sum(v for _, v in ranked)
     out = []
     for f, v in ranked[:8]:
@@ -418,6 +504,8 @@ def anchor_candidates(repo, url, anchors, closure=(), root=""):
         conf = 0.45 + 0.5 * share if strong else 0.3 + 0.3 * share
         if f not in solid:
             conf = min(conf, 0.6)                             # 只有实体词撞上:不够动手
+        elif f not in titled:
+            conf = min(conf, 0.6)                             # 没有标题类证据:可能只管描述或正文,不够动手
         for c in classify_data(repo, f):
             c = dict(c)
             if c["role"] == "data" and PAGE_RE.search(f):

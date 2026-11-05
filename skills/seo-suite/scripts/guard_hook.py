@@ -15,7 +15,8 @@ Bash 里对 robots.txt / 重定向文件的写操作(重定向符、sed -i、tee
   {"hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|Bash",
      "hooks": [{"type": "command", "command": "python3 \\"$HOME/.claude/skills/seo-suite/scripts/guard_hook.py\\""}]}]}}
 钩子从 stdin 读 {"tool_name", "tool_input", "cwd"};退出码 2 = 拦下(理由写 stderr,agent 能看到);0 = 放行。
-其他 agent(Codex 等)没有同等钩子时,AGENTS.md 里的同一条规则是唯一约束,运营包会写进去。
+另有 git pre-push 一层(`--pre-push`,`ops install` 装进 .git/hooks/pre-push):编码 agent 的 shell 推 main / master
+一律拒绝——对 Codex、子代理这些读不到 .claude/settings.json 的 agent 也生效;人自己的终端不受影响。
 """
 import json
 import os
@@ -86,7 +87,38 @@ def verdict(event, protected=PROTECTED):
     return False, ""
 
 
+AGENT_ENV = ("CLAUDECODE", "AI_AGENT", "CURSOR_AGENT", "GEMINI_CLI")
+
+
+def agent_env(env):
+    """编码 agent 跑的 shell 会带的环境变量(Claude Code: CLAUDECODE、AI_AGENT;Codex: CODEX_*)。人自己的终端没有。"""
+    return [k for k in env if k in AGENT_ENV or k.startswith("CODEX_")]
+
+
+def pre_push(lines, env, protected=PROTECTED):
+    """git pre-push 钩子:stdin 每行「本地 ref 本地 sha 远端 ref 远端 sha」。agent 推主干 → (True, 理由)。
+    这一层对所有 agent 都生效(Codex、子代理也一样),不依赖 Claude Code 的 PreToolUse;人自己推不受影响,
+    确实要让 agent 推主干时设 SEO_SUITE_ALLOW_MAIN_PUSH=1。"""
+    if env.get("SEO_SUITE_ALLOW_MAIN_PUSH") == "1":
+        return False, ""
+    who = agent_env(env)
+    if not who:
+        return False, ""
+    for line in lines:
+        parts = line.split()
+        if len(parts) >= 3 and parts[2].rsplit("/", 1)[-1] in protected and parts[2].startswith("refs/heads/"):
+            return True, "编码 agent(%s)推送到主干 %s" % (",".join(sorted(who)[:2]), parts[2])
+    return False, ""
+
+
 def main():
+    if "--pre-push" in sys.argv:
+        block, why = pre_push(sys.stdin.read().splitlines(), os.environ)
+        if block:
+            sys.stderr.write("seo-suite 拦下:%s。SEO 改动推分支、开草稿 PR 给人合并;用户说直接推也一样。"
+                             "人确实要让 agent 推主干时设 SEO_SUITE_ALLOW_MAIN_PUSH=1。\n" % why)
+            return 1
+        return 0
     try:
         event = json.load(sys.stdin)
     except ValueError:

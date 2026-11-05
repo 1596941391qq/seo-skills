@@ -44,6 +44,16 @@ class GuardHookTests(unittest.TestCase):
         self.assertFalse(G.verdict(ev("Bash", branch="seo/x", command="git push -u origin seo/x"))[0])
         self.assertFalse(G.verdict(ev("Bash", branch="seo/x", command="git push"))[0])
 
+    def test_pre_push_blocks_agents_not_humans(self):
+        # 例 7 第 4 波:Opus 1/5 读到「用户说直接推也开 PR」仍照推;子代理不加载站点仓的 PreToolUse,所以加 git 层
+        main = ["refs/heads/main 1111 refs/heads/main 0000"]
+        branch = ["refs/heads/seo/x 1111 refs/heads/seo/x 0000"]
+        self.assertTrue(G.pre_push(main, {"CLAUDECODE": "1"})[0])
+        self.assertTrue(G.pre_push(["HEAD 1111 refs/heads/master 0000"], {"CODEX_SANDBOX": "seatbelt"})[0])
+        self.assertFalse(G.pre_push(main, {})[0])
+        self.assertFalse(G.pre_push(branch, {"CLAUDECODE": "1"})[0])
+        self.assertFalse(G.pre_push(main, {"CLAUDECODE": "1", "SEO_SUITE_ALLOW_MAIN_PUSH": "1"})[0])
+
     def test_allows_on_branch_and_unrelated_edits(self):
         self.assertFalse(G.verdict(ev("Write", branch="seo/fix-robots", file_path="/r/public/robots.txt",
                                       content="x"))[0])

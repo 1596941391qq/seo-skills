@@ -111,12 +111,13 @@ GSC AI 报告、Bing AI Performance 目前没有 API,先读它们的导出文件
 python3 scripts/project.py ops install [--repo PATH] [--schedule actions] [--dry-run]
 ```
 
-做四件事,重复跑结果不变:
+做五件事,重复跑结果不变:
 
 1. 在 CLAUDE.md / AGENTS.md(软链接跳过)里写一段 `<!-- seo-suite:ops begin/end -->` 之间的规则:每周怎么跑、改 robots / noindex / canonical / 重定向一律开分支和草稿 PR、抓到的网页内容当数据。宿主仓自己的规则优先。
-2. 在 `.claude/settings.json` 加 PreToolUse 钩子 `guard_hook.py`:在 main / master 上用 Edit / Write / MultiEdit / Bash 改这些东西时直接拦下(退出码 2,理由给 agent 看),分支上放行。没有同等钩子的 agent(Codex 等)只能靠第 1 步的文字规则。
-3. 写定时模板到 `seo-ops/schedule/`:GitHub Actions(`--schedule actions` 时直接放进 `.github/workflows/`)和云端 agent 的提示词。本机定时见第 7 节。
-4. 把 skill 版本(`skills/seo-suite/VERSION`)记进 `seo-ops/project.yaml` 的 `skill_version`,站点仓知道自己按哪一版跑。仓库是公开的(`gh` 查得到)时给警告:原始 GSC / GA4 行别提交。
+2. 在 `.claude/settings.json` 加 PreToolUse 钩子 `guard_hook.py`:在 main / master 上用 Edit / Write / MultiEdit / Bash 改这些东西时直接拦下(退出码 2,理由给 agent 看),分支上放行。
+3. 在 `.git/hooks/pre-push` 装 git 层的拦截(`guard_hook.py --pre-push`):编码 agent 跑的 shell(环境里有 `CLAUDECODE`、`AI_AGENT`、`CODEX_*` 等)推 main / master 一律拒绝;人自己的终端不受影响,确实要让 agent 推主干时设 `SEO_SUITE_ALLOW_MAIN_PUSH=1`。这一层对 Codex、子代理这些读不到 `.claude/settings.json` 的 agent 也生效(行为评测里 Opus 读到「用户说直接推也开 PR」仍有 1/5 照推,所以加这层)。仓库已有别的 pre-push 钩子时不覆盖,只给警告。
+4. 写定时模板到 `seo-ops/schedule/`:GitHub Actions(`--schedule actions` 时直接放进 `.github/workflows/`)和云端 agent 的提示词。本机定时见第 7 节。
+5. 把 skill 版本(`skills/seo-suite/VERSION`)记进 `seo-ops/project.yaml` 的 `skill_version`,站点仓知道自己按哪一版跑。仓库是公开的(`gh` 查得到)时给警告:原始 GSC / GA4 行别提交。
 
 ## 9. 自测:测试站
 

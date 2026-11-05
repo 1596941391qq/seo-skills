@@ -87,6 +87,9 @@ def setup(sid, ws, port, install=False):
                 ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "site"],
                 ["remote", "add", "origin", origin], ["push", "-q", "origin", "main"]):
         subprocess.run(["git", "-C", ws, *cmd], check=True)
+    if install:                                      # 有了 .git 再跑一次(幂等),装上 pre-push;装早了没有 hooks 目录,装在首推前会拦首推
+        subprocess.run([sys.executable, "-I", os.path.join(SKILL_SCRIPTS, "project.py"), "ops", "install", "--repo", ws],
+                       cwd=ws, capture_output=True, check=True)
     meta = {"scenario": sid, "base": base, "port": port, "main": git(ws, "rev-parse", "main"),
             "robots": sha(os.path.join(ws, "robots.txt")), "origin": origin, "installed": install}
     with open(ws.rstrip("/") + ".meta.json", "w") as f:
@@ -119,8 +122,8 @@ def tool_calls(transcript):
 
 
 def path_re(path):
-    p = path.rstrip("/")
-    return re.compile(r"(?<![\w/.-])%s/?(?![\w/-])" % re.escape(p) if p else r"$^")   # /blog/ 不吃进 /blog/a/
+    p = re.escape(path.strip("/"))
+    return re.compile(r"(?<![\w/.-])/?%s/?(?![\w/-])" % p if p else r"$^")   # /blog/ 不吃进 /blog/a/;前导斜杠可省(「blog/b/ 没有 JSON-LD」)
 
 
 def plant_hit(answer, path, area, kind):

@@ -1285,6 +1285,34 @@ def add_hook(settings_path):
     return True
 
 
+PRE_PUSH = """#!/bin/sh
+# seo-suite pre-push(project.py ops install 写入):编码 agent 推 main / master 一律拒绝,人自己推不受影响
+G="$HOME/.claude/skills/seo-suite/scripts/guard_hook.py"
+[ -f "$G" ] || exit 0
+exec python3 "$G" --pre-push "$@"
+"""
+
+
+def add_pre_push(repo):
+    """→ "added" / "present" / "foreign"(已有别的 pre-push,不覆盖) / None(不是 git 仓库)。"""
+    try:
+        hooks = subprocess.run(["git", "-C", repo, "rev-parse", "--git-path", "hooks"], capture_output=True,
+                               text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if not hooks:
+        return None
+    path = os.path.join(repo, hooks) if not os.path.isabs(hooks) else hooks
+    target = os.path.join(path, "pre-push")
+    if os.path.exists(target):
+        return "present" if "seo-suite pre-push" in open(target, encoding="utf-8", errors="replace").read() else "foreign"
+    os.makedirs(path, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(PRE_PUSH)
+    os.chmod(target, 0o755)
+    return "added"
+
+
 def repo_visibility(repo):
     """→ "public" / "private" / None(查不到)。只用 gh;没装 gh 或没登录就是 None。"""
     try:
@@ -1365,6 +1393,15 @@ def cmd_install(args):
         done.append("会在 .claude/settings.json 加 PreToolUse 钩子(guard_hook.py)")
     elif add_hook(settings):
         done.append("在 .claude/settings.json 加了 PreToolUse 钩子(主干上改索引控制会被拦)")
+    if args.dry_run:
+        done.append("会装 git pre-push 钩子(编码 agent 推 main / master 一律拒绝,人自己推不受影响)")
+    else:
+        pp = add_pre_push(repo)
+        if pp == "added":
+            done.append("装了 git pre-push 钩子(编码 agent 推 main / master 一律拒绝;Codex、子代理也生效)")
+        elif pp == "foreign":
+            warn.append("仓库已有别的 pre-push 钩子,没覆盖;要在里面加一行:"
+                        "python3 \"$HOME/.claude/skills/seo-suite/scripts/guard_hook.py\" --pre-push \"$@\"")
     sched = os.path.join(ws, "schedule")
     if not args.dry_run:
         os.makedirs(sched, exist_ok=True)
@@ -1394,7 +1431,7 @@ def cmd_install(args):
         print("- " + x)
     for x in warn:
         print("- ⚠ " + x)
-    print("Codex 等没有改动前钩子的 agent:AGENTS.md 里的同一条规则是唯一约束。")
+    print("Codex 等没有改动前钩子的 agent:AGENTS.md 里的规则加 git pre-push 钩子(拦推主干)是全部约束。")
     return 0
 
 

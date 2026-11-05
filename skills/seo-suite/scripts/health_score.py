@@ -63,6 +63,7 @@ TREE = {
 # → N/A(data_source_missing)。
 MAPPING = {
     "fetch":           ("availability", "server_errors", "CRITICAL", "抓取失败(HTTP 错误/网络异常)"),
+    "injection":       ("indexability", "non_indexable", "CRITICAL", "隐藏元素或注释里对 AI 下指令(Google 隐藏文字政策)"),
     "staging":         ("indexability", "non_indexable", "CRITICAL", "staging 子域公开可访问"),
     "robots":          ("indexability", "non_indexable", "CRITICAL", "noindex/nosnippet/robots.txt 不可达"),
     "ai-bots":         ("indexability", "non_indexable", "CRITICAL", "AI 检索 bot 被 robots 禁"),
@@ -219,6 +220,8 @@ def compute(audit, ignored, sev_overrides):
         if rule in ignored:
             continue
         if rule == "duplicate_title" and not has_title_data:
+            continue
+        if rule == "injection" and not hits.get(rule):   # 0.40 新增:只在命中时计入,没命中不改既有类权重(冻结口径)
             continue
         active.append(rule)
 
