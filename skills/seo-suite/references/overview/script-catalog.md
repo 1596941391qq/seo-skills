@@ -81,6 +81,6 @@
 
 **套件自维护**
 - `self_check.py` / `link_check.py`
-- `intel_check.py init|check [--source 名]`:信源变更检测(20 源注册表:RSS top-item+页面 hash,与 [信源监控体系](intel-sources.md) 同步维护)——check 拉全部源与 `.intel-state.json` 基线 diff,按 source→module 映射输出应更新的套件文件;退出码 1=有变更,按[自更新协议](self-update-protocol.md)执行更新
+- `intel_check.py init|check [--source 名]`:信源变更检测(29 源注册表:RSS top-item(宽口径源按关键词过滤)+页面 hash,与 [信源监控体系](intel-sources.md) 同步维护)——check 拉全部源与 `.intel-state.json` 基线 diff,按 source→module 映射输出应更新的套件文件;退出码 1=有变更,按[自更新协议](self-update-protocol.md)执行更新
 
 来源方法论见 NOTICE(百仓深扫改写,非复制代码)。

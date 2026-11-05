@@ -1,8 +1,8 @@
 # 信源监控体系(如何持续领先)
 
-> 建立于 2026-10-10;2026-10-21 逐个打开链接重核。用途:回答「要持续更新本套件,该盯哪些信源」。分四层:官方 → 研究数据 → 社区与本地 → 竞品前沿,各带频率与抓取方式。
+> 建立于 2026-10-10;2026-10-21 逐个打开链接重核;复核于 2026-11-05(注册表扩到 29 个源,第五节写回放结果)。用途:回答「要持续更新本套件,该盯哪些信源」。分四层:官方 → 研究数据 → 社区与本地 → 竞品前沿,各带频率与抓取方式。
 > 类型标签:**官方** = 搜索引擎、标准组织或平台的一手页面;**论文** = arXiv/SSRN 原文;**第三方** = 行业媒体、厂商研究、社区、GitHub 项目(只当线索,采纳前回到官方文档核对)。
-> 注册表(`scripts/intel_check.py` 的 `SOURCES`)当前登记 **20 个源**;本文表格里写「注册」的行就是其中之一。
+> 注册表(`scripts/intel_check.py` 的 `SOURCES`)当前登记 **29 个源**(2026-11-05 加 9 个,见第五节「2026-11-05 扩源」);本文表格里写「注册」的行就是其中之一。
 
 ## 一、必盯官方层(信号价值最高,变动 = 套件规则要改)
 
@@ -107,7 +107,7 @@
 
 ## 五、信源 → 套件模块映射(哪个信源变了改哪个文件)
 
-下表与 `scripts/intel_check.py` 的 `SOURCES[...]["modules"]` 一致(核对 2026-10-21)。路径都在 `references/` 下。
+下表与 `scripts/intel_check.py` 的 `SOURCES[...]["modules"]` 一致(核对 2026-11-05;`tests/test_intel_sources.py` 检查每个模块文件都存在)。路径都在 `references/` 下。
 
 | 注册名 | 更新模块 |
 |---|---|
@@ -125,6 +125,20 @@
 | baidu-ziyuan | markets/zh.md、content/chinese-ai-search-guide.md |
 | statcounter-search | overview/multilingual-workflow.md |
 | seroundtable | monitoring/penalty-recovery.md、technical/rendering-seo.md |
+| chrome-blog | technical/cwv-playbook.md、technical/agent-readiness.md、technical/agent-protocols.md、monitoring/agent-growth-loop.md |
+| web-dev-blog | technical/cwv-playbook.md、technical/rendering-seo.md |
+| cloudflare-blog(关键词) | technical/ai-crawler-policy.md、technical/agent-protocols.md |
+| openai-news(关键词) | technical/ai-crawler-policy.md、content/geo-platform-differences.md、content/ecommerce-geo-ladder.md、overview/intel-sources.md |
+| bing-search-blog | technical/ai-crawler-policy.md、content/geo-platform-differences.md、content/ecommerce-geo-ladder.md |
+| msads-blog(关键词) | content/ecommerce-geo-ladder.md、technical/agent-protocols.md |
+| google-maps-blog(关键词) | monitoring/local-grid-ranking.md、overview/site-type-playbooks.md |
+| google-shopping-blog(关键词) | content/ecommerce-geo-ladder.md |
+| arxiv-geo | content/geo-evidence-bank.md、content/citability-scoring.md |
+
+**2026-11-05 扩源。** 起因:RQ-229 补的 12 条 2026 年知识,原来的 20 个源只盯住了 5 条(CrUX 软导航、Google 垃圾政策、平台属性、Google 文档小更新、OpenAI 训练信号经 Google 博客)。新加 9 个源,地址:[Chrome 开发者博客](https://developer.chrome.com/static/blog/feed.xml)、[web.dev 博客](https://web.dev/static/blog/feed.xml)、[Cloudflare 博客](https://blog.cloudflare.com/rss/)、[OpenAI 新闻](https://openai.com/news/rss.xml)、[Bing 搜索博客](https://blogs.bing.com/search/feed)(和 bing-wm 的站长博客不是一个 feed)、[Microsoft Advertising 博客](https://about.ads.microsoft.com/en/blog/rss)、[Google Maps 博客](https://blog.google/products/maps/rss/)、[Google Shopping 博客](https://blog.google/products/shopping/rss/)、arXiv API 按短语 "generative engine optimization" 按提交时间倒序。Search Central 更新记录页原来就在(google-updates 页面 hash + google-docs-rss),没有重复加。
+- **关键词过滤**:标「关键词」的源发文多、大半和搜索无关(OpenAI 新闻一天几篇),脚本先看最近 50 条,只留标题或链接命中关键词的条目,最多 5 条;只来了无关文章不算变更。关键词在 `SOURCES[...]["keywords"]`。
+- **回放结果(2026-11-05,只读拉取,没写基线)**:12 条里 11 条能被注册表接住(原有源 5 条 + 新源 6 条:Cloudflare 9 月新默认、微软 PCM(第 5 条里的一项)、Copilot Checkout 与 Web IQ、Ask Maps、两篇 GEO 论文、Chrome I/O 工具)。**接不住的 1 条是 ChatGPT Atlas 停服**:只发在 help.openai.com 的发布说明里,该站对脚本请求回 403,OpenAI 新闻 feed 里没有这条;只能靠第三方媒体或人工看发布说明。第 5 条里的 RSL 和 IAB CoMP 也没有可订阅的 feed,只命中了微软 PCM 那一项。
+- 回放当场在新源里多看到两条此前没收录的一手公告,已核对原文写进 ai-crawler-policy.md:微软 2026-10-30 训练与 grounding 新偏好(Bing 搜索博客)、Cloudflare 2026-11-04 按单个个人 agent 设访问策略。
 
 注册表之外的信源(论文、竞品仓、行业研究)变动时,改 content/geo-evidence-bank.md、content/geo-platform-differences.md,以及对应能力文件和脚本。
 
@@ -132,7 +146,7 @@
 
 | 检查什么 | 怎么查 | 通过 / 失败判据 |
 |---|---|---|
-| 注册表与本文一致 | `python3 -c "import sys; sys.path.insert(0,'scripts'); import intel_check as i; print(len(i.SOURCES))"`(在 `skills/seo-suite/` 下跑) | 数字等于本文第一段写的 20。不等就同步改本文和 [script-catalog.md](script-catalog.md) |
+| 注册表与本文一致 | `python3 -c "import sys; sys.path.insert(0,'scripts'); import intel_check as i; print(len(i.SOURCES))"`(在 `skills/seo-suite/` 下跑) | 数字等于本文第一段写的 29。不等就同步改本文和 [script-catalog.md](script-catalog.md) |
 | 链接没死 | `curl -sIL -m 20 -o /dev/null -w '%{http_code} %{url_effective}\n' <URL>` | 200 通过。403 先换浏览器或 `search MCP read` 复核;404 或连不上就删除或换源 |
 | 基线可用 | 首次用 `python3 scripts/intel_check.py init` 建基线;之后连续跑两次 `check` | 第二次无 `[CHANGED]`,退出码 0(1 = 有变更,2 = 错误) |
 | 观察名单没改名 | `gh api repos/<owner>/<repo> --jq '[.full_name,.pushed_at]'` | `full_name` 与表一致;不一致就更新表 |

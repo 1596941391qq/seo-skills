@@ -15,6 +15,8 @@ RQ-229:补 12 个 2026 年知识缺口,扩信源,处理信源工单 #10。每条
 - **本地**:`local-grid-ranking.md` 加「Ask Maps」一节(2026-03-12 美印上线、2026-08-06 扩到 150 多个国家和地区;对本地 SEO 的四条含义,网格测不到),盲区清单加 Q&A API 2025-11-03 停用;`site-type-playbooks.md`、`gap-analysis-frameworks.md` 同步。`local_audit.py` 本来没有 Q&A 检查项,不用改。
 - **GEO 证据库**:`geo-evidence-bank.md` 第七节入库两篇预印本(B 级):arXiv 2610.15033(多伦多大学,2026-10-10)和 2603.09296(2026-03-10),第 11 条的冲突说明随之更新;`citability-scoring.md` 加对应注记和方法纪律第 7 条。
 - **AI 浏览器与 agent 工具**:`intel-sources.md` 更正 ChatGPT Atlas 已停服(2026-07-09 宣布、08-09 停止工作);`agent-growth-loop.md` 加第八节 Chrome 给 agent 的工具(DevTools for agents 1.0、Modern Web Guidance、Gemini in Chrome auto browse),写清各自在每周循环里怎么用、auto-connect 只用测试账号。
+- **信源扩到 29 个**:`intel_check.py` 加 Chrome 开发者博客、web.dev 博客、Cloudflare 博客、OpenAI 新闻、Bing 搜索博客、Microsoft Advertising 博客、Google Maps 博客、Google Shopping 博客、arXiv「generative engine optimization」检索;发文多的源按关键词过滤(先看 50 条,只来无关文章不算变更);Atom 链接改读 `href`。用 12 条回放:11 条能接住,Atlas 停服只发在对脚本回 403 的帮助中心,接不住(`tests/test_intel_sources.py`,RSS 片段和回放标题来自真实 feed 和原文页)。`intel-sources.md` 第五节、`self-update-protocol.md` 映射表、`script-catalog.md`、workflow 注释同步。
+- **回放顺带发现的两条一手公告**:微软 2026-10-30 宣布训练和 grounding 偏好分开设,2027-02-01 起随抓取认 `__usage_ai-training`,grounding 只能页面级设 `ai-grounding:disallow` / `disallowextended`,2027-03-01 后 `NOARCHIVE`/`NOCACHE` 不再算数;Cloudflare 2026-11-04 起能按单个个人 agent 设访问策略。写进 `ai-crawler-policy.md` 和 `agent-protocols.md` 第 1 卡,原来「微软一手页面未核到」的说法改为已证实。
 
 ## 0.37.1 - 2026-11-05
 
