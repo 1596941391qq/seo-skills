@@ -57,7 +57,8 @@ def page_html(canonical=True, desc=True, h1=True):
     S2a 2026-10-21 改:旧版默认 INFO 是 rendering-no-noscript——页面有 main/article 且正文>500 字
     (服务端内容)时 site_audit 不再报「无 JS 空页」(B3);description/H1 缺失按 Google 文档降 WARN
     (B15/B38);默认 INFO 规则改由 >100 链接(B14 已降 INFO)提供。"""
-    head = ['<title>Example Article Page Title Long Enough</title>']
+    head = ['<title>Example Article Page Title Long Enough</title>',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">']
     if desc:
         head.append('<meta name="description" content="A sufficiently long description '
                     'text that exceeds eighty characters easily for tests.">')

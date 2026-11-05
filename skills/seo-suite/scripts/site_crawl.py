@@ -444,12 +444,31 @@ def _ln(tag):
     return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
 
 
+def parse_text_sitemap(blob):
+    """文本 sitemap:一行一个完整 URL(sitemaps.org「Text file」一节)。11-05 第三轮留出站 oschina:
+    robots 声明的 sitemap.txt 被报成「XML 解析失败」。以 < 开头的不算;非空行过半是 http(s) URL 才认。"""
+    try:
+        text = blob.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+    if text.lstrip().startswith("<"):
+        return None
+    lines = [x.strip() for x in text.splitlines() if x.strip()]
+    urls = [x for x in lines if re.match(r"^https?://\S+$", x, re.I)]
+    if not urls or len(urls) * 2 < len(lines):
+        return None
+    return urls
+
+
 def parse_sitemap_bytes(blob):
     """sitemap 字节流 → (kind, [{loc,lastmod}], [child_sitemap_url]);解析失败抛 ValueError。"""
     try:
         root = ET.fromstring(blob)
     except ET.ParseError as e:
-        raise ValueError("XML 解析失败: %s" % e)
+        urls = parse_text_sitemap(blob)
+        if urls is None:
+            raise ValueError("XML 解析失败: %s" % e)
+        return "urlset", urls, []
     kind = _ln(root.tag)
     if kind not in ("urlset", "sitemapindex"):
         return "unknown", [], []
@@ -739,10 +758,20 @@ class Crawler:
                 self.consider_host(host_of(sm_urls[-1]))
         self.counts["robots"] = len(sm_urls)
         locs_raw = []
-        for su in sm_urls:                      # 链②:robots 的 Sitemap 行
+        picked = sample_children(sm_urls, SITEMAP_CHILD_CAP)
+        if len(sm_urls) > SITEMAP_CHILD_CAP:
+            # 11-05 第三轮留出站 oschina:robots 声明 1,134 条,逐条抓用了 75 分钟;和 index 子表同一上限
+            self.warnings.append("robots.txt 声明了 %d 个 sitemap,按位置均匀抽 %d 个(含首尾)"
+                                 % (len(sm_urls), len(picked)))
+        for su in picked:                       # 链②:robots 的 Sitemap 行
             locs_raw.extend(self._parse_sitemap(su))
+        fallback = self._origin(self.seed) + "/sitemap.xml"
         if not sm_urls:                          # 链③:robots 无指令 → 直接 /sitemap.xml
-            locs_raw.extend(self._parse_sitemap(self._origin(self.seed) + "/sitemap.xml"))
+            locs_raw.extend(self._parse_sitemap(fallback))
+        elif not locs_raw and fallback not in sm_urls:
+            # 声明的全取不到条目(oschina 几乎全 404):退回 /sitemap.xml,不让后面的链接分析只剩首页
+            self.warnings.append("robots.txt 声明的 sitemap 没取到任何条目,退回 %s" % fallback)
+            locs_raw.extend(self._parse_sitemap(fallback))
         locs, seen_loc = [], set()
         for raw in locs_raw[:SITEMAP_LOC_CAP]:
             u = normalize_url(raw, strip_params=self.ns.strip_params)

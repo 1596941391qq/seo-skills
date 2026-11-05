@@ -114,7 +114,10 @@ def main():
         walk(o, lambda n: allids.add(n["@id"]) if isinstance(n.get("@id"), str) else None)
     type_by_id = {}
     for o in objs:
-        walk(o, lambda n: type_by_id.setdefault(n.get("@id"), set()).add(n.get("@type")) if n.get("@id") else None)
+        # 只有 @id 没有 @type 的节点是对同页实体的引用({"@id": "…#organization"}),不是另一种类型
+        # (11-05 第三轮留出站 fly.io:publisher/provider/isPartOf 里的纯引用被报「同 @id 多 @type」)
+        walk(o, lambda n: type_by_id.setdefault(n.get("@id"), set()).add(",".join(map(str, n["@type"])) if isinstance(n["@type"], list) else str(n["@type"]))
+             if n.get("@id") and n.get("@type") else None)
     crit = 0
     for o in objs:
         def check(n):

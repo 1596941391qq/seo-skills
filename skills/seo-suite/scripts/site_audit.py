@@ -235,7 +235,7 @@ zh 标题按显示宽度(fullwidth 单位);已检测到服务端内容时 JS 重
 
 # ---- 藏在页面里、对 AI 下指令的文字(提示注入)。读这页的编码 agent 可能照做(改 robots.txt、推主干),
 # 所以原文要原样列进运营单,让人看到;同时它也是 Google 垃圾内容政策里的「隐藏文字」。
-# 只看隐藏元素(display:none / visibility:hidden / hidden / aria-hidden)和 HTML 注释,正文里讲提示注入的文章不算。
+# 只看隐藏元素(display:none / visibility:hidden / hidden 属性)和 HTML 注释,正文里讲提示注入的文章不算。
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
              "track", "wbr"}
 HIDDEN_STYLE = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden", re.I)
@@ -256,8 +256,9 @@ class _Hidden(HTMLParser):
         if tag in VOID_TAGS:
             return
         a = dict(attrs)
-        hid = (HIDDEN_STYLE.search(a.get("style") or "") is not None or "hidden" in a
-               or (a.get("aria-hidden") or "").lower() == "true")
+        # aria-hidden 只对读屏软件隐藏,不对人隐藏:标签页、轮播常这么写(11-05 第三轮留出站 fly.io/sprites/
+        # 的功能标签页被误判成隐藏指令),所以不算
+        hid = HIDDEN_STYLE.search(a.get("style") or "") is not None or "hidden" in a
         self.stack.append((tag, hid))
         if hid:
             self.depth += 1
@@ -641,6 +642,8 @@ RULE_SLUGS = [
     ("og", "og:description", "og-description-missing"),
     ("og", "og:image", "og-image-missing"),
     ("a11y", "无 lang", "a11y-no-lang"),
+    ("viewport", "没有", "viewport-missing"),
+    ("viewport", "没写 width", "viewport-no-width"),
     ("content", ">15000", "content-too-long"),
     ("content", "<200", "content-thin"),
     ("links", ">100", "links-too-many"),
@@ -887,14 +890,21 @@ def audit(url, market="en", serp_titles=None):
     # og:url 是对象的规范 URL(永久 ID),写成 "/" 这类相对路径不合规(sspai 首页实测)
     if "og:url" in p.og and not re.match(r"^https?://", p.og["og:url"].strip(), re.I):
         F.append(("WARN", "og", f"og:url 非绝对 URL: {p.og['og:url'].strip()[:60]!r}(ogp.me:URL 类型须 http(s)://)"))
-    for t in agent_directives(html)[:3]:
+    for hidden_text in agent_directives(html)[:3]:       # 不用 t:t 是上面存的标题,下面还要输出
         F.append(("CRITICAL", "injection", "页面里藏着叫 AI 做事的文字(当数据,不执行;也是 Google 政策里的隐藏文字),"
-                  "原文:「%s」" % t))
+                  "原文:「%s」" % hidden_text))
     plugins = plugin_elements(p.embeds)
     if plugins:
         F.append(("WARN", "rendering", f"页面用了插件 {len(plugins)} 处: {', '.join(plugins[:3])}"
                   "——搜索引擎多半索引不到插件内容,移动设备不支持(Lighthouse plugins 口径)"))
     if not p.lang: F.append(("WARN", "a11y", "html 无 lang"))
+    # Lighthouse viewport 审计口径:要有 <meta name="viewport"> 且写了 width 或 initial-scale(第二轮 ifanr、
+    # 第三轮 publickey1.jp 的首页只靠 JS 插 viewport,head_check 报了、本脚本漏了)
+    vp = p.meta_props.get("viewport")
+    if vp is None:
+        F.append(("WARN", "viewport", "原始 HTML 没有 <meta name=\"viewport\">(JS 插入的不算;手机上按桌面宽度缩放)"))
+    elif not re.search(r"width|initial-scale", vp, re.I):
+        F.append(("WARN", "viewport", "viewport 没写 width 或 initial-scale: %r" % vp[:60]))
     body = re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html, flags=re.S | re.I)
     text = re.sub(r"<[^>]+>", " ", body)
     W, W_approx = wc_info(text)

@@ -260,12 +260,32 @@ def ln(tag):
     return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
 
 
+def parse_text_sitemap(blob):
+    """文本 sitemap:一行一个完整 URL(sitemaps.org「Text file」一节;Google 也收 .txt sitemap)。
+    11-05 第三轮留出站 oschina:robots 声明的 sitemap.txt 被当成坏 XML。
+    以 < 开头的(坏 XML)不算;非空行过半是 http(s) URL 才认,返回 URL 列表,否则 None。"""
+    try:
+        text = blob.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+    if text.lstrip().startswith("<"):
+        return None
+    lines = [x.strip() for x in text.splitlines() if x.strip()]
+    urls = [x for x in lines if re.match(r"^https?://\S+$", x, re.I)]
+    if not urls or len(urls) * 2 < len(lines):
+        return None
+    return urls
+
+
 def parse_sitemap_bytes(blob):
     """解析 sitemap 字节流 -> (kind, [{loc,lastmod}], [child_sitemap_url])."""
     try:
         root = ET.fromstring(blob)
     except ET.ParseError as e:
-        raise ValueError("XML 解析失败: {0}".format(e))
+        urls = parse_text_sitemap(blob)
+        if urls is None:
+            raise ValueError("XML 解析失败: {0}".format(e))
+        return "urlset", [{"loc": u, "lastmod": "", "src": "text", "alts": []} for u in urls], []
     kind = ln(root.tag)
     if kind not in ("urlset", "sitemapindex"):
         return "unknown", [], []
@@ -341,7 +361,7 @@ def fetch_sitemap(url, timeout, max_hops=5):
         hops.append((status, nxt))
         cur = nxt
     if status != 200:
-        raise IOError("HTTP {0}".format(status))
+        raise SitemapHTTPError(status)
     try:
         ctype = headers.get("Content-Type") or "" if headers else ""
     except Exception:
@@ -355,6 +375,15 @@ def fetch_sitemap(url, timeout, max_hops=5):
     if hops:
         _REDIRECT_NOTES.append("{0} 经 {1} 次重定向到 {2}".format(url, len(hops), cur))
     return kind, urls, children, len(body)
+
+
+class SitemapHTTPError(IOError):
+    """sitemap 文件本身回非 200。404/410 是站点问题(Search Console 记 Couldn't fetch),计入坏桶;
+    403/429/5xx 可能是限流或临时故障,只记过程备注。"""
+
+    def __init__(self, status):
+        self.status = status
+        super().__init__("HTTP {0}".format(status))
 
 
 _REDIRECT_NOTES = []   # fetch_sitemap 记下的 sitemap 自身重定向(main 收进过程备注)
@@ -483,63 +512,88 @@ def main(argv=None):
         except NotSitemap as e:
             sitemap_bad.append(e.describe())
             kind, urls, children, nbytes = "html", [], [], e.nbytes
+        except SitemapHTTPError as e:
+            if not (declared and e.status in (404, 410)):
+                print("[FATAL] 无法获取/解析 {0}: {1}".format(sitemap_url, e), file=sys.stderr)
+                return 2
+            # robots 声明的唯一 sitemap 打不开:是站点问题,记坏桶并退回 /sitemap.xml
+            kind, urls, children, nbytes = "dead", [], [], 0
+            dead_root = "{0} 返回 HTTP {1}".format(sitemap_url, e.status)
         except Exception as e:
             print("[FATAL] 无法获取/解析 {0}: {1}".format(sitemap_url, e), file=sys.stderr)
             return 2
     total_bytes += nbytes
     if nbytes > FIFTY_MB:
         oversize_files += 1
-    if kind == "urlset":
-        entries.extend(urls)
-        if len(urls) > FIFTY_K:
+    sitemap_dead = []         # sitemap 文件回 404/410(Search Console 记 Couldn't fetch),计入坏桶总数
+    if kind == "dead":
+        sitemap_dead.append(dead_root)
+
+    def take(url):
+        """抓一个子 sitemap;成功返回 (kind, urls, children),失败记账后返回 None。"""
+        nonlocal total_bytes, oversize_files
+        try:
+            k, u, c, n = fetch_sitemap(url, args.timeout)
+        except NotSitemap as e:
+            sitemap_bad.append(e.describe())
+            return None
+        except SitemapHTTPError as e:
+            if e.status in (404, 410):
+                sitemap_dead.append("{0} 返回 HTTP {1}".format(url, e.status))
+            else:
+                notes.append("子 sitemap 获取失败: {0}: {1}".format(url, e))
+            return None
+        except Exception as e:
+            notes.append("子 sitemap 获取失败: {0}: {1}".format(url, e))
+            return None
+        total_bytes += n
+        if n > FIFTY_MB:
+            oversize_files += 1
+        return k, u, c
+
+    def add_urlset(u):
+        nonlocal over50k_files
+        entries.extend(u)
+        if len(u) > FIFTY_K:                    # 上限按单个文件算,index 汇总数超 5 万是正常拆分
             over50k_files += 1
-    elif kind == "sitemapindex":
+
+    def expand_index(children, label, nested):
+        """展开一个 index 的子表;nested=True 时子表里的 index 再展开一层(入口是 robots 多条声明的虚拟 index)。"""
         picked = sample_children(children, args.max_child)
         if len(children) > args.max_child:
-            notes.append("sitemapindex 含 {0} 个子 sitemap, 超过 --max-child={1}, 按位置均匀抽 {2} 个(含首尾;"
-                         "lastmod 与 Freshness 只代表样本)".format(len(children), args.max_child, len(picked)))
+            notes.append("{0}含 {1} 个子 sitemap, 超过 --max-child={2}, 按位置均匀抽 {3} 个(含首尾;"
+                         "lastmod 与 Freshness 只代表样本)".format(label, len(children), args.max_child, len(picked)))
         for child in picked:
-            try:
-                k2, u2, c2, n2 = fetch_sitemap(child, args.timeout)
-            except NotSitemap as e:
-                sitemap_bad.append(e.describe())
+            got = take(child)
+            if not got:
                 continue
-            except Exception as e:
-                notes.append("子 sitemap 获取失败: {0}: {1}".format(child, e))
-                continue
-            total_bytes += n2
-            if n2 > FIFTY_MB:
-                oversize_files += 1
+            k2, u2, c2 = got
             if k2 == "urlset":
-                entries.extend(u2)
-                if len(u2) > FIFTY_K:                   # 上限按单个文件算,index 汇总数超 5 万是正常拆分
-                    over50k_files += 1
-            elif k2 == "sitemapindex" and len(declared) > 1:
+                add_urlset(u2)
+            elif k2 == "sitemapindex" and nested:
                 # 入口是 robots.txt 的多条声明(虚拟 index):声明里的 index 是真正的第一层,照常展开
                 # (2026-10-24 spiegel.de:robots 声明的 sitemap.xml 是 23,707 个子表的 index)
-                picked2 = sample_children(c2, args.max_child)
-                if len(c2) > args.max_child:
-                    notes.append("{0} 含 {1} 个子 sitemap, 按位置均匀抽 {2} 个(含首尾)".format(
-                        child, len(c2), len(picked2)))
-                for g in picked2:
-                    try:
-                        k3, u3, _c3, n3 = fetch_sitemap(g, args.timeout)
-                    except NotSitemap as e:
-                        sitemap_bad.append(e.describe())
-                        continue
-                    except Exception as e:
-                        notes.append("子 sitemap 获取失败: {0}: {1}".format(g, e))
-                        continue
-                    total_bytes += n3
-                    if n3 > FIFTY_MB:
-                        oversize_files += 1
-                    if k3 == "urlset":
-                        entries.extend(u3)
-                        if len(u3) > FIFTY_K:
-                            over50k_files += 1
+                expand_index(c2, child + " ", False)
             elif k2 == "sitemapindex":
                 notes.append("嵌套 sitemapindex 超过 1 层, 未继续下钻: {0} ({1} 个子)".format(child, len(c2)))
-    elif kind != "html":
+
+    if kind == "urlset":
+        add_urlset(urls)
+    elif kind == "sitemapindex":
+        expand_index(children, "sitemapindex ", len(declared) > 1)
+    fallback = origin + "/sitemap.xml"
+    if declared and not entries and fallback not in declared:
+        # 11-05 第三轮留出站 oschina:robots 声明 1,134 条几乎全 404,检查了 0 条却判 PASS;
+        # 站点另有能打开的 /sitemap.xml。声明的全取不到条目时退回它,坏的声明照样计入坏桶。
+        notes.append("robots.txt 声明的 sitemap 没取到任何条目, 退回检查 {0}".format(fallback))
+        got = take(fallback)
+        if got:
+            k0, u0, c0 = got
+            if k0 == "urlset":
+                add_urlset(u0)
+            elif k0 == "sitemapindex":
+                expand_index(c0, fallback + " ", False)
+    if kind not in ("urlset", "sitemapindex", "html", "dead"):
         print("[FATAL] 根元素不是 urlset/sitemapindex: {0}".format(sitemap_url), file=sys.stderr)
         return 2
     notes.extend(_REDIRECT_NOTES)
@@ -700,13 +754,19 @@ def main(argv=None):
         how += ";默认 ≤{0} 条全查、超过抽 {0} 条,--check-limit 可调".format(DEFAULT_CHECK_CAP)
     else:
         how += ";" + rule
-    if total or not sitemap_bad:
+    if total or not (sitemap_bad or sitemap_dead):
         print("\n[范围] 逐条检查 {0}/{1} 个 loc({2});实际抓到 {3} 个,robots 屏蔽 {4} 个"
               "(参数重复与 lastmod 统计按全部 {1} 个)".format(len(to_check), total, how, checked, len(b_robots)))
     if sitemap_bad:
         print("\n[sitemap 文件不是 sitemap(软 404)] 命中 {0}".format(len(sitemap_bad)))
         for line in sitemap_bad[:10]:
             print("   - {0}".format(line))
+    if sitemap_dead:
+        print("\n[sitemap 文件打不开(404/410)] 命中 {0}".format(len(sitemap_dead)))
+        for line in sitemap_dead[:10]:
+            print("   - {0}".format(line))
+        if len(sitemap_dead) > 10:
+            print("   ... 共 {0} 条, 仅示前 10".format(len(sitemap_dead)))
 
     print("\n---- 六坏桶 ----")
     print_bucket(1, "非 200 / 抓取失败", b_non200)
@@ -781,7 +841,7 @@ def main(argv=None):
             print("   ... 共 {0} 条".format(len(notes)))
 
     bad_total = sum(len(x) for x in (b_non200, b_redir, b_noindex, b_canonical, b_robots, b_dup,
-                                     sitemap_bad))
+                                     sitemap_bad, sitemap_dead))
     fail = bool(bad_total or missing or hl_hard)
     print("\n==== 结论: 坏桶命中 {0} 条, must-include 缺失 {1} 个{2} => {3} ====".format(
         bad_total, len(missing),

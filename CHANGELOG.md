@@ -5,11 +5,17 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+(暂无)
+
+## 0.40.1 - 2026-11-05
+
+- **第三轮留出站(例 6;oschina.net、fly.io、publickey1.jp,独立核验子代理逐条对原始响应)**:按实例精度 96.3%(103 真 / 4 假),过了 95% 的线;同站同规则只算一次是 91.4%,没过。4 条误报 3 个原因全修:`schema_lint` 把只有 `@id` 的引用节点当成另一种类型,报「同 @id 多 @type」;`site_audit` 把 `aria-hidden` 当隐藏(它只对读屏软件隐藏,标签页、轮播常用),把 fly.io 功能标签页的产品文案报成隐藏的 AI 指令,顺带修了这时页面标题被注入原文覆盖的显示错误;`site_crawl` 和 `sitemap_audit` 认一行一个 URL 的文本 sitemap。另修一个漏报:oschina 的 robots.txt 声明 1,134 个 sitemap 几乎全 404,`sitemap_audit` 检查 0 条仍判 PASS;现在 404/410 的 sitemap 单列「打不开」并判 FAIL,声明的全取不到条目时退回 `/sitemap.xml`(`site_crawl` 同样退回)。耗时:`site_crawl` 的 robots 声明和 index 子表同用 100 个上限(oschina 原来 75 分钟),`hreflang_cluster` 扫 sitemap 子表限 60 秒、要审的页都找到就停(原来 18 分钟)。`site_audit` 补 viewport 检查(原始 HTML 没有或没写 width,Lighthouse 口径;只在命中时计入健康分,冻结口径不变);`robots_posture` 已有 Content-Signal 行时不再重复建议。回归测试 `tests/test_holdout_20261105.py` 新增 12 条,修前 9 条红。
 - **不把站点限流当站点问题(例 6 第二轮留出站;ifanr.com、ghost.org 0 误报,qiita.com 93 条误报全是这一个原因)**:`sitemap_audit` 逐条检查原来不留间隔连抓 500 条,把 qiita 打到限流;现在默认间隔 0.5 秒(`--delay`),429、或先 200 后 403/503 时退避 10 秒重试一次,仍然如此的单列「未判定:疑似被站点限流」,连续 5 条就停。`site_crawl` 同样退避重试(认 Retry-After),仍像限流的页记 `rate_limited_pages`、不算错误页;页面一次 200 都没给过的 403 照旧算错误。回归测试修前 3/3 红。
 - **留出站误报 8 类(例 6;ruanyifeng.com、buttondown.com、zenn.dev,独立核验子代理逐条对原始响应:精度 65.6%,没过 95%)**:`site_crawl` 不再去掉 URL 尾斜杠(链接带斜杠的站每页先吃一次 301,「重定向目标没有直接内链」和「HTTPS→HTTP」误报);`sitemap_audit` 中日文网址先按 UTF-8 编码再请求、认带毫秒的 lastmod、5 万条上限按单个文件算(index 汇总超 5 万是正常拆分)、只差语言参数(?locale=en)的不算参数重复;`site_audit` 先读 robots.txt 声明的 sitemap、服务端内容只看纯文本量(不要求 main/article/section)、只有 Cloudflare JS Detections 脚本的中文短页不再判成拦截页;`head_check` twitter:* 和 og:* 值相同才算重复。回归测试 `tests/test_holdout_20261105.py` 修前 8/8 红。
 - **独立评分发现的**:`site_crawl --check-external` 外链 4xx 原来直接丢掉,现在单列「外链 4xx」;`redirect_chain` 跳到 404 原来打印「无问题」,现在报 CRITICAL;人读版能力矩阵补上 ga4_api、guard_hook、ops、source_map(129 条 = 91 脚本 + 25 模板 + 13 主干)。
 - **事实重抽 30 条(种子 20261105-2,独立子代理逐条开原文)**:错 0;三条转述偏强或页码不准的已改:`ecommerce-geo-ladder.md`(Merchant Center 要求的是商品数据和店铺一致)、`markets/ar.md`(国家表在 PDF 第 17–18 页)、`scoring-rubric.md`(有用内容自评问题里没有「注明更新日期」,改为提醒不要为显得新而改日期)。
 - **两个运营单同时跑不再崩(例 8 并发)**:`ops weekly / monthly` 按工作区加锁(`seo-ops/.ops.lock`,已在 .gitignore),后来的进程等前一个跑完;临时文件名带进程号。修前两个进程同时跑,一个报 `FileNotFoundError`(共用 `light.json.tmp`);回归测试 `tests/test_ops_concurrency.py` 修前 3/3 红、修后绿。
+  Third-round holdout fixes (id-only JSON-LD references, aria-hidden tab panels, text sitemaps, dead declared sitemaps now fail and fall back to /sitemap.xml, bounded sitemap scans, viewport check); weekly ops runs lock their workspace; second-round rate-limit handling; first-round holdout fixes; 30-claim fact resample with three wording fixes.
 
 ## 0.40.0 - 2026-11-05
 

@@ -80,6 +80,7 @@ MAPPING = {
     "sitemap":         ("discoverability", "sitemaps", "INFO", "/sitemap.xml 不可达"),
     "llms.txt":        ("discoverability", "sitemaps", "INFO", "/llms.txt 不可达(AI 发现层,归站点发现文件组)"),
     "a11y":            ("discoverability", "internationalization", "WARN", "html 无 lang(i18n 基础标记)"),
+    "viewport":        ("rankability", "page_content", "WARN", "viewport meta 缺失/没写 width(移动端适配,Lighthouse viewport 审计)"),
     # S3 扩展(2026-10-10 site_audit 新增检查,均归 page_content——内容对爬虫/AI 的
     # 可解析性与可引用性;Lumar 无对应官方子组,此归组为我们的裁量)
     "rendering":       ("rankability", "page_content", "WARN", "CSR 疑似/JS 重量/noscript 缺失/服务端内容弱"),
@@ -89,6 +90,8 @@ MAPPING = {
     # 派生规则(非 site_audit area):批内 meta.title 相同的 URL≥2 → 各记一次命中
     "duplicate_title": ("uniqueness", "duplicate_title", "WARN", "批内 title 重复(≥2 URL 同 title)"),
 }
+
+HIT_ONLY = ("injection", "viewport")   # injection 0.40.0、viewport 0.40.1 新增
 
 USAGE = """usage: health_score.py --input audit.json [--ignore r1,r2] [--severity rule=sev]
                        [--config rules.json] [--json]
@@ -221,7 +224,7 @@ def compute(audit, ignored, sev_overrides):
             continue
         if rule == "duplicate_title" and not has_title_data:
             continue
-        if rule == "injection" and not hits.get(rule):   # 0.40 新增:只在命中时计入,没命中不改既有类权重(冻结口径)
+        if rule in HIT_ONLY and not hits.get(rule):      # 0.40 后新增的规则:只在命中时计入,没命中不改既有类权重(冻结口径)
             continue
         active.append(rule)
 

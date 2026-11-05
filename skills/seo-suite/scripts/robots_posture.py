@@ -313,6 +313,8 @@ def analyze(txt, mode="visibility"):
         "visibility_failures": [b["token"] for b in bots
                                 if b["tier"] in ("search", "user") and b["state"] in ("blocked", "partial")],
         "content_signal": SIGNALS.get(mode, SIGNALS["visibility"]),
+        # 现有的 Content-Signal 行(11-05 第三轮留出站 fly.io:已有同一行,脚本还建议加)
+        "content_signal_present": [m.strip() for m in re.findall(r"(?im)^\s*content-signal\s*:\s*(.+)$", txt)],
     }
 
 # ---------------------------------------------------------------------------
@@ -377,7 +379,7 @@ def render(report):
     # 专属规则只是本套件的加分项:RFC 9309 下 `*` 组对所有爬虫同样生效,没有外部依据说必须点名,
     # 所以未点名只给提示(ℹ),不报警告(2026-11-05 三站实战判为误报后改)
     out.append(f"citation_bots_explicit: {'✅' if c['explicit'] else 'ℹ'} {c['explicit_count']}/5 专属规则"
-               + ("(满分)" if c["explicit"] else "(可选:`*` 组已对这些 bot 生效,点名只是便于单独调整)"))
+               + ("(满分)" if c["explicit"] else "(可选:没点名的 bot 按 `*` 组或默认全放行处理,点名只是便于单独调整)"))
     if report["visibility_failures"]:
         out.append(f"可见性失败: {', '.join(report['visibility_failures'])}(封 search/user 才是可见性失败;"
                    f"封 training 只是授权决策,不扣分)")
@@ -387,7 +389,14 @@ def render(report):
     sm = report["sitemaps"]
     out.append("Sitemap 行: " + (f"有({len(sm)} 条)" if sm else "❌ 缺"))
     out.append("Crawl-delay(* 组): " + (str(report["crawl_delay"]) if report["crawl_delay"] is not None else "无"))
-    out.append(f"\n建议 Content-Signal(业务决策,Googlebot 不遵守、非排名因素):\n  Content-Signal: {report['content_signal']}")
+    present = report.get("content_signal_present") or []
+    if report["content_signal"] in present:
+        out.append(f"\nContent-Signal: 已有「{report['content_signal']}」,和建议一致")
+    elif present:
+        out.append(f"\nContent-Signal: 现有「{'」「'.join(present)}」;按当前取向建议改成(业务决策,Googlebot 不遵守、"
+                   f"非排名因素):\n  Content-Signal: {report['content_signal']}")
+    else:
+        out.append(f"\n建议 Content-Signal(业务决策,Googlebot 不遵守、非排名因素):\n  Content-Signal: {report['content_signal']}")
     return "\n".join(out)
 
 USAGE = """usage: robots_posture.py URL [--signal visibility|protect-ip] [--json] [--fix-robots]

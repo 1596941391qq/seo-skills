@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -210,8 +211,15 @@ def parse_urlset_hrefs(root):
     return out
 
 
-def scan_sitemap(origin, timeout):
-    """抓 origin/sitemap.xml (index 递归 1 层), 提取 hreflang; 返回 (map, note)."""
+SITEMAP_SCAN_BUDGET_S = 60.0   # 子表扫描总时长上限;11-05 第三轮留出站 oschina:50 个 4MB 子表扫了 18 分钟
+
+
+def scan_sitemap(origin, timeout, wanted=None, budget_s=None):
+    """抓 origin/sitemap.xml (index 递归 1 层), 提取 hreflang; 返回 (map, note)。
+    wanted:要审的页面(归一后);它们都在已扫的子表里找到了就提前停。子表扫描超过 budget_s 秒也停,note 写明扫了几个。"""
+    budget_s = SITEMAP_SCAN_BUDGET_S if budget_s is None else budget_s
+    wanted = set(wanted or ())
+    t0 = time.monotonic()
     result = {}
     try:
         status, headers, _final, body = fetch(origin + "/sitemap.xml", timeout=timeout, max_bytes=20_000_000)
@@ -230,7 +238,15 @@ def scan_sitemap(origin, timeout):
                     for c in node:
                         if ln(c.tag) == "loc" and c.text:
                             kids.append(c.text.strip())
+            scanned, stop = 0, ""
             for k in kids[:50]:
+                if wanted and wanted <= set(result):
+                    stop = "要审的页面都已找到"
+                    break
+                if time.monotonic() - t0 > budget_s:
+                    stop = "超过 {0:.0f} 秒预算".format(budget_s)
+                    break
+                scanned += 1
                 try:
                     st2, _h2, _f2, b2 = fetch(k, timeout=timeout, max_bytes=20_000_000)
                     if st2 != 200:
@@ -243,6 +259,9 @@ def scan_sitemap(origin, timeout):
                         result.update(parse_urlset_hrefs(r2))
                 except Exception:
                     continue
+            if stop:
+                return result, "共 {0} 个 loc 含 hreflang 声明(子表扫了 {1}/{2} 个, {3})".format(
+                    len(result), scanned, len(kids), stop)
         else:
             return result, "根元素非 urlset/sitemapindex, 跳过"
         return result, "共 {0} 个 loc 含 hreflang 声明".format(len(result))
@@ -347,7 +366,8 @@ def main(argv=None):
     if not args.no_sitemap:
         probe = order[0] if order else args.urls[0]
         p = urllib.parse.urlsplit(probe if probe.startswith("http") else "https://" + probe)
-        smap, smap_note = scan_sitemap("{0}://{1}".format(p.scheme, p.netloc), timeout)
+        smap, smap_note = scan_sitemap("{0}://{1}".format(p.scheme, p.netloc), timeout,
+                                       wanted=[norm_url(x) for x in entries])
         for page in list(entries.keys()):
             for lang, href in smap.get(norm_url(page), []):
                 record(page, lang, href, "sitemap")

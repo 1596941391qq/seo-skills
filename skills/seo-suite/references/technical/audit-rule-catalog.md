@@ -126,6 +126,8 @@ jq/grep 片段(`crawl.json` 来自 `CRAWL`;已用样例数据实测):
 | `og-title-missing` / `og-description-missing` / `og-image-missing` | WARN | social 类 | ogp.me |
 | `og-image-not-absolute` / `og-url-not-absolute` | WARN | social-og-url-canonical | [ogp.me](https://ogp.me/) Types 表:URL 须 http(s):// |
 | `a11y-no-lang` | WARN | i18n-lang-attribute、a11y 类 | HTML 标准 lang |
+| `viewport-missing` | WARN | Mobile viewport 配置、Core SEO viewport | Lighthouse viewport 审计(原始 HTML 要有 `<meta name="viewport">`) |
+| `viewport-no-width` | WARN | Mobile viewport 配置 | Lighthouse viewport 审计(要写 width 或 initial-scale) |
 | `content-thin` / `content-too-long` | WARN | content-word-count(源表阈值 300/100 只在文档;脚本用 <200)/ AI-GEO 存目 | 本套件口径 |
 | `links-too-many` | INFO | links 类 | 工具约定,Google 无上限 |
 | `images-alt-missing` | WARN | images-alt-present | W3C WAI Decorative Images(`alt=""` 不算缺失) |
