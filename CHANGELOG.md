@@ -5,6 +5,10 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+(暂无)
+
+## 0.40.0 - 2026-11-05
+
 - **测试站和复验闭环验收(RQ-229 第 3 批)**:`tools/testsites/` 加纯静态和 Next.js App Router 两个测试站,各埋 10 个已知问题;`run_example3.py` 跑三轮运营单(干净 0 个 / 埋 10 个 / 修 4 坏 1 新 2),两站五态逐条对上(例 3 通过)。测出并修了 `project.py` 站点地址规范化会丢端口和 `www.` 的 bug(回归测试修前红、修后绿)。
 - **运营单精度**:同页同类问题换了说法(标题过长 → 缺失)算「变差」不算「一解决一新增」;同一天重跑不翻倍;深审跳过轻检已判非 200 的页、不重复报 noindex;`--allow-local` 才跑本地预览;站点不是 HTTPS 时报硬告警。
 - **装进站点仓库**:`project.py ops install` 写 CLAUDE.md / AGENTS.md 规则段、`.claude/settings.json` 改动前钩子、定时模板,记 skill 版本(新文件 `skills/seo-suite/VERSION`,发版门核对);公开仓给警告。新脚本 `guard_hook.py`:在 main / master 上改 robots、noindex、canonical、重定向就拦下,分支上放行。

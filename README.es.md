@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.39.1-brightgreen" alt="versión 0.39.1">
+  <img src="https://img.shields.io/badge/version-0.40.0-brightgreen" alt="versión 0.40.0">
   <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0">
   <img src="https://img.shields.io/badge/markets-18-brightgreen" alt="18 mercados lingüísticos">
   <img src="https://img.shields.io/badge/dependencies-Python_stdlib_only-brightgreen" alt="Solo la biblioteca estándar de Python">
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/everyinfra/seo-skills/main/install.
 
 > La mantiene [EveryInfra](https://everyinfra.com/es?utm_source=github&utm_medium=readme&utm_campaign=seo-skills&utm_content=maintainer_line). Si una tarea necesita datos en vivo, EveryInfra tiene una [API de búsqueda web](https://everyinfra.com/es/products/search?utm_source=github&utm_medium=readme&utm_campaign=seo-skills&utm_content=search_api) (17 herramientas) y [API de datos para 90 plataformas](https://everyinfra.com/es/market?utm_source=github&utm_medium=readme&utm_campaign=seo-skills&utm_content=data_apis); esta skill no depende de ellas.
 
-EveryInfra SEO Skills va por la versión `0.39.1` y usa la licencia Apache-2.0. Es una sola skill de trabajo para SEO y GEO, `seo-suite`: instrucciones, notas de referencia y plantillas de salida. No llama a ningún modelo, no incluye proveedor, no necesita API key ni dependencias de ejecución. El modelo y su cuota son los de la herramienta de IA que ya usas.
+EveryInfra SEO Skills va por la versión `0.40.0` y usa la licencia Apache-2.0. Es una sola skill de trabajo para SEO y GEO, `seo-suite`: instrucciones, notas de referencia y plantillas de salida. No llama a ningún modelo, no incluye proveedor, no necesita API key ni dependencias de ejecución. El modelo y su cuota son los de la herramienta de IA que ya usas.
 
 **Lo que la distingue: SEO y GEO global en un solo flujo.** Un equipo que vende en todo el mundo no quiere una docena de herramientas de un solo mercado. Esta suite reúne **18 mercados lingüísticos** en un mismo espacio de trabajo y puntúa cada uno por separado: chino, inglés, ruso (Yandex/Alice), coreano (<img src="assets/icons/naver.svg" width="16" height="16" alt=""> Naver/AI Briefing), japonés (Yahoo! JAPAN + Bing + AI Overviews), español (las divisiones de es-419 en Latinoamérica), portugués (Brasil, el mercado más fuerte de <img src="assets/icons/codex.svg" width="16" height="16" alt=""> ChatGPT), árabe (RTL y MSA frente a dialectos), francés (Ley 96), alemán (Sie/du en DACH), indonesio (baku frente a gaul), hindi (la realidad de Hinglish en tres escrituras), italiano (it-CH como locale propio), turco (un segundo mercado de Yandex, ~26 %), vietnamita (variantes con y sin diacríticos + Cốc Cốc), tailandés (segmentación de una escritura sin espacios), polaco (normalización de diacríticos) y neerlandés (nl-BE flamenco). Lo global no es un módulo aparte: está **dentro de cada conjunto de capacidades**, con [multilingual-workflow.md](skills/seo-suite/references/overview/multilingual-workflow.md) como columna vertebral.
 

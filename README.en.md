@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.39.1-brightgreen" alt="version 0.39.1">
+  <img src="https://img.shields.io/badge/version-0.40.0-brightgreen" alt="version 0.40.0">
   <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0">
   <img src="https://img.shields.io/badge/markets-18-brightgreen" alt="18 language markets">
   <img src="https://img.shields.io/badge/dependencies-Python_stdlib_only-brightgreen" alt="Python standard library only">
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/everyinfra/seo-skills/main/install.
 
 > Maintained by [EveryInfra](https://everyinfra.com/en). When a task needs live data, EveryInfra offers a [web search API](https://everyinfra.com/en/products/search) (17 tools) and [data APIs for 90 platforms](https://everyinfra.com/en/market); this Skill does not depend on them.
 
-EveryInfra SEO Skills is version `0.39.1`, licensed under Apache-2.0. One SEO / GEO workbench Skill: `seo-suite` — instructions, reference notes and output templates. No model calls, no bundled provider, no API key, no runtime dependency. The model and its quota are whatever AI tool you already use.
+EveryInfra SEO Skills is version `0.40.0`, licensed under Apache-2.0. One SEO / GEO workbench Skill: `seo-suite` — instructions, reference notes and output templates. No model calls, no bundled provider, no API key, no runtime dependency. The model and its quota are whatever AI tool you already use.
 
 **The differentiator: global SEO/GEO in one pass.** Teams shipping worldwide don't want a dozen single-market tools. This suite puts **18 language markets** in one workbench, scored market-by-market: Chinese, English, Russian (Yandex/Alice), Korean (<img src="assets/icons/naver.svg" width="16" height="16" alt=""> Naver/AI Briefing), Japanese (Yahoo! Japan + Bing + AI Overviews), Spanish (es-419 LatAm splits), Portuguese (Brazil = <img src="assets/icons/codex.svg" width="16" height="16" alt=""> ChatGPT's strongest market), Arabic (RTL + MSA vs dialects), French (Bill 96), German (DACH Sie/du), Indonesian (baku vs gaul), Hindi (Hinglish three-script reality), Italian (it-CH as its own locale), Turkish (a second Yandex market, ~26%), Vietnamese (diacritic variants + Coc Cốc), Thai (spaceless script segmentation), Polish (diacritic canonicalization), Dutch (Flemish nl-BE). Global capability is **woven into every capability set**, not a separate module — the spine is `overview/multilingual-workflow.md`.
 
@@ -45,7 +45,7 @@ EveryInfra SEO Skills is version `0.39.1`, licensed under Apache-2.0. One SEO / 
 
 ## How it got here (0.5 → 0.34)
 
-One arc, compressed: the 0.5 series introduced the **market × capability dual-dimension architecture** — every task picks its market first, then routes by capability — with per-market deep-dives for all 18 markets and 23 cross-region fusion principles; 0.9 re-mined the 17 non-English markets in their own languages (a local community & information-source index, fusion principles grown to 27); 0.16–0.23 turned rules into code — stdlib-only scripts, the `markets.json` 18-market rule layer with dynamic `market_lint.py` checks, golden tests, the specialist modules and the 18 market portals; 0.24–0.30 added the monitoring daemon and the self-update loop; since 0.31 the executable layer has grown to **90 scripts and 1,785 tests** (self_check runs them all on every pass), plus the CI gates and the `project.py` orchestrator. Full history: [CHANGELOG.md](CHANGELOG.md).
+One arc, compressed: the 0.5 series introduced the **market × capability dual-dimension architecture** — every task picks its market first, then routes by capability — with per-market deep-dives for all 18 markets and 23 cross-region fusion principles; 0.9 re-mined the 17 non-English markets in their own languages (a local community & information-source index, fusion principles grown to 27); 0.16–0.23 turned rules into code — stdlib-only scripts, the `markets.json` 18-market rule layer with dynamic `market_lint.py` checks, golden tests, the specialist modules and the 18 market portals; 0.24–0.30 added the monitoring daemon and the self-update loop; since 0.31 the executable layer has grown to **91 scripts and 1,841 tests** (self_check runs them all on every pass), plus the CI gates and the `project.py` orchestrator. Full history: [CHANGELOG.md](CHANGELOG.md).
 
 ## Why now
 
@@ -86,7 +86,7 @@ A single entry point: unified intake (site, market, goals, known issues, availab
 | technical | Technical SEO and single-page audits, robots.txt and AI-crawler policy (incl. regional crawlers, MistralAI, Bytespider), hreflang internationalization, structured data (incl. rich-result status), internal linking and site architecture, entity signals, programmatic SEO, Core Web Vitals, JS rendering and SPA SEO (five-engine rendering differences), Agent-Readiness protocol layer (ARD / WebMCP), server-log analysis (AI-visit measurement, a11y triage), attribution instrumentation |
 | monitoring | Rank tracking, backlinks (incl. per-market local directories and Google's link-spam policy boundary; link-price tables removed in Oct 2026), brand mentions (four-tier citation ladder + per-market monitoring channels), algorithm-update attribution (official timelines and data files), SEO drift monitoring, metrics and reporting |
 | **Specialist modules** | Domain strategy (selection, expired-domain due diligence, migration checklist, AI-citation inheritance), site-network spectrum and white-hat equivalents, 9-stage programmatic-SEO playbook, site-type playbooks (SaaS / ecommerce / media / local / docs / tools / marketplace / YMYL), CWV four metrics, mobile SEO, penalty recovery, redirects and canonicalization, UGC and site search |
-| **Executable layer** | 90 stdlib scripts + the `markets.json` 18-market data layer + 1,785 tests (Nov 2026) — the AI runs the scripts to get facts first, then interprets them per the capability files |
+| **Executable layer** | 91 stdlib scripts + the `markets.json` 18-market data layer + 1,841 tests (Nov 2026) — the AI runs the scripts to get facts first, then interprets them per the capability files |
 
 Global capability is **woven into every capability set**, not a separate module: [multilingual-workflow.md](skills/seo-suite/references/overview/multilingual-workflow.md) is the spine (market table, per-market tool stacks, language conventions, compliance), and each capability file carries the regional knowledge relevant to it.
 
@@ -150,7 +150,7 @@ seo-skills/
 └── skills/seo-suite/
     ├── SKILL.md               Entry point: intake, routing table (script map: references/overview/script-catalog.md)
     ├── scripts/               85 stdlib scripts + markets.json (18-market rule layer)
-    ├── tests/                 1,787 tests (self_check runs all)
+    ├── tests/                 1,841 tests (self_check runs all)
     ├── examples/              Golden-sample outputs
     ├── references/
     │   ├── overview/          Capability map, routing, intake, multilingual spine
