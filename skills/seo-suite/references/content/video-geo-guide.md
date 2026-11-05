@@ -1,6 +1,6 @@
 # 视频 SEO/GEO(被 AI 引用的视频层)
 
-> 建立于 2026-10-09;2026-10-21 逐条重新核对:Google、YouTube、Gemini API、Spotify 官方文档逐句读过;第三方研究标注来源、样本和时间。YouTube 站内算法、变现和各平台排序的数字没有一手来源,已删除(见文末)。「本套件口径」是做法约定,不是平台规则。
+> 建立于 2026-10-09;2026-10-21 逐条重新核对(2026-11-05 补 VideoObject `creator` 和 Search Console 平台属性,复核于 2026-11-05):Google、YouTube、Gemini API、Spotify 官方文档逐句读过;第三方研究标注来源、样本和时间。YouTube 站内算法、变现和各平台排序的数字没有一手来源,已删除(见文末)。「本套件口径」是做法约定,不是平台规则。
 
 ## 一、AI 怎么用视频
 
@@ -27,6 +27,7 @@
 - **缩略图**:至少 60×30 像素,越大越好。CDN 的过期 URL 会让视频无法索引。
 - **文件类型**:Google 能处理 3GP、3G2、ASF、AVI、DivX、M2V、M3U、M3U8、M4V、MKV、MOV、MP4、MPEG、OGV、QVT、RAM、RM、VOB、WebM、WMV、XAP;不支持 data URL。要进入 key moments、视频预览,视频文件也要有稳定 URL。
 - **元数据**:Google 支持结构化数据、视频 sitemap 和 Open Graph。为每个视频建独立 watch page(只有一个视频是页面主旨)。
+- **创作者 `creator`(2026-09-24 加入文档)**:VideoObject 的推荐属性,值是 `Person` 或 `Organization`(也认 `author`);写了 `creator` 就要有 `name` 或 `alternateName`,`url` 指向能唯一识别创作者的页面(个人主页或机构首页)。同次更新列出 `interactionStatistic` 支持的四种 `interactionType`:`WatchAction`(观看数)、`LikeAction`(点赞)、`CommentAction`(评论数)、`ShareAction`(转发)([VideoObject 文档](https://developers.google.com/search/docs/appearance/structured-data/video)、[更新记录](https://developers.google.com/search/updates) 2026-09-24,核对 2026-11-05)。本套件口径:`creator.url` 指向站内作者页,和 Article 的作者实体用同一个 `@id`。
 - **Key moments 两种做法**:`Clip` 结构化数据(精确起止时间和标签,所有 Google 搜索支持的语言);`SeekToAction`(告诉 Google 时间戳在 URL 里怎么写,仅限英、西、葡、意、中、法、日、德、土、韩、荷、俄语);YouTube 托管的视频,在 YouTube 描述里写时间戳。你设定的 key moments 优先于 Google 自动识别的。
 - **视频 sitemap**:sitemap 里引用的所有 URL 必须允许 Googlebot 抓取(不被 robots.txt 禁止、不需要登录、不被防火墙拦);不要列与宿主页内容无关的视频;`<video:content_loc>` 等价于 `VideoObject.contentUrl`,`<video:player_loc>` 用于 YouTube、Vimeo 等 iframe 嵌入,对应 `embedUrl`(官方 sitemap 文档标明等价关系);官方推荐优先提供 `content_loc`;单个 sitemap 文件受通用 [sitemap 上限](../overview/facts.md#sitemap-limits)约束。同一信息写在 sitemap 里或结构化数据里都行,不会因为写两份而叠加权重(本套件口径)。
 - **地域限制**:用 `<video:restriction>`(sitemap)或 `regionsAllowed`(结构化数据)。没有国家限制的视频不要写,误写会让视频在其他地区消失。
@@ -57,6 +58,12 @@ curl -s https://example.com/video-sitemap.xml | grep -c 'video:restriction'
 6. **多语言音轨**:YouTube 的 Multi-language audio 让一个视频(含 Shorts)带多条音轨,长视频还可上传各语言缩略图;官方帮助页说,视频有翻译后的标题和描述后,搜索系统会按这些翻译文本匹配用户语言;该功能面向有「Advanced features」权限的创作者([YouTube 帮助](https://support.google.com/youtube/answer/13338784))。单频道多音轨与分语言频道哪个更好,没有官方结论。
 7. **hreflang**:Google 的视频文档里没有视频专用的 hreflang 说明(本组读到的版本),视频集合页沿用页面级 hreflang。YouTube 托管的视频无法加 hreflang;自建 watch page 每种语言一个 URL 并各自带本地化的 VideoObject(本套件口径)。
 8. 监测:用 `citation_panel.py record`(口径见 [kpi-definitions.md](../monitoring/kpi-definitions.md))对目标问题定期采样,看自己的视频是否被 AI 面引用;引用不等于播放。
+
+**Search Console 平台属性(社媒与视频账号在 Google 上的表现)**:2026-07-07 公布,2026-07-29 全球开放,同日发布分析指南([公布博文](https://developers.google.com/search/blog/2026/07/search-console-social-video-platforms)、[全球开放博文](https://developers.google.com/search/blog/2026/07/platform-properties-social-video-guide)、[帮助页](https://support.google.com/webmasters/answer/17148418)、[分析指南](https://developers.google.com/search/docs/monitor-debug/analyze-social-video-content),核对 2026-11-05)。
+- 支持 Instagram、TikTok、X、YouTube 四个平台,每个账号或频道单独加一个属性,按平台提示授权验证;已认领 Google 搜索资料(Search profile)的,已验证账号会自动出现在 Search Console。验证后要几天才有数据;登录授权过期会暂停访问,重新验证后历史数据还在。
+- 报告:效果报告(点击、展示、CTR、平均排名,可按帖子、查询、国家、设备筛,覆盖 Google 搜索、Discover、Google 新闻,后两者有流量才出现)、Insights(趋势、热门内容、查询分组)、Achievements(点击里程碑)。只统计 Google 上的表现,不统计平台站内的播放和曝光。
+- 计数口径:Instagram 快拍出现在 Google 搜索里算展示、被点算点击;视频在 Google 结果里被点、即使在 Google 自己的播放器里打开,也算点击。Insights 顶部总数含网页、图片、视频、新闻搜索的点击,下方明细只算网页搜索,所以明细合计会小于总数。
+- 用法(指南):看查询分组(上升、下降)定下一个选题和标签;用 24 小时筛选抓刚起量的帖子,到别的平台跟进;把几个平台的属性导出到同一张表并排比;用页面筛选比较播放列表、Shorts 和长视频;改 YouTube 标题或 TikTok caption 后用 Search Console 注释记一笔,看搜索表现有没有变。指标口径见 [kpi-definitions.md](../monitoring/kpi-definitions.md) 第一节「平台属性」。
 
 **短视频平台(TikTok、Reels、Shorts)**:这三个平台站内搜索的索引规则没有找到一手文档,不给平台专属数字。通用做法(本套件口径):标题或 caption、口播、屏幕文字围绕同一个问题,各层说法一致。
 
@@ -100,6 +107,7 @@ YouTube 站内分发(CTR 基准、留存阈值、Shorts 信号层级、RPM、会
 | 不误用地域限制 | 第二节命令 5 | 全球内容输出 0 为通过 |
 | key moments | 页面有 `Clip` 标记,或 YouTube 描述含时间戳(0:00 起) | 有为通过 |
 | 字幕与全文 | YouTube Studio 字幕栏是人工上传版;watch 页有 transcript 全文 | 有为通过 |
+| 平台属性已接入 | Search Console 属性下拉里有各平台账号 | 每个在运营的 Instagram、TikTok、X、YouTube 账号各有一个属性、能看到效果报告为通过 |
 | 视觉与视频搜索测量 | Search Console 效果报告的 multimodal 筛选(见 [image-search-seo.md](image-search-seo.md));`python3 scripts/multimodal_report.py --gsc gsc.csv --videos videos.csv` | 能导出并与视频清单 join 为通过 |
 
 ## 来源

@@ -1,6 +1,6 @@
 # GEO 的证据基础与实施边界
 
-> 建立于 2026-08-29；一手来源全量复核于 **2026-10-21**（上一轮 2026-10-18）：官方页面、论文和第三方研究都重新打开读过原句。
+> 建立于 2026-08-29；一手来源全量复核于 **2026-10-21**（上一轮 2026-10-18；2026-11-05 加「GEO 手法风险线」，复核于 2026-11-05）：官方页面、论文和第三方研究都重新打开读过原句。
 > 本文件是本套件 GEO 结论的**仲裁**：其他参考文件里的数字、阈值或「AI 偏好」说法与本文件冲突时，以本文件为准。
 > 目标是让真实内容更容易被发现、理解和核实；不把 HTML 形状、Schema、域名后缀或自发转载包装成 AI 排名公式。
 > 数字、论文与第三方研究的样本和局限见 [geo-evidence-bank.md](geo-evidence-bank.md)。
@@ -25,6 +25,23 @@
 - **内容自查**：Google [有用内容指南](https://developers.google.com/search/docs/fundamentals/creating-helpful-content) 用「Who / How / Why」自查：署名能否链到作者背景；AI 辅助过程是否该披露；内容是否为人而写。指南明确：Google 没有偏好的字数（原文「No, we don't.」）；自查问题里把「改页面日期装作新鲜」列为不该做的事。
 
 **用法**：官方说明只约束该产品。Google 的结论不外推到 ChatGPT、Perplexity 或中文引擎。
+
+## 一·补 GEO 手法风险线（核对 2026-11-05）
+
+Google 2026-05-15 起写明：垃圾内容政策适用于 Google 搜索里的生成式 AI 回答，政策对 spam 的定义包括「试图操纵 Google 搜索里的生成式 AI 回答」（[spam policies](https://developers.google.com/search/docs/essentials/spam-policies)）；2026-04 起垃圾举报可能直接触发人工操作（[举报页](https://developers.google.com/search/help/report-quality-issues)）。所以 GEO 手法要按「会不会被当成操纵」分线。下表的「依据」列是官方原文，「线」是本套件口径。
+
+| 手法 | 线 | 依据 |
+|---|---|---|
+| 把真实问题的答案写清楚、标题对齐用户问法、事实和定义写明 | 安全 | Google 指南、Bing 指南（本节上文） |
+| 页面上真实可见的内容配结构化数据 | 安全 | 结构化数据标看不见的内容是人工操作类型之一（[penalty-recovery](../monitoring/penalty-recovery.md) 1.2 第 3 条） |
+| 为每个 fan-out 查询变体批量建页 | **越线** | 指南写明违反规模化内容滥用政策（本节上文「生成式 AI 优化指南」） |
+| 页面里给模型藏指令（白字、`display:none`、注释里的 prompt injection） | **越线** | 隐藏文本是垃圾政策条目；Bing 指南：面向语言模型的 prompt injection 会被降权或移除；论文实验见 [geo-evidence-bank](geo-evidence-bank.md)「对抗与安全」 |
+| 给用户和爬虫（含 AI 爬虫）看不同内容 | **越线** | cloaking 是垃圾政策条目 |
+| 买评价、未披露的激励评价、刷第三方平台提及 | **越线** | 评价摘要指南 2026-07-24 新增：不许虚假或未披露激励的评价（[review snippet](https://developers.google.com/search/docs/appearance/structured-data/review-snippet)）；Google 优化指南：追逐不真实的提及作用有限 |
+| 在别人的高权重站发「榜单」「推荐」软文借排名 | **越线**（EEA 内处理方式不同） | 站点声誉政策（[penalty-recovery](../monitoring/penalty-recovery.md) 1.3） |
+| 自家站写「最佳 X」对比页并把自己排第一 | 灰（看内容是否真比较、是否披露利益关系） | 无专门条文；按有用内容自查「为人而写」判断（本套件口径） |
+
+外包的 GEO 服务做了越线手法，后果落在你的站上。Google 不评估第三方服务，自称「Google 认可」的要警惕（[third-party-seo](https://developers.google.com/search/docs/fundamentals/third-party-seo)）。
 
 ## 二、四条流行建议的取舍
 

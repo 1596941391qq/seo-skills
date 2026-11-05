@@ -99,7 +99,7 @@
 
 **风险信号(防套件建议过时)**:
 - Google 垃圾内容更新 2026 年共 4 次:03-24、06-24、08-18、09-24(Status Dashboard 的 Ranking 历史页)。核心更新 2026-03-27、2026-05-21。
-- 垃圾内容政策页现在写明:试图操纵 Google 搜索里的生成式 AI 回答也属于 spam([spam policies](https://developers.google.com/search/docs/essentials/spam-policies),页面日期 2026-08-28)。具体从哪天写入,文档更新记录没有单列,不写日期。
+- 垃圾内容政策页现在写明:试图操纵 Google 搜索里的生成式 AI 回答也属于 spam([spam policies](https://developers.google.com/search/docs/essentials/spam-policies),页面日期 2026-08-28)。文档更新记录 2026-05-15 有单列条目「Clarifying that spam policies apply to generative AI responses in Google Search」(旧版写「没有单列、不写日期」是错的,2026-11-05 更正)。2026-04-14 起垃圾举报可能直接触发人工操作(04-23 补充),见 [penalty-recovery.md](../monitoring/penalty-recovery.md) 1.1。
 - 2026-08-28 站点声誉政策更新,内容是调整欧洲经济区内的执法方式([文档更新记录](https://developers.google.com/search/updates))。
 - AI 内容检测的进展会影响「人类化改写」类建议的有效期,每季复核一次(本套件口径)。
 

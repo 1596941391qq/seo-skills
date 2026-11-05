@@ -1,6 +1,6 @@
 # JS 渲染与 SPA SEO
 
-> 2026-10-21 按 Google、Bing、Naver、Yandex 官方文档核对。与 [中文 AI 搜索指南](../content/chinese-ai-search-guide.md) 的「SPA 空壳=P0」条目呼应，本文件是系统版。移动端专项见 [mobile-seo.md](mobile-seo.md)。
+> 2026-10-21 按 Google、Bing、Naver、Yandex 官方文档核对，复核于 2026-11-05（补「Read more」深链）。与 [中文 AI 搜索指南](../content/chinese-ai-search-guide.md) 的「SPA 空壳=P0」条目呼应，本文件是系统版。移动端专项见 [mobile-seo.md](mobile-seo.md)。
 
 ## 一、Google 渲染管线（现行口径）
 
@@ -57,6 +57,7 @@ Google 的总原则：服务端渲染或预渲染「仍然是好主意」，因�
 | 6 | 路由与状态码 | 检查导航链接都是 `<a href>`，没有 `#/` 路由；访问不存在的路由 | 失败：片段路由；错误路由返回 200 且没有 noindex |
 | 7 | 不依赖客户端状态 | 用无痕窗口（清空存储）打开主要页面 | 失败：主内容要先接受同意弹窗或依赖 localStorage 才出现 |
 | 8 | 爬虫与用户内容一致 | 同一 URL 用浏览器 UA 与 Googlebot UA 各抓一次，对比主内容（只做诊断，不做差异化输出） | 失败：两者主体内容不同（伪装风险） |
+| 9 | 「Read more」深链不被 JS 破坏 | 打开 `URL#某个小节的id`：看是否停在该小节、地址栏 hash 是否还在；搜前端代码里加载时调用的 `scrollTo(`、`history.replaceState(`、`location.hash =` | 失败：加载后被拉回页顶；hash 被去掉；目标小节默认折叠在手风琴或标签页里 |
 
 ```bash
 # 命令 1：原始 HTML 与渲染后 DOM 的关键元素计数（macOS 路径；Linux 用 google-chrome）
@@ -79,6 +80,16 @@ r, d = n("raw.html"), n("rendered.html")
 print("raw=%d rendered=%d ratio=%.2f" % (r, d, r / d if d else 0))'
 ```
 
+### 「Read more」深链（Google 2026-04-20 新增文档）
+
+Google 搜索结果摘要里可能带「Read more」链接，直达页面的某一节。提高出现机会的三条（[摘要文档](https://developers.google.com/search/docs/appearance/snippet#read-more-deep-links)，页面日期 2026-04-20，核对 2026-11-05）：
+
+1. 内容对人立即可见，不藏在可展开区块或标签页里。
+2. 不用 JS 控制页面加载时的滚动位置（例如不要强制滚回页顶）。
+3. 加载时调用 History API 或改 `window.location.hash` 的，不要把 URL 里的 hash 片段去掉，否则深链失效。
+
+SPA 最容易踩的是第 2、3 条：路由库加载时 `scrollTo(0,0)`、用 `replaceState` 规范化 URL 把 `#…` 抹掉。上面审计清单第 9 项就查这三条。
+
 ## 五、动态渲染与预渲染
 
 - Google 的动态渲染文档现用过去时：动态渲染曾是变通方案，不是长期方案，也不推荐，因为它增加复杂度和资源消耗（[动态渲染文档](https://developers.google.com/search/docs/crawling-indexing/javascript/dynamic-rendering)）。
@@ -96,7 +107,7 @@ print("raw=%d rendered=%d ratio=%.2f" % (r, d, r / d if d else 0))'
 
 ## 来源
 
-- Google：[JS SEO 基础](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics)、[修复与 JS 相关的搜索问题](https://developers.google.com/search/docs/crawling-indexing/javascript/fix-search-javascript)、[懒加载与无限滚动](https://developers.google.com/search/docs/crawling-indexing/javascript/lazy-loading)、[动态渲染](https://developers.google.com/search/docs/crawling-indexing/javascript/dynamic-rendering)、[Googlebot 抓取上限](https://developers.google.com/search/docs/crawling-indexing/googlebot)、[文档更新记录（2025-12 三条 JS 补充）](https://developers.google.com/search/updates)、[Mobile-Friendly Test 退役注记](https://developers.google.com/search/blog/2016/05/a-new-mobile-friendly-testing-tool)
+- Google：[摘要文档「Read more」深链](https://developers.google.com/search/docs/appearance/snippet#read-more-deep-links)（2026-04-20）、[JS SEO 基础](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics)、[修复与 JS 相关的搜索问题](https://developers.google.com/search/docs/crawling-indexing/javascript/fix-search-javascript)、[懒加载与无限滚动](https://developers.google.com/search/docs/crawling-indexing/javascript/lazy-loading)、[动态渲染](https://developers.google.com/search/docs/crawling-indexing/javascript/dynamic-rendering)、[Googlebot 抓取上限](https://developers.google.com/search/docs/crawling-indexing/googlebot)、[文档更新记录（2025-12 三条 JS 补充）](https://developers.google.com/search/updates)、[Mobile-Friendly Test 退役注记](https://developers.google.com/search/blog/2016/05/a-new-mobile-friendly-testing-tool)
 - 其他引擎：[Bing Webmaster Guidelines](https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a)、[Naver 자바스크립트 검색 최적화](https://searchadvisor.naver.com/guide/seo-advanced-javascript)、[Yandex JavaScript 页面渲染](https://yandex.com/support/webmaster/en/yandex-indexing/rendering)
 - 社交：[Meta Web Crawlers](https://developers.facebook.com/documentation/sharing/webmasters/web-crawlers)
 - 工具状态：[GoogleChrome/rendertron](https://github.com/GoogleChrome/rendertron)（已归档）

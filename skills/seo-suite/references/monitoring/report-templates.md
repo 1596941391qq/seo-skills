@@ -79,6 +79,7 @@
 | 状态没混 | 每条行动项标：已上线 / 已观察到变化 / 原因已确认 | 「已上线」写成「已见效」= 失败 |
 | 报告数字可复现 | 附录写明导出文件路径与筛选条件；需要自包含 HTML 时 `python3 scripts/report_build.py --findings findings.json --out report.html` | 别人用同一导出能得到同一数字 |
 | 无来源的基准已删 | 搜报告里的「行业平均」「基准」字样 | 无出处的外部基准 = 删或标「本套件口径」 |
+| 工具或服务声称 Google 认可 | 搜报告和引用的工具、服务方材料里的「Google 认可」「Google approved」「官方合作」「保证排名」「保证 AI 引用」字样 | 有 = 删掉或改写成「工具自己的估算」。依据：Google 不评估第三方 SEO / AEO / GEO 服务，第三方工具拿不到 Google 内部排名数据，预测是工具自己的（[third-party-seo](https://developers.google.com/search/docs/fundamentals/third-party-seo)，2026-06-05，核对 2026-11-05） |
 | 实验结论遵守预注册 | `split_test.py plan --save-plan` 写档；`analyze --plan plan.json` | 没有预注册方案就不写「显著」 |
 | 行动项完整 | 每条有负责人、截止日期、验证方式 | 缺一 = 补 |
 

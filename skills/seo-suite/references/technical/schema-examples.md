@@ -105,6 +105,8 @@ WebPage 节点（`isPartOf`、`breadcrumb` 等关系）可以表达页面结构�
 
 - 商家信息：2026-05-20 新增 `hasAdultConsideration`；2026-07-07 新增 `Product.category` 用法和促销价有效期（`validFrom`/`validThrough`/`priceValidUntil`）说明。
 - 评价摘要：2025-01-15 新增建议：只接受带评论和作者名的评分（是建议，不是必填）；2025-11-12 说明不要用多种方式表示被评价对象；2026-07-24 新增准则：不得在页面或标记里包含虚假评价或未披露的激励评价。违反准则可能招致人工处置。
+- VideoObject：2026-09-24 新增推荐属性 `creator`（Person 或 Organization，也认 `author`），并写明 `interactionStatistic` 支持 WatchAction、LikeAction、CommentAction、ShareAction 四种（[VideoObject](https://developers.google.com/search/docs/appearance/structured-data/video)，核对 2026-11-05）。细节见 [video-geo-guide.md](../content/video-geo-guide.md) 第二节。
+- 评价摘要 2026-07-24 那条（虚假或未披露激励评价）复核于 2026-11-05：原文举的两例是「不是基于真实体验的评价」和「为换取好处（钱、折扣、代金券、免费产品）而写、又没有清楚显著披露激励的评价」（[review snippet 准则](https://developers.google.com/search/docs/appearance/structured-data/review-snippet#guidelines)）。GEO 侧的风险线见 [geo-evidence.md](../content/geo-evidence.md)「GEO 手法风险线」。
 - Organization：2023-11-29 新的 Organization 文档合并了原 Logo 文档；`name`/`alternateName` 与站点名称一致。
 - 垃圾内容政策：2026-05-15 明确同样适用于 Google 搜索里的生成式 AI 回答。
 
