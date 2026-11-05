@@ -1,0 +1,2 @@
+# plausible.io/robots.txt 原文,取于 2026-11-05(全文,只有一行 Sitemap)
+Sitemap: https://plausible.io/sitemap.xml

@@ -7,6 +7,17 @@ Future content or structure changes must bump the version and add a dated entry.
 
 (暂无)
 
+## 0.37.1 - 2026-11-05
+
+- **三站实战修复(everyinfra.com、plausible.io、sspai.com,8 个只读审计脚本,逐条对照原始响应)**:每处都有用真实 robots.txt 做 fixture 的回归测试(`tests/test_field_20261105.py`,修前红、修后绿)。
+  - `site_crawl.py`、`robots_posture.py`:robots.txt 规则按 RFC 9309 匹配 `*` 和结尾 `$`,区分大小写。修前把 `Disallow: /tag/*` 当成放行,爬虫抓了站点禁止的路径。
+  - `site_crawl.py`:非 ASCII 路径(如 `/tag/设计`)规范化时按 UTF-8 百分号编码。修前抛 `UnicodeEncodeError`,整次爬取作废。
+  - `robots_posture.py`:没有任何匹配组时按 RFC 9309 默认放行,不再判「引用 bot 不可见」;「没给引用 bot 单独写规则」从警告降为提示(`*` 组对它们同样生效)。
+  - `hreflang_cluster.py`:页面没有 hreflang 声明时,自引用一栏标「不适用」,不再报失败。
+  - `sitemap_audit.py`:在 `python3 -I` 下也能导入同目录的 `hreflang_cluster`。
+- **抽样核对修正 4 条断言**:Nozzle 排名追踪研究按 11-01 新版数据重写;去掉原文没有的「历史数据不补」「AIES 论文集」;13,184 条 AI 引用研究的作者改为 Bill Widmer。
+  Field fixes from a three-site run: RFC 9309 wildcard and `$` matching in site_crawl and robots_posture (the crawler used to fetch disallowed paths), percent-encoding of non-ASCII paths, no-group robots.txt treated as allow, hreflang self-reference marked not-applicable on single-language pages, `python3 -I` import fix in sitemap_audit; four reference claims corrected after a random 30-claim source check.
+
 ## 0.37.0 - 2026-11-05
 
 - **信源工单 #5 积压清理(2026-10-18 至 11-04,17 轮报告、17 个信源)**:逐个打开一手原文,改了 15 个参考文件;确认无影响的也记下来。

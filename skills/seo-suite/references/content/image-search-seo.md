@@ -5,7 +5,7 @@
 ## 一、视觉搜索的量级与测量(官方)
 
 - **Lens 用量**:Google 在 2024-10-03 写明 Lens 每月「nearly 20 billion」次视觉搜索([blog.google](https://blog.google/products-and-platforms/products/search/google-search-lens-october-2024-updates/));同日广告博客称其中 20% 与购物相关([blog.google/ads-commerce](https://blog.google/products/ads-commerce/google-lens-ai-overviews-ads-marketers/))。2025-04 财报电话会称自 2024-10 起每月又增加 50 亿次([Alphabet 2025 Q1 电话会](https://abc.xyz/investor/events/event-details/2025/2025-Q1-Earnings-Call/),摘要读到)。引用时写年份,不要把 2024 年的数字写成「2026 年现值」。
-- **官方测量面**:2026-09-24 起,Search Console 效果报告新增 multimodal 搜索类型筛选,覆盖 Lens、Android 的 Circle to Search、向 Google 搜索上传图片、Chrome 右键「Search this image」,并同步进生成式 AI 报告,全球逐步上线([Search Central 博客 2026-09-24](https://developers.google.com/search/blog/2026/09/web-multimodal-in-sc))。历史数据不补。
+- **官方测量面**:2026-09-24 起,Search Console 效果报告新增 multimodal 搜索类型筛选,覆盖 Lens、Android 的 Circle to Search、向 Google 搜索上传图片、Chrome 右键「Search this image」,并同步进生成式 AI 报告,全球逐步上线([Search Central 博客 2026-09-24](https://developers.google.com/search/blog/2026/09/web-multimodal-in-sc))。
 - **图片搜索 UI 一改,流量会大变(历史案例)**:2013 年 Google 图片搜索改版后,Define Media Group 研究的 87 个域名平均图片搜索引荐降 63%([Search Engine Land 2013-04-15](https://searchengineland.com/study-google-image-search-referrer-traffic-drops-63-since-upgrade-155879),第三方)。含义:图片搜索流量不适合当业务基线。
 - **本站占比怎么看**:不用行业平均数。在 Search Console 效果报告里,「搜索类型」分别选「图片」「网页」,比较点击;再选 multimodal 筛选看视觉入口(本套件口径)。
 - 带购物意图的图片流量,入口在 Lens 的商品结果和商品轮播,不在传统图片结果页:图要进 Merchant Center feed,并与页面 Product 数据一致(第五节)。

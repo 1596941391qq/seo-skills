@@ -200,10 +200,12 @@ def normalize_url(u, base=None, strip_params=False):
             return None
         netloc = host if (port is None or (scheme == "https" and port == 443)
                           or (scheme == "http" and port == 80)) else "%s:%d" % (host, port)
-        path = p.path or "/"
+        # 非 ASCII 路径/参数(如 /tag/设计)按 UTF-8 百分号编码;已有的 %XX 保留。
+        # 不转码时 http_fetch 抛 UnicodeEncodeError,不在重试捕获范围里,会让整次爬取作废。
+        path = urllib.parse.quote(p.path or "/", safe="/%:@!$&'()*+,;=-._~")
         if path != "/" and path.endswith("/"):
             path = path.rstrip("/") or "/"
-        query = "" if strip_params else p.query
+        query = "" if strip_params else urllib.parse.quote(p.query, safe="=&%:@!$'()*+,;/?-._~")
         return urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
     except ValueError:
         return None
@@ -366,9 +368,23 @@ def parse_robots(txt):
             "crawl_delay": groups.get("*", {}).get("crawl_delay"), "truncated": truncated}
 
 
+_ROBOTS_SAFE = "/?=&*$%:@!'()+,;-._~"
+
+
+def robots_rule_match(rule, path):
+    """RFC 9309 §2.2.2:`*` 匹配任意字符序列,结尾 `$` 锚定路径结尾,区分大小写;
+    规则和路径都先百分号编码,两边口径一致。"""
+    rule = urllib.parse.quote(rule, safe=_ROBOTS_SAFE)
+    path = urllib.parse.quote(path, safe=_ROBOTS_SAFE)
+    anchored = rule.endswith("$")
+    body = rule[:-1] if anchored else rule
+    rx = "".join(".*" if c == "*" else re.escape(c) for c in body) + ("$" if anchored else "")
+    return re.match(rx, path) is not None
+
+
 def robots_allows(doc, url):
-    """最长前缀匹配判定(自 token 组优先,回退 * 组;同长 Allow 平局胜出;
-    空 Disallow 值=允许一切(RFC 9309);无匹配规则/无组默认放行)。"""
+    """最长匹配判定(自 token 组优先,回退 * 组;同长 Allow 平局胜出;支持 `*`/`$`,
+    区分大小写;空 Disallow 值=允许一切(RFC 9309);无匹配规则/无组默认放行)。"""
     if not doc or not doc["groups"]:
         return True
     g = doc["groups"].get(UA_TOKEN) or doc["groups"].get("*")
@@ -381,7 +397,7 @@ def robots_allows(doc, url):
         for rule in g.get(kind, []):
             if not rule:                      # 空规则是无操作(RFC 9309),不参与匹配
                 continue
-            if path.lower().startswith(rule.lower()):
+            if robots_rule_match(rule, path):
                 n = len(rule)
                 if n > best_len or (n == best_len and kind == "allow"):
                     best_len, allowed = n, kind == "allow"

@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import os
 import sys
 import urllib.error
 import urllib.parse
@@ -52,6 +53,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python3 -I 不把脚本目录放进 sys.path
 from hreflang_cluster import check_lang  # 语言码校验唯一实现(Google localized-versions 口径)
 
 UA = "Mozilla/5.0 (compatible; SEOSkill-SitemapAudit/1.0)"

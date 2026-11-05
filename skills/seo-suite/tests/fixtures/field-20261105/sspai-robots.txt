@@ -1,0 +1,10 @@
+# sspai.com/robots.txt 原文,取于 2026-11-05(全文)
+User-agent: *
+User-agent: Baiduspider
+Disallow: /a/*
+Disallow: /s/*
+Disallow: /d/*
+Disallow: /search/*
+Disallow: /tag/*
+Disallow: /app/*
+Disallow: /link

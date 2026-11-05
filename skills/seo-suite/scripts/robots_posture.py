@@ -6,7 +6,7 @@
 可选 --fix-robots 打印修复建议块(只打印不写盘)。判定算法沿用 geo-optimizer 源码口径(borrow-specs C3);
 名单与分层以 references/technical/ai-crawler-policy.md 和各家官方页为准。
 用法: python3 robots_posture.py https://example.com/robots.txt [--signal visibility|protect-ip] [--json] [--fix-robots]"""
-import ipaddress, json, os, socket, sys, urllib.parse, urllib.request
+import ipaddress, json, os, re, socket, sys, urllib.parse, urllib.request
 
 UA = "Mozilla/5.0 (compatible; seo-suite-audit/1.0)"
 MAX_BYTES = 500_000  # RFC 9309: 超过 500KiB 的 robots.txt 至少按前 500KiB 处理
@@ -210,9 +210,20 @@ def parse_robots(txt):
     return {"groups": groups, "sitemaps": sitemaps,
             "crawl_delay": groups.get("*", {}).get("crawl_delay"), "truncated": truncated}
 
+_ROBOTS_SAFE = "/?=&*$%:@!'()+,;-._~"
+
+
 def rule_matches(rule, path):
-    """RFC 9309 前缀匹配:空值匹配一切。"""
-    return rule == "" or path.startswith(rule)
+    """RFC 9309 §2.2.2 匹配:空值匹配一切;`*` 匹配任意字符序列,结尾 `$` 锚定路径结尾;
+    区分大小写;规则和路径都先做百分号编码(非 ASCII 字符按 UTF-8 转码),两边口径一致。"""
+    if rule == "":
+        return True
+    rule = urllib.parse.quote(rule, safe=_ROBOTS_SAFE)
+    path = urllib.parse.quote(path, safe=_ROBOTS_SAFE)
+    anchored = rule.endswith("$")
+    body = rule[:-1] if anchored else rule
+    rx = "".join(".*" if c == "*" else re.escape(c) for c in body) + ("$" if anchored else "")
+    return re.match(rx, path) is not None
 
 def effective_rule(group, path="/"):
     """最长规则匹配;同长时 Allow 平局胜出(RFC 9309 最具体的规则赢,平局归 Allow)。
@@ -228,7 +239,8 @@ def effective_rule(group, path="/"):
 
 def classify(doc, bot):
     """四态判定(站点根 '/' 口径)+ via_wildcard 标记。
-    missing  : 既无专属组也无 * 组(robots 对它只字未提,不算放行)
+    missing  : 既无专属组也无 * 组(robots 对它只字未提)。RFC 9309 §2.2.1:没有匹配组 = 可以抓,
+               所以引用评分把它算作放行,只是拿不到「专属规则」满分
     allowed  : 根路径裁定为允许(专属组或 * 组)
     blocked  : 根路径裁定为禁止且无开洞
     partial  : Disallow: / 但有具体 Allow 路径(>1)开洞——只放行部分路径
@@ -260,10 +272,11 @@ def citation_report(doc):
     explicit = 5 个都有专属规则(非仅靠 `*` 通配)且 allowed → 满分
     (通配符 Allow 也行,但拿不到全分)"""
     states = {b: classify(doc, b) for b in CITATION_BOTS}
-    ok = all(s["state"] == "allowed" for s in states.values())
+    visible = ("allowed", "missing")  # missing:没有匹配组,按 RFC 9309 默认放行
+    ok = all(s["state"] in visible for s in states.values())
     explicit = all(s["state"] == "allowed" and not s["via_wildcard"] for s in states.values())
     return {"ok": ok, "explicit": explicit,
-            "allowed_count": sum(1 for s in states.values() if s["state"] == "allowed"),
+            "allowed_count": sum(1 for s in states.values() if s["state"] in visible),
             "explicit_count": sum(1 for s in states.values() if s["state"] == "allowed" and not s["via_wildcard"]),
             "bots": states}
 
@@ -329,8 +342,8 @@ def fix_robots(report):
     return "\n".join(lines).rstrip() + "\n"
 
 STATUS = {
-    "search":   {"allowed": "✅", "blocked": "❌ 禁(逐出AI答案)", "partial": "◐ 部分(仅Allow路径)", "missing": "❓ 未提及"},
-    "user":     {"allowed": "✅", "blocked": "❌ 禁(用户端不可达)", "partial": "◐ 部分(仅Allow路径)", "missing": "❓ 未提及"},
+    "search":   {"allowed": "✅", "blocked": "❌ 禁(逐出AI答案)", "partial": "◐ 部分(仅Allow路径)", "missing": "✅ 未提及(默认放行)"},
+    "user":     {"allowed": "✅", "blocked": "❌ 禁(用户端不可达)", "partial": "◐ 部分(仅Allow路径)", "missing": "✅ 未提及(默认放行)"},
     "training": {"allowed": "放行", "blocked": "禁(不影响搜索,授权决策)", "partial": "部分(仅Allow路径)", "missing": "未提及(默认放行)"},
     "other":    {"allowed": "放行", "blocked": "禁(不影响搜索)", "partial": "部分(仅Allow路径)", "missing": "未提及(默认放行)"},
 }
@@ -361,8 +374,10 @@ def render(report):
     c = report["citation"]
     out.append(f"citation_bots_ok: {'✅' if c['ok'] else '❌'} {c['allowed_count']}/5 放行"
                + ("(基础分)" if c["ok"] else "(可见性失败:引用 bot 被封/未被放行)"))
-    out.append(f"citation_bots_explicit: {'✅' if c['explicit'] else '⚠'} {c['explicit_count']}/5 专属规则"
-               + ("(满分)" if c["explicit"] else "(未满分:通配符 Allow 也行,但拿不到全分)"))
+    # 专属规则只是本套件的加分项:RFC 9309 下 `*` 组对所有爬虫同样生效,没有外部依据说必须点名,
+    # 所以未点名只给提示(ℹ),不报警告(2026-11-05 三站实战判为误报后改)
+    out.append(f"citation_bots_explicit: {'✅' if c['explicit'] else 'ℹ'} {c['explicit_count']}/5 专属规则"
+               + ("(满分)" if c["explicit"] else "(可选:`*` 组已对这些 bot 生效,点名只是便于单独调整)"))
     if report["visibility_failures"]:
         out.append(f"可见性失败: {', '.join(report['visibility_failures'])}(封 search/user 才是可见性失败;"
                    f"封 training 只是授权决策,不扣分)")

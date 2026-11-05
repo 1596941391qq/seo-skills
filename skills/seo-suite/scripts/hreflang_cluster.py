@@ -251,7 +251,17 @@ def scan_sitemap(origin, timeout):
 
 
 def cell(ok):
+    if ok is None:
+        return "\u2014 "  # 不适用
     return "\u2705 " if ok else "\u274c "
+
+
+def self_ref_state(d, page_norm):
+    """自引用检查:页面没有任何 hreflang 声明时不适用(单语站本来就不需要),返回 None;
+    否则返回是否声明了指向自己的条目。"""
+    if not d:
+        return None
+    return any(hn == page_norm for (_l, hn) in d.keys())
 
 
 def main(argv=None):
@@ -350,7 +360,7 @@ def main(argv=None):
         d = entries.get(page, {}) or {}
         page_norm = norm_url(page)
         n_items = len(d)
-        self_ok = any(hn == page_norm for (_l, hn) in d.keys())
+        self_ok = self_ref_state(d, page_norm)
 
         lang_bad = []
         abs_bad = []
@@ -386,7 +396,7 @@ def main(argv=None):
         row_hard_fail = bool(lang_bad or abs_bad or alt_bad or ret_missing or not page_ok)
         hard_fail = hard_fail or row_hard_fail
         rows.append((page, n_items, self_ok, not lang_bad, not abs_bad, ok200, ret_ok))
-        if row_hard_fail or not self_ok:
+        if row_hard_fail or self_ok is False:
             details.append((page, d, st, lang_bad, abs_bad, alt_bad, ret_missing,
                             ret_unverified, alt_unverified))
 

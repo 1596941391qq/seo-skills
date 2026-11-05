@@ -63,7 +63,7 @@
 
 - 各引擎 top-10 域名集中度(Cloro,735 条提示篮子,【三方】[Cloro](https://cloro.dev/research/state-of-ai-search)):Google AI Mode 25.4%、Perplexity 18.9%、ChatGPT 17.5%、Copilot 14.3%、Gemini 13.8%。Cloro 页面说明这版比早先偏商业的快照更分散,旧文件里的 57.8% / 27.3% / 25.1% / 18.3% / 17.3% 已被取代。
 - 大型 UGC 平台(固定 17 个平台名单)在各引擎引用里的占比:AI Mode 19.0%、Perplexity 11.8%、Gemini 5.0%、Copilot 2.4%、ChatGPT 1.7%(同上)。含义:Reddit 帖子、YouTube 视频对 AI Mode 和 Perplexity 有用,对 ChatGPT 几乎是死路。
-- 引擎间被引域名重合很低:Andy Crestodina 追踪 13,184 条 AI 引用、4 个 LLM,ChatGPT 与 Perplexity 在两个查询集上分别共享 7.6% 和 5.4% 的被引域名(【三方】[LinkedIn](https://www.linkedin.com/pulse/we-tracked-13184-ai-citations-across-4-llms-heres-what-crestodina-ivluc))。做法:每个引擎单独建问题集,单独汇报。
+- 引擎间被引域名重合很低:Bill Widmer 追踪 13,184 条 AI 引用、4 个 LLM(Orbit Media 的 Andy Crestodina 在 LinkedIn 转载),ChatGPT 与 Perplexity 在两个查询集上分别共享 7.6% 和 5.4% 的被引域名(【三方】[LinkedIn](https://www.linkedin.com/pulse/we-tracked-13184-ai-citations-across-4-llms-heres-what-crestodina-ivluc))。做法:每个引擎单独建问题集,单独汇报。
 - 数字 PR(本套件口径):先查目标域在目标引擎的在场率,再决定投放,不按传统域名权重(DR)投。
 - 已删:Resocial「Wikipedia 32% / Reddit 21%」加权、Posirank/Parse 的「Reddit 代运营机构榜」(两者都读不到方法或原文)。
 
