@@ -29,7 +29,7 @@ StatCounter 搜索引擎份额,2026-09 月值,取数 2026-10-21(页面:[沙特](
 
 ### 1.3 AI 采用
 
-- 阿联酋工龄人口(15–64 岁)生成式 AI 使用率 **70.1%**(2026 Q1),全球 17.8%;沙特 29.4%、埃及 14.8%([Microsoft Global AI Diffusion Report 2026 Q1,2026-05-07](https://blogs.microsoft.com/on-the-issues/2026/05/07/the-state-of-global-ai-diffusion-in-2026/),国家表见报告 PDF 第 17 页)。口径:Microsoft 遥测按 OS、设备份额、网民渗透和人口校正,是 Microsoft 自己的估计,不是委托调研。
+- 阿联酋工龄人口(15–64 岁)生成式 AI 使用率 **70.1%**(2026 Q1),全球 17.8%;沙特 29.4%、埃及 14.8%([Microsoft Global AI Diffusion Report 2026 Q1,2026-05-07](https://blogs.microsoft.com/on-the-issues/2026/05/07/the-state-of-global-ai-diffusion-in-2026/),国家表见报告 PDF 第 17–18 页)。口径:Microsoft 遥测按 OS、设备份额、网民渗透和人口校正,是 Microsoft 自己的估计,不是委托调研。
 - 旧稿「沙特 45.2% 网民用 AI 工具」出自从业者指南,与 Microsoft 的 29.4% 差距大,口径不同,无一手来源,已删。
 - 「4 亿+ 阿语人口、25 国」来自 G42 宣传,本次未核,不使用。
 

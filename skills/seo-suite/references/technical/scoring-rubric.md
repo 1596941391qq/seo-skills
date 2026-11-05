@@ -21,7 +21,7 @@
 
 | 维度 | 权重 | 检查什么 |
 |---|---|---|
-| 意图匹配与内容 | 30 | 是否直接满足目标查询的意图；有没有原创的信息、经验或数据；事实准确，注明出处和更新日期；作者或负责主体清楚（对照 Google 的[有用内容自评问题](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)） |
+| 意图匹配与内容 | 30 | 是否直接满足目标查询的意图；有没有原创的信息、经验或数据；事实准确，注明出处；作者或负责主体清楚（对照 Google 的[有用内容自评问题](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)；自评问题也提醒不要为了显得新而改日期） |
 | 标题与描述 | 15 | `<title>` 准确、独特，并写明页面主题；meta description 准确概括本页、不与其他页重复（见[标题链接](https://developers.google.com/search/docs/appearance/title-link)、[摘要](https://developers.google.com/search/docs/appearance/snippet)） |
 | 链接 | 15 | 内链用可抓取的 `<a href>`，锚文本描述目标页；指向相关页面；没有失效链接；出站链接指向可靠来源，rel 使用正确 |
 | 页面体验 | 15 | 有 CrUX 字段数据时看 Core Web Vitals，没有时用实验室数据诊断并注明；HTTPS；移动端内容与桌面端一致；没有遮挡主内容的弹窗 |

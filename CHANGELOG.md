@@ -5,6 +5,7 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **事实重抽 30 条(种子 20261105-2,独立子代理逐条开原文)**:错 0;三条转述偏强或页码不准的已改:`ecommerce-geo-ladder.md`(Merchant Center 要求的是商品数据和店铺一致)、`markets/ar.md`(国家表在 PDF 第 17–18 页)、`scoring-rubric.md`(有用内容自评问题里没有「注明更新日期」,改为提醒不要为显得新而改日期)。
 - **两个运营单同时跑不再崩(例 8 并发)**:`ops weekly / monthly` 按工作区加锁(`seo-ops/.ops.lock`,已在 .gitignore),后来的进程等前一个跑完;临时文件名带进程号。修前两个进程同时跑,一个报 `FileNotFoundError`(共用 `light.json.tmp`);回归测试 `tests/test_ops_concurrency.py` 修前 3/3 红、修后绿。
 
 ## 0.40.0 - 2026-11-05

@@ -99,7 +99,7 @@ python3 scripts/robots_posture.py https://shop.example.com/robots.txt --json
 
 (示例数据为虚构。price 用纯数字、priceCurrency 用 ISO 4217、availability 用完整 URL。)
 
-Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、地图、Gemini、YouTube、购物标签、Google 图片和 Google Lens([Free listings 帮助](https://support.google.com/merchants/answer/9826670));需要 feed 与页面中的商品信息都准确(帮助页要求提供高质量商品数据)。
+Merchant Center 帮助页写明 free listings 可以出现在 Google 搜索、地图、Gemini、YouTube、购物标签、Google 图片和 Google Lens([Free listings 帮助](https://support.google.com/merchants/answer/9826670));Merchant Center 里的商品数据要和线上店铺一致、保持更新(帮助页要求提供高质量商品数据)。
 
 ## 三、市场分叉(定性;份额数字未核,已删)
 
