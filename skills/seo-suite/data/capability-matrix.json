@@ -23,11 +23,11 @@
   "④": "静默跳过可选增强(核心功能照常)"
  },
  "summary": {
-  "script": 90,
+  "script": 91,
   "template": 25,
   "reference": 13,
-  "stable": 74,
-  "beta": 53,
+  "stable": 76,
+  "beta": 52,
   "draft": 1
  },
  "entries": [
@@ -1754,13 +1754,27 @@
    "group": "工作流",
    "inputs": [
     "站点仓库路径(可指定 --rev)",
-    "URL 列表"
+    "URL 列表",
+    "线上页面(默认抓 title/描述/H1/首段;--no-fetch 关)"
    ],
    "outputs_schema": "json",
-   "data_source": "站点仓库文件树与 import 关系(只读)",
+   "data_source": "线上页面原文 + 站点仓库文件树与 import 关系(只读)",
    "fallback_mode": "②",
-   "tests_file": null,
-   "status": "beta"
+   "tests_file": "tests/test_source_map.py",
+   "status": "stable"
+  },
+  {
+   "type": "script",
+   "script": "guard_hook.py",
+   "group": "工作流",
+   "inputs": [
+    "Claude Code PreToolUse 事件(stdin JSON)"
+   ],
+   "outputs_schema": "json",
+   "data_source": "当前 git 分支名 + 待改文件路径与内容(只读)",
+   "fallback_mode": "④",
+   "tests_file": "tests/test_guard_hook.py",
+   "status": "stable"
   }
  ]
 }

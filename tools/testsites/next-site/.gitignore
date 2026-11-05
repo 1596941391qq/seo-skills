@@ -1,0 +1,4 @@
+node_modules/
+.next/
+plants.json
+next-env.d.ts

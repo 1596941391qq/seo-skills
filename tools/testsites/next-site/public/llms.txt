@@ -1,0 +1,6 @@
+# Acme Next
+
+> Test site for seo-suite.
+
+- [Home](http://127.0.0.1:8602/)
+- [Docs](http://127.0.0.1:8602/docs)

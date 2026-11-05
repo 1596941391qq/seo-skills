@@ -216,12 +216,14 @@ def site_slug(site):
     host = (p.hostname or "").lower().strip(".")
     if not host or "." not in host or not re.match(r"^[a-z0-9.-]+$", host):
         raise UsageError("无法从 --site 解析出公网主机: %s" % site)
-    if host.startswith("www."):
-        host = host[4:]
-    slug = re.sub(r"[^a-z0-9]+", "-", host).strip("-")
+    # 规范 site 保留用户给的主机(含 www.)和端口:www 为正式域名的站、带端口的本地预览站都要按原样抓;
+    # 只有 slug 去 www.
+    canon = "%s://%s%s" % (p.scheme or "https", host, ":%d" % p.port if p.port else "")
+    bare = host[4:] if host.startswith("www.") else host
+    slug = re.sub(r"[^a-z0-9]+", "-", bare).strip("-")
     if not slug:
         raise UsageError("slug 为空: %s" % site)
-    return slug, "%s://%s" % (p.scheme or "https", host)
+    return slug, canon
 
 
 def find_workspace(explicit):

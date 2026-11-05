@@ -1,0 +1,5 @@
+{
+  "a": { "title": "Blog A: how we cache pages at the edge safely" },
+  "b": { "title": "Blog B: measuring page weight before every release" },
+  "c": { "title": "Blog C: writing docs that answer the question first" }
+}

@@ -137,5 +137,26 @@ class SchemaGuardTests(unittest.TestCase):
         self.assertTrue(os.path.isdir(os.path.join(self.tmp, "seo-ops", "ledger")))
 
 
+class SiteNormalizeTests(unittest.TestCase):
+    """回归(2026-11-05 测试站实跑发现):init 曾丢端口、去 www.,预览站和 www 正式域名的站都抓错地址。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ops_site_")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def site_after_init(self, site):
+        r = run(["init", "--site", site], self.tmp)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        y = read(os.path.join(self.tmp, "seo-ops", "project.yaml"))
+        shutil.rmtree(os.path.join(self.tmp, "seo-ops"))
+        return [ln.split(": ", 1)[1] for ln in y.splitlines() if ln.startswith("site: ")][0]
+
+    def test_port_and_www_kept(self):
+        self.assertEqual(self.site_after_init("http://127.0.0.1:8601/"), "http://127.0.0.1:8601")
+        self.assertEqual(self.site_after_init("https://www.example.com"), "https://www.example.com")
+
+
 if __name__ == "__main__":
     unittest.main()

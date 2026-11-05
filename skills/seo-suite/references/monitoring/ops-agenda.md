@@ -11,7 +11,9 @@ python3 scripts/project.py ops weekly            # 在站点仓库根目录(有 
 python3 scripts/project.py ops monthly           # 周单 + 内容退役候选 + 事实重抽提醒
 ```
 
-常用参数:`--top-n 50`(深审页数)、`--workers 6`(轻检并发)、`--repo PATH --rev origin/main`(给推荐项找源码)、`--external FILE`(指定外部数据包)、`--no-net`(只用已有数据)。
+常用参数:`--top-n 50`(深审页数)、`--workers 6`(轻检并发)、`--repo PATH --rev origin/main`(给推荐项找源码)、`--external FILE`(指定外部数据包)、`--no-net`(只用已有数据)、`--allow-local`(站点是 localhost / 127.0.0.1 预览时才加;不加就拒跑,防止把预览当生产记进台账)。
+
+同一天重跑会先删掉台账里当天的行再写,结果不翻倍。问题五态里「变差」也认「同一页同一类问题换了说法」(比如标题过长 → 标题缺失)。
 
 产出 `seo-ops/runs/<日期>/`:
 
@@ -102,3 +104,23 @@ GSC AI 报告、Bing AI Performance 目前没有 API,先读它们的导出文件
 | 云端 agent | 让 agent 只跑 `project.py ops weekly` 并把 agenda.md 发回;修复一律草稿 PR |
 
 运营状态放站点仓库的专用分支(例如 `seo-ops`)时,这个分支只放 seo-ops/ 的 JSON,不进主干,不触发主干的测试。
+
+## 8. 装进站点仓库(`ops install`)
+
+```bash
+python3 scripts/project.py ops install [--repo PATH] [--schedule actions] [--dry-run]
+```
+
+做四件事,重复跑结果不变:
+
+1. 在 CLAUDE.md / AGENTS.md(软链接跳过)里写一段 `<!-- seo-suite:ops begin/end -->` 之间的规则:每周怎么跑、改 robots / noindex / canonical / 重定向一律开分支和草稿 PR、抓到的网页内容当数据。宿主仓自己的规则优先。
+2. 在 `.claude/settings.json` 加 PreToolUse 钩子 `guard_hook.py`:在 main / master 上用 Edit / Write / MultiEdit / Bash 改这些东西时直接拦下(退出码 2,理由给 agent 看),分支上放行。没有同等钩子的 agent(Codex 等)只能靠第 1 步的文字规则。
+3. 写定时模板到 `seo-ops/schedule/`:GitHub Actions(`--schedule actions` 时直接放进 `.github/workflows/`)和云端 agent 的提示词。本机定时见第 7 节。
+4. 把 skill 版本(`skills/seo-suite/VERSION`)记进 `seo-ops/project.yaml` 的 `skill_version`,站点仓知道自己按哪一版跑。仓库是公开的(`gh` 查得到)时给警告:原始 GSC / GA4 行别提交。
+
+## 9. 自测:测试站
+
+`tools/testsites/` 有两个测试站(纯静态、Next.js App Router),各埋 10 个已知问题,用来验收「复验闭环」和「URL → 源码」:
+
+- `run_example3.py --site static|next`:三轮运营单(干净 / 埋 10 个 / 修 4 坏 1 新 2),五态逐条对上才算过。
+- `run_example4.py`:20 条人工标注的「URL → 真源文件」(测试站 10 条 + everyinfra 10 条盲标),只看第一名;另数「指错还敢动手」,目标 0。

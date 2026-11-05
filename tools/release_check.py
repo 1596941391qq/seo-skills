@@ -5,7 +5,7 @@
 任何一步红,退出码 1,不发版。
 
 检查项:
-  1. 版本号一致:manifest.json、install.sh、.claude-plugin/plugin.json、
+  1. 版本号一致:manifest.json、skills/seo-suite/VERSION、install.sh、.claude-plugin/plugin.json、
      .claude-plugin/marketplace.json、.zcode-plugin/plugin.json、README(中英西,徽章和正文)
      与 CHANGELOG 最新一个已发版条目同一个号;--tag vX.Y.Z 时还要等于这个 tag。
   2. CHANGELOG:「未发版」段为空或只有「(暂无)」(发版时内容要挪进带号的段);--allow-unreleased 跳过。
@@ -48,6 +48,10 @@ def collect_versions():
         out[".claude-plugin/marketplace.json"] = (mk.get("plugins") or [{}])[0].get("version")
     except (OSError, ValueError, IndexError, AttributeError):
         out[".claude-plugin/marketplace.json"] = None
+    try:
+        out["skills/seo-suite/VERSION"] = read("skills/seo-suite/VERSION").strip()
+    except OSError:
+        out["skills/seo-suite/VERSION"] = None
     m = re.search(r'^VERSION="([^"]+)"', read("install.sh"), re.M)
     out["install.sh"] = m.group(1) if m else None
     for rel in ("README.md", "README.en.md", "README.es.md"):

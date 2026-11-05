@@ -40,7 +40,7 @@ metadata:
 
 ## 能力路由
 
-- 90 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
+- 91 个脚本（stdlib 零依赖）的用法见 [script-catalog](references/overview/script-catalog.md)。
 - 每个脚本的数据来源和降级见 [data-source-contract](references/overview/data-source-contract.md)。
 - 分诊细则、负例和全部参考文件清单见 [routing-rules](references/overview/routing-rules.md)。能力全景见 [capability-map](references/overview/capability-map.md)。
 - CWV 阈值、GSC 数据异常期、富结果退役日期、API 配额、sitemap 上限、搜索引擎份额等反复引用的外部事实只写在 [facts](references/overview/facts.md)，其他文件链接它。

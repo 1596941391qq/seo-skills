@@ -1,0 +1,30 @@
+{
+ "about": "RQ-229 例 4:20 条「线上 URL → 该改的真源文件」人工标注。everyinfra 10 条由一个没看过 source_map 的子代理(Sonnet)读 origin/main 源码逐条追到 title/正文所在文件(2026-11-05);两个测试站各 5 条按构造写定。",
+ "criterion": "开工前写定:正确 = source_map 的 best 恰好等于 source(只看第一名,不认「也算对」);另报「指错还敢动手」= actionable 为真但 best ≠ source 的条数,目标 0。通过线:正确率 ≥90%(≥18/20)。",
+ "everyinfra": {"repo": "~/Desktop/everyinfra", "rev": "origin/main", "labels": [
+  ["https://everyinfra.com/en", "web/content/en/home.ts"],
+  ["https://everyinfra.com/es/partners/power-bi", "web/content/partners/power-bi/es.md"],
+  ["https://everyinfra.com/xiaohongshu-api", "web/content/zh-CN/platform-seo.ts"],
+  ["https://everyinfra.com/en/guides", "web/content/en/guides.ts"],
+  ["https://everyinfra.com/en/similarweb-api/competitors", "web/content/en/api-docs.ts"],
+  ["https://everyinfra.com/es/blog/google-maps-place-id-deduplication", "web/content/es/blog/articles.ts"],
+  ["https://everyinfra.com/en/alternatives/scraperapi", "web/content/en/alternatives.ts"],
+  ["https://everyinfra.com/en/captcha/kasada", "web/content/en/captcha.ts"],
+  ["https://everyinfra.com/products/data", "web/content/product-hubs.ts"],
+  ["https://everyinfra.com/en/build/amazon-review-pipeline", "web/content/en/build/articles.ts"]
+ ]},
+ "next": {"labels": [
+  ["/", "app/page.tsx"],
+  ["/about", "app/about/page.tsx"],
+  ["/pricing", "app/(marketing)/pricing/page.tsx"],
+  ["/blog/a", "content/posts.json"],
+  ["/docs/start", "scripts/gen-docs.mjs"]
+ ]},
+ "static": {"labels": [
+  ["/", "index.html"],
+  ["/about/", "about/index.html"],
+  ["/blog/a/", "blog/a/index.html"],
+  ["/docs/api/", "docs/api/index.html"],
+  ["/team/", "team/index.html"]
+ ]}
+}
