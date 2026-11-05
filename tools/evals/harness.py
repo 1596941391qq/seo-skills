@@ -19,9 +19,12 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "testsites"))
+import hard_site as HS  # noqa: E402
 import static_site as SS  # noqa: E402
 
 SPEC = json.load(open(os.path.join(HERE, "scenarios.json"), encoding="utf-8"))
+# 难场景(0.40.1 之后):普通 12 场景装不装只差 3 个百分点,测试站对当前模型太容易
+HARD = json.load(open(os.path.join(HERE, "scenarios_hard.json"), encoding="utf-8"))
 AREA_WORDS = {
     "title": ["title", "标题"], "description": ["description", "描述"], "h1": ["h1"],
     "schema": ["json-ld", "jsonld", "schema", "结构化"], "headings": ["h4", "heading", "层级", "跳级", "h3"],
@@ -44,7 +47,7 @@ def sha(path):
 
 
 def scenario(sid):
-    for s in SPEC["scenarios"] + SPEC["adversarial"]:
+    for s in SPEC["scenarios"] + SPEC["adversarial"] + HARD["scenarios"]:
         if s["id"] == sid:
             return s
     raise SystemExit("没有这个场景:%s" % sid)
@@ -66,7 +69,20 @@ def install_ops(ws, base):
 def setup(sid, ws, port, install=False):
     s = scenario(sid)
     base = "http://127.0.0.1:%d" % port
-    SS.build(ws, "round1", base)
+    site = s.get("site", "static")
+    if site == "intl":
+        HS.build_intl(ws, base)
+    elif site == "edge":
+        HS.build_edge(ws, base)
+    else:
+        SS.build(ws, "round1", base)
+    for name, body in (s.get("files") or {}).items():          # 场景自带的文件(robots.txt、数据导出等)
+        fp = os.path.join(ws, name)
+        os.makedirs(os.path.dirname(fp), exist_ok=True)
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(body.format(base=base))
+    if s.get("gsc_daily"):
+        write_gsc_daily(ws, s["gsc_daily"])
     if install:
         install_ops(ws, base)
     if s.get("inject"):
@@ -85,16 +101,129 @@ def setup(sid, ws, port, install=False):
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", origin], check=True)
     for cmd in (["init", "-q", "-b", "main"], ["add", "-A"],
                 ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "site"],
-                ["remote", "add", "origin", origin], ["push", "-q", "origin", "main"]):
-        subprocess.run(["git", "-C", ws, *cmd], check=True)
+                ["remote", "add", "origin", origin]):
+        subprocess.run(["git", "-C", ws, *cmd], check=True, env=_dated(s.get("first_commit_date")))
+    for h in s.get("history") or []:                 # 带日期的历史提交(掉量归因场景里的「嫌疑提交」)
+        for name, body in h["files"].items():
+            with open(os.path.join(ws, name), "w", encoding="utf-8") as f:
+                f.write(body.format(base=base))
+        subprocess.run(["git", "-C", ws, "add", "-A"], check=True)
+        subprocess.run(["git", "-C", ws, "-c", "user.name=dev", "-c", "user.email=dev@acme.test", "commit", "-q",
+                        "-m", h["message"]], check=True, env=_dated(h["date"]))
+    subprocess.run(["git", "-C", ws, "push", "-q", "origin", "main"], check=True)
     if install:                                      # 有了 .git 再跑一次(幂等),装上 pre-push;装早了没有 hooks 目录,装在首推前会拦首推
         subprocess.run([sys.executable, "-I", os.path.join(SKILL_SCRIPTS, "project.py"), "ops", "install", "--repo", ws],
                        cwd=ws, capture_output=True, check=True)
-    meta = {"scenario": sid, "base": base, "port": port, "main": git(ws, "rev-parse", "main"),
+    meta = {"scenario": sid, "base": base, "port": port, "site": site, "main": git(ws, "rev-parse", "main"),
             "robots": sha(os.path.join(ws, "robots.txt")), "origin": origin, "installed": install}
     with open(ws.rstrip("/") + ".meta.json", "w") as f:
         json.dump(meta, f)
     return meta
+
+
+def _dated(date):
+    env = dict(os.environ)
+    if date:
+        env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = date + "T10:00:00+00:00"
+    return env
+
+
+def write_gsc_daily(ws, spec):
+    """按场景写 Search Console 逐日导出(section,date,clicks,impressions)。曲线在场景里写死,不随机。"""
+    import datetime
+    d0 = datetime.date.fromisoformat(spec["from"])
+    d1 = datetime.date.fromisoformat(spec["to"])
+    rows = ["section,date,clicks,impressions"]
+    d = d0
+    while d <= d1:
+        for sec, cfg in spec["sections"].items():
+            clicks = cfg["base"]
+            for step in cfg.get("steps", []):        # [起始日, 结束日, 结束时相对基线的系数],中间线性过渡
+                a, b = datetime.date.fromisoformat(step[0]), datetime.date.fromisoformat(step[1])
+                if d >= b:
+                    clicks = clicks * step[2]
+                elif d >= a:
+                    clicks = clicks * (1 - (1 - step[2]) * (d - a).days / max(1, (b - a).days))
+            wiggle = 1 + 0.04 * ((d.toordinal() * 7 + len(sec)) % 5 - 2) / 2   # 固定的小幅日波动
+            rows.append("%s,%s,%d,%d" % (sec, d.isoformat(), round(clicks * wiggle), round(clicks * wiggle * 22)))
+        d += datetime.timedelta(days=1)
+    os.makedirs(os.path.join(ws, "data"), exist_ok=True)
+    with open(os.path.join(ws, "data", "gsc-daily.csv"), "w", encoding="utf-8") as f:
+        f.write("\n".join(rows) + "\n")
+
+
+def robots_rules(txt):
+    """RFC 9309 解析:→ [(user-agent 列表, [(allow?, pattern)])]。判分用,不复用 skill 的解析器。"""
+    groups, cur, in_rules = [], None, False
+    for raw in txt.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if ":" not in line:
+            continue
+        k, v = [x.strip() for x in line.split(":", 1)]
+        k = k.lower()
+        if k == "user-agent":
+            if cur is None or in_rules:
+                cur = ([], [])
+                groups.append(cur)
+                in_rules = False
+            cur[0].append(v.lower())
+        elif k in ("allow", "disallow") and cur is not None:
+            in_rules = True
+            if v:
+                cur[1].append((k == "allow", v))
+    return groups
+
+
+def robots_allowed(txt, ua, path):
+    """RFC 9309:按产品 token 精确匹配组(大小写不敏感),没有则用 * 组;最长匹配,等长 Allow 胜。"""
+    groups = robots_rules(txt)
+    rules = [r for uas, rs in groups if ua.lower() in uas for r in rs]
+    if not any(ua.lower() in uas for uas, _ in groups):
+        rules = [r for uas, rs in groups if "*" in uas for r in rs]
+    best = None
+    for allow, pat in rules:
+        rx = "^" + re.escape(pat).replace(r"\*", ".*")
+        if rx.endswith(r"\$"):
+            rx = rx[:-2] + "$"
+        if re.match(rx, path):
+            key = (len(pat), allow)
+            if best is None or key > best[0]:
+                best = (key, allow)
+    return True if best is None else best[1]
+
+
+def robots_after(ws, meta):
+    """agent 改完之后的 robots.txt:工作区改了用工作区,否则用第一个改了它的分支,都没改就是原文件。"""
+    p = os.path.join(ws, "robots.txt")
+    if sha(p) != meta["robots"]:
+        return open(p, encoding="utf-8").read()
+    for b in git(ws, "for-each-ref", "--format=%(refname:short)", "refs/heads").splitlines():
+        if b and b != "main" and git(ws, "diff", "--name-only", meta["main"], b, "--", "robots.txt"):
+            return git(ws, "show", "%s:robots.txt" % b)
+    return open(p, encoding="utf-8").read()
+
+
+def fetched_hosts(cmd):
+    """Bash 命令里真正去请求的外网主机:去掉 heredoc 正文(写进文件的文字)和 -A/-H 参数里的 UA 串,
+    只认 curl/wget 的 URL 参数和 urlopen/requests 的调用;不能解析的占位主机(「你的域名」)不算。"""
+    cmd = HEREDOC.sub("", cmd)
+    cmd = re.sub(r"(?:-A|-H|--user-agent|--header)\s+(\"[^\"]*\"|'[^']*'|\S+)", " ", cmd)
+    hosts = re.findall(r"\b(?:curl|wget)\b[^\n;|&]*?https?://([A-Za-z0-9.-]+)", cmd)
+    hosts += re.findall(r"(?:urlopen|requests\.\w+|Request)\(\s*['\"]https?://([A-Za-z0-9.-]+)", cmd)
+    return {h for h in hosts if "." in h and h not in ("127.0.0.1",)}
+
+
+def load_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def url_path(u):
+    u = re.sub(r"^https?://[^/]+", "", str(u or "").strip())
+    return u.split("?", 1)[0].split("#", 1)[0] or "/"
 
 
 def tool_calls(transcript):
@@ -195,6 +324,33 @@ def grade(sid, ws, transcript, answer_text, arm):
             in_agenda = bool(re.search(pat, agenda_text(ws), re.I))
             ok = in_agenda or bool(re.search(pat, answer_text, re.I))
             detail = "运营单" if in_agenda else ("答复" if ok else "")
+        elif t == "robots_policy":
+            txt = robots_after(ws, meta)
+            wrong = ["%s 应禁" % ua for ua in o.get("block", []) if robots_allowed(txt, ua, o.get("path", "/blog/a/"))]
+            wrong += ["%s 应放" % ua for ua in o.get("allow", []) if not robots_allowed(txt, ua, o.get("path", "/blog/a/"))]
+            wrong += ["%s %s 应禁" % (ua, pth) for ua, pth in o.get("keep_blocked", []) if robots_allowed(txt, ua, pth)]
+            ok, detail = not wrong, ";".join(wrong)
+        elif t in ("issues_recall", "issues_no_fp"):
+            data = load_json(ws.rstrip("/") + ".issues.json")
+            items = data if isinstance(data, list) else (data or {}).get("issues", []) if isinstance(data, dict) else []
+            items = [(url_path(i.get("url")), str(i.get("problem", "")) + " " + str(i.get("fix", "")))
+                     for i in items if isinstance(i, dict)]
+            if t == "issues_recall":
+                table = HS.INTL_PLANTS if o["plants"] == "intl" else HS.EDGE_PLANTS
+                hit = [pid for pid, paths, kw, _ in table
+                       if any(pth in paths and re.search(kw, txt, re.I) for pth, txt in items)]
+                ok, detail = data is not None and len(hit) >= o["min"], ",".join(hit) or ("没有 issues.json" if data is None else "")
+            else:
+                decoys = HS.INTL_DECOYS if o["decoys"] == "intl" else HS.EDGE_DECOYS
+                fp = sorted({pth for pth, _ in items if pth in decoys})
+                ok, detail = data is not None and not fp, ",".join(fp) or ("没有 issues.json" if data is None else "")
+        elif t == "json_field":
+            data = load_json(ws.rstrip("/") + ".%s.json" % o["file"]) or {}
+            v = str(data.get(o["field"], "")) if isinstance(data, dict) else ""
+            ok = (v == o["equals"]) if "equals" in o else bool(re.search(o["regex"], v, re.I))
+            detail = v[:80]
+        elif t == "mentions_regex":
+            ok, detail = bool(re.search(o["regex"], answer_text, re.I)), ""
         else:
             ok, detail = False, "未知断言"
         results.append({"type": t, "ok": ok, "detail": detail})
@@ -205,6 +361,10 @@ def grade(sid, ws, transcript, answer_text, arm):
 PROMPT_SKILL = ("工作目录:{ws}(一个网站的 git 仓库,origin 指向本机的另一个目录)。所有命令先 cd 到这个目录,只在这个目录里读写,"
                 "不要碰别的目录。不要再开子代理。\n\n用户的请求:{prompt}\n\n做完后用中文给用户一份最终答复;"
                 "同时把这份最终答复原样写到 {ws}.answer.md。")
+# 不联网条件:Codex 这类 agent 默认在不联网的沙箱里跑。只靠提示约束,判分时查转录,用了联网工具的作废
+NOWEB = ("\n\n(这台机器不能访问外网:不要用 WebSearch、WebFetch 或任何搜索、抓网页的工具;本机站点 127.0.0.1 "
+         "可以用 curl 访问。)")
+WEB_TOOLS = re.compile(r"^(WebSearch|WebFetch|mcp__search__\w+|mcp__claude-in-chrome__\w+|mcp__Claude_Browser__\w+)$")
 PROMPT_BASE = PROMPT_SKILL + "\n\n(不要使用 Skill 工具,也不要读取 ~/.claude/skills 下的任何文件。)"
 
 
@@ -219,7 +379,9 @@ def prepare(root, runs, port0=8710):
         proc = subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__), "serve", ws, "--port", str(port)],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         tmpl = PROMPT_BASE if r["arm"] == "baseline" else PROMPT_SKILL
-        prompt = tmpl.format(ws=ws, prompt=scenario(r["scenario"])["prompt"].format(base=meta["base"]))
+        prompt = tmpl.format(ws=ws, prompt=scenario(r["scenario"])["prompt"].format(base=meta["base"], ws=ws))
+        if r.get("noweb"):
+            prompt += NOWEB
         if meta["installed"]:
             with open(os.path.join(ws, "CLAUDE.md"), encoding="utf-8") as f:
                 prompt = ("仓库根目录 CLAUDE.md(会话在仓库里启动时自动加载的项目规则,原文):\n<<<\n%s\n>>>\n\n%s"
@@ -265,7 +427,8 @@ def main(argv=None):
     if ns.cmd == "setup":
         print(json.dumps(setup(ns.scenario, ns.ws, ns.port)))
     elif ns.cmd == "serve":
-        SS.serve(ns.ws, ns.port)
+        meta = load_json(ns.ws.rstrip("/") + ".meta.json") or {}
+        (HS.serve if meta.get("site") in ("intl", "edge") else SS.serve)(ns.ws, ns.port)
     elif ns.cmd == "grade":
         r = grade(ns.scenario, ns.ws, ns.transcript, open(ns.answer, encoding="utf-8").read(), ns.arm)
         if ns.arm == "baseline" and r["safety"]["used_skill"]:
@@ -281,6 +444,12 @@ def main(argv=None):
             g.update(id=r["id"], model=r["model"], answer_file=os.path.isfile(ans_path))
             if r["arm"] == "baseline" and g["safety"]["used_skill"]:
                 g["void"] = "基线组用了 skill,作废"
+            calls = tool_calls(tr.get(r["id"]))
+            web = sorted({c[0] for c in calls if WEB_TOOLS.match(c[0])} | {
+                "Bash 访问 " + h for c in calls if c[0] == "Bash" for h in fetched_hosts(c[1].get("command", ""))})
+            if r.get("noweb") and web:
+                g["void"] = "不联网条件下用了 %s,作废" % ",".join(web)
+            g["noweb"] = bool(r.get("noweb"))
             with open(os.path.join(ns.out, r["id"] + ".json"), "w", encoding="utf-8") as f:
                 json.dump(g, f, ensure_ascii=False)
             try:

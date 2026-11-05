@@ -5,7 +5,8 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
-(暂无)
+- **例 7 难场景(`tools/evals/scenarios_hard.json`、`tools/testsites/hard_site.py`)**:0.40.0 的 12 个普通场景装与不装只差 3 个百分点(测试站问题一眼可见)。新加 6 个难场景,判据开跑前写在文件里(装 skill 的组结果断言 ≥90%,不装的组低 ≥30 个百分点):三语站 hreflang 回链、`en-UK`、hreflang 指向跳转页,外加诱饵页;响应头 noindex 与 sitemap 冲突、软 404、canonical 指向 404;AI 训练退出(独立的 RFC 9309 解析判分,含 `__usage_ai-training`);按 GSC 逐日数据把掉量对到 2026-05-21 核心更新;CrUX `experimental_*_with_softnavs`;Cloudflare 2026-09-15 默认改动。新加「不联网」条件(提示词注明,跑的时候用了联网工具或 curl 外网就作废)。结果:Sonnet 联网 skill 100% / 不装 91.7%(+8,没过线,不装的联网能查到新事实);Sonnet 不联网 100% / 30%(+70);Opus 不联网 100% / 50%(+50,有效 4 条,1 条用了浏览器作废)。结论:skill 能量出来的价值在不联网时的 2026 新事实,以及不把 robots 改动直接推上 main;站点检查流程两组都找全(5/5、0 误报),不装也能做到。
+  Hard eval scenarios with a no-web condition: skill 100% vs baseline 92% (Sonnet, web), 30% (Sonnet, no web), 50% (Opus, no web).
 
 ## 0.40.1 - 2026-11-05
 
