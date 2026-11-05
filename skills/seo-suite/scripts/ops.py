@@ -93,7 +93,7 @@ def read_json(path, default=None):
 
 def write_json(path, data):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    tmp = path + ".tmp"
+    tmp = "%s.%d.tmp" % (path, os.getpid())          # 带进程号:两个进程同写一个文件时不互删临时文件
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
         f.write("\n")
@@ -911,7 +911,7 @@ def run_ops(args, kind):
         # 同一天重跑:先删掉这一天写过的台账行,台账只留每天最后一次(幂等)
         old = read_jsonl(ledger_path)
         if any(e.get("run") == date for e in old):
-            tmp = ledger_path + ".tmp"
+            tmp = "%s.%d.tmp" % (ledger_path, os.getpid())
             with open(tmp, "w", encoding="utf-8") as f:
                 for e in old:
                     if e.get("run") != date:
@@ -1482,12 +1482,40 @@ def build_parser():
     return p
 
 
+class ops_lock:
+    """同一工作区同一时间只跑一份运营单(例 8 并发):后来的进程等前一个跑完再跑;同一天重跑本来就幂等。
+    锁文件 <ws>/.ops.lock 被 seo-ops/.gitignore 的 *.lock 挡在 git 外。没有 fcntl(Windows)时不加锁。"""
+
+    def __init__(self, ws):
+        self.ws, self.f = ws, None
+
+    def __enter__(self):
+        try:
+            import fcntl
+        except ImportError:
+            return self
+        os.makedirs(self.ws, exist_ok=True)
+        self.f = open(os.path.join(self.ws, ".ops.lock"), "w")
+        try:
+            fcntl.flock(self.f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            sys.stderr.write("ops.py: 另一个运营单正在这个工作区跑,等它跑完再接着跑\n")
+            fcntl.flock(self.f, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc):
+        if self.f:
+            self.f.close()                               # 关文件即释放 flock
+        return False
+
+
 def main(argv=None):
     p = build_parser()
     args = p.parse_args(argv)
     try:
         if args.cmd in ("weekly", "monthly"):
-            return run_ops(args, args.cmd)
+            with ops_lock(resolve_ws(args.ws)):
+                return run_ops(args, args.cmd)
         if args.cmd == "change":
             return cmd_change(args)
         if args.cmd == "ack":
