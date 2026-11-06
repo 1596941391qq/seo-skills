@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-11-05T07:53:28.412512+00:00",
+ "checked_at": "2026-11-06T07:54:02.243403+00:00",
  "sources": {
   "google-blog": {
    "top": "Search Central Live in Zurich is back!",
@@ -15,8 +15,8 @@
    "ts": "2026-11-05T07:53:13.665673+00:00"
   },
   "google-updates": {
-   "hash": "11d49f908d16087ac6da327b40280195",
-   "ts": "2026-11-04T07:28:27.814448+00:00"
+   "hash": "e34c16aa7185b280d4c3f2e2eb966bf6",
+   "ts": "2026-11-06T07:53:42.432815+00:00"
   },
   "gsc-announce": {
    "top": "Search Central Live in Zurich is back!",
@@ -60,8 +60,8 @@
    "ts": "2026-10-14T06:06:27.928530+00:00"
   },
   "openai-bots": {
-   "hash": "91fe7eae3719b8d6e152e75c631c2e34",
-   "ts": "2026-11-05T07:53:15.946849+00:00"
+   "hash": "16a619b7b5857489fac913541062d93c",
+   "ts": "2026-11-06T07:53:45.000304+00:00"
   },
   "ard-spec": {
    "top": "Merge pull request #111 from 91pavan/docs/observability-section",
@@ -82,8 +82,8 @@
    "ts": "2026-10-26T06:07:48.821620+00:00"
   },
   "anthropic-crawl": {
-   "hash": "95a1d0c81afc048fa63a92e770dae004",
-   "ts": "2026-11-05T07:53:16.549473+00:00"
+   "hash": "3bd7bc453283f63f76d9661faac4d8d0",
+   "ts": "2026-11-06T07:53:45.701176+00:00"
   },
   "schema-org": {
    "hash": "c28ae2197ecacc4469ac00319b179a7f",
@@ -94,37 +94,32 @@
    "ts": "2026-11-04T07:28:31.258636+00:00"
   },
   "yandex-wm": {
-   "hash": "fb289219c9ad7d36e876eab649e0e986",
-   "ts": "2026-11-04T07:28:36.270291+00:00"
+   "hash": "f5fbded20c7e0a8e746afdcd5b00f3d9",
+   "ts": "2026-11-06T07:53:48.056156+00:00"
   },
   "naver-wm": {
-   "hash": "b40da76f6a83051f656a9a5708261913",
-   "ts": "2026-11-03T07:52:59.539669+00:00"
+   "hash": "400dd05a1650d065f71a7b174a56c817",
+   "ts": "2026-11-06T07:53:51.587275+00:00"
   },
   "baidu-ziyuan": {
    "hash": "5b970db79a084daa5d7c5e7f41f4db61",
    "ts": "2026-10-11T08:35:05.849665+00:00"
   },
   "statcounter-search": {
-   "hash": "389df5848456ae86138e3c530030f843",
-   "ts": "2026-11-05T07:53:26.951953+00:00"
+   "hash": "d63a05ad3e04b841b267072da92f6018",
+   "ts": "2026-11-06T07:53:58.191668+00:00"
   },
   "statcounter-ai": {
-   "hash": "0ccdf7fede3e3685a5731ff07fb3e2ce",
-   "ts": "2026-11-05T07:53:27.237798+00:00"
+   "hash": "305076206002ea853ebae03060b99b0c",
+   "ts": "2026-11-06T07:53:58.476825+00:00"
   },
   "semrush-sensor": {
-   "hash": "3742ec8a321e1b6b9d5a1359e2ce924c",
-   "ts": "2026-11-05T07:53:27.551908+00:00"
+   "hash": "506d19834d3a89fe6edacf6a84974ffc",
+   "ts": "2026-11-06T07:53:58.892896+00:00"
   },
   "seroundtable": {
-   "top": "Google Ads Explains Difference With Search Terms Match Type (Keywords)",
+   "top": "OpenAI Updates ChatGPT Ads Bidding Options For Max Bid or Max CPC",
    "seen": [
-    "Daily Search Forum Recap: October 22, 2026",
-    "Google Search Tests Layout Change For Local Knowledge Panel",
-    "Google Ads New Translation Tool",
-    "Google Ads Customer Lifecycle Goals: Value Mode, Retention Goals & Percentage Multipliers",
-    "Daily Search Forum Recap: October 23, 2026",
     "Search News Buzz Video Recap: Google Search Chatter, PHP Exploit, AI SEO Worthwhile, Google Local, Google Ads, ChatGPT Ads & More",
     "Google AI Overview Citation Cards With AI-Generated Summary Snippets",
     "JPEG XL Image Format Not Supported By Google Images & Google Discover",
@@ -169,9 +164,14 @@
     "Google Emails: Site Reputation Policy Manual Actions No Longer Impact EEA",
     "Google Search Console Performance Report Multi-Select Device Filters",
     "Daily Search Forum Recap: November 4, 2026",
-    "Microsoft Clarity With New Agentic Analytics & Ask Clarity"
+    "Microsoft Clarity With New Agentic Analytics & Ask Clarity",
+    "OpenAI Updates ChatGPT Ads Bidding Options For Max Bid or Max CPC",
+    "Daily Search Forum Recap: November 5, 2026",
+    "Facebook Answers AI-Generated 6 Million Pages Is Google Scaled Content Abuse",
+    "Google Ads Expands AI Content Disclosure Label To More Regions",
+    "Google Ads PMax Channel Report Definitions Coming To Search & Shopping"
    ],
-   "ts": "2026-11-05T07:53:28.412258+00:00"
+   "ts": "2026-11-06T07:53:59.692349+00:00"
   },
   "google-docs-rss": {
    "top": "Updated guidance on preventing user-generated spam",
@@ -190,6 +190,99 @@
   "openai-bots-rss": {
    "hash": "f237661cad613ae8cbd3da9f508b2565",
    "ts": "2026-10-18T05:51:38.708920+00:00"
+  },
+  "chrome-blog": {
+   "top": "What's New in WebGPU (Chrome 155-156)",
+   "seen": [
+    "What's New in WebGPU (Chrome 155-156)",
+    "Shipping JPEG XL in Chrome",
+    "Email verification updates, October 2026",
+    "Chrome 156 beta",
+    "HTML-in-Canvas updates: Iterating toward a better Web API"
+   ],
+   "ts": "2026-11-06T07:53:59.823893+00:00"
+  },
+  "web-dev-blog": {
+   "top": "New to the web platform in September",
+   "seen": [
+    "New to the web platform in September",
+    "August 2026 Baseline monthly digest",
+    "Find features to support for Interop 2027 with your coding agent",
+    "Submit your proposals for Interop 2027",
+    "New to the web platform in August"
+   ],
+   "ts": "2026-11-06T07:54:00.066950+00:00"
+  },
+  "cloudflare-blog": {
+   "top": "Agents aren\u2019t humans (but they kinda are)",
+   "seen": [
+    "Agents aren\u2019t humans (but they kinda are)",
+    "See the agents, set the terms: new visibility and control for personal agents",
+    "Cross-request KV cache exposure in the GLM-5.3 Workers AI model, and our remediation with SGLang",
+    "How Commerce.com and Cloudflare are getting storefronts ready for AI agents"
+   ],
+   "ts": "2026-11-06T07:54:00.165816+00:00"
+  },
+  "openai-news": {
+   "top": "Flipsnack grows product signups with conversion optimization",
+   "seen": [
+    "Flipsnack grows product signups with conversion optimization",
+    "Making it easier for websites to express AI training preferences",
+    "Evernote turns AI-driven discovery into paid subscriptions"
+   ],
+   "ts": "2026-11-06T07:54:00.315401+00:00"
+  },
+  "bing-search-blog": {
+   "top": "Your content, your choice: clearer preferences for training and grounding",
+   "seen": [
+    "Your content, your choice: clearer preferences for training and grounding",
+    "New AI Visibility Insights in Bing Webmaster Tools: Intents, Topics, Citation Share, Compare",
+    "Announcing Microsoft Web IQ",
+    "A Smarter Way to Explore Images Has Come to Bing",
+    "Keeping Trusted Content Visible in an AI-Powered Search World"
+   ],
+   "ts": "2026-11-06T07:54:01.233797+00:00"
+  },
+  "msads-blog": {
+   "top": "What's new in Microsoft Clarity: Agent insights, faster answers, and AI discovery",
+   "seen": [
+    "What's new in Microsoft Clarity: Agent insights, faster answers, and AI discovery",
+    "Build, steer, and measure your campaigns with AI: What's new in Microsoft Advertising this October"
+   ],
+   "ts": "2026-11-06T07:54:01.270719+00:00"
+  },
+  "google-maps-blog": {
+   "top": "Celebrate 110 years of national parks with Maps, Search, and Gemini",
+   "seen": [
+    "Celebrate 110 years of national parks with Maps, Search, and Gemini",
+    "Ask Maps gets more helpful with food ordering and more",
+    "Simulate real-world places with Project Genie and Street View",
+    "7 ways to travel smarter this summer, with help from Google",
+    "New ways we\u2019re protecting businesses on Maps"
+   ],
+   "ts": "2026-11-06T07:54:01.518031+00:00"
+  },
+  "google-shopping-blog": {
+   "top": "An intelligent new shopping cart",
+   "seen": [
+    "An intelligent new shopping cart",
+    "Boost your holiday sales with these agentic commerce updates",
+    "Rethink 2026",
+    "The latest AI news we announced in May 2026",
+    "Catch up on 12 major I/O 2026 moments"
+   ],
+   "ts": "2026-11-06T07:54:01.662474+00:00"
+  },
+  "arxiv-geo": {
+   "top": "IntentGEO: Intent-aware Generative Engine Optimization for Recommendation",
+   "seen": [
+    "IntentGEO: Intent-aware Generative Engine Optimization for Recommendation",
+    "Characterizing Adversarial GEO via Implicit Brand Injection",
+    "Do GEO Gains Survive the Live Web? Evaluating In-the-Wild Visibility Gains of Generative Engine Optimization via LIVE-GEO",
+    "Predicting What Answer Engines Cite: Open Decision Models, Rerankers and a Distilled 4B Student on Ten Engines under Controlled Retrieval",
+    "Toolflation: Seller Agents Distort Tool Markets Through Spontaneous Generative Engine Optimization"
+   ],
+   "ts": "2026-11-06T07:54:02.242718+00:00"
   }
  }
 }
