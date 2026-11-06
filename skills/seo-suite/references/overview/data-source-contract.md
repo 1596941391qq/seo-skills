@@ -154,7 +154,7 @@
 | 脚本 | 数据 | 降级 | 反编造 |
 |---|---|---|---|
 | `outreach_tracker.py` | outreach.json 状态库;add 吃 citation_gaps `--json` 候选域(原样取 priority 与 outreach_tip) | ③ 输入/结构不符/同域重复→exit 2;due 复查日到期→exit 1(cron 接 notify) | 无 `--source` 手工登记 priority=Standard 不臆测;转化漏斗只按库内真实状态迁移计算;平均回复天数无样本=N/A |
-| `link_intel.py` | Common Crawl 域名级链接图(免费,季度;curl+gzip+grep 流式读)、自抓合作/友链/资源页、榜单文章、SERP 抽样 JSON | ③ 缺 gzip/grep/awk 或下载续传 60 次仍失败(Common Crawl 限流时回 503,脚本退避重试)→退出非 0,不出半截结果;抓不到的页记 status=0 | 链接图只到域名级、只到该季度;页面级只看静态 HTML;候选只算「链了 ≥N 个种子且没链我们」,不估流量不打 DR |
+| `link_intel.py` | Common Crawl 域名级链接图(免费,季度;分段下载+gzip+awk 流式读)、自抓合作/友链/资源页、榜单文章、SERP 抽样 JSON | ③ 缺 gzip/awk 或连续 300 段下载失败(Common Crawl 限流时回 503、读到一半断开,脚本从断点退避重试)→退出非 0,不出半截结果;抓不到的页记 status=0 | 链接图只到域名级、只到该季度;页面级只看静态 HTML;候选只算「链了 ≥N 个种子且没链我们」,不估流量不打 DR |
 | `directory_tracker.py` | 目录追踪 CSV(14 列 schema 吃 directory-submissions.md);verify 现场核验(HEAD liveness+GET 查 rel=nofollow;SSRF 拒私网) | ③ init 不覆写既有数据(exit 2);verify 404/410→removed、nofollow/找不到指向目标链接/不可达→exit 1 行不乱动;quarterly 队列非空→exit 1 接 notify | `--dofollow` 缺省 "?"(未知待 verify);DR 用户记账不代查;dofollow 结论只认现场核验的 rel 属性 |
 
 ## 十二、归因实验(3)

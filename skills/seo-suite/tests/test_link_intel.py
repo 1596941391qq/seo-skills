@@ -7,11 +7,14 @@
 references/research/link-intelligence.md「判据」(运营台已核实在线的回链)。
 """
 import gzip
+import http.client
 import os
 import shutil
 import sys
 import tempfile
 import unittest
+import urllib.error
+from unittest import mock
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, "scripts"))
@@ -91,6 +94,106 @@ class CCGraphTests(unittest.TestCase):
             "mutual": []}
         rows, _ = L.intersect(self.graph(), crawl, own="everyinfra.com", min_seeds=2)
         self.assertNotIn("proxyblog.net", [r["domain"] for r in rows])
+
+
+class CCStreamTests(unittest.TestCase):
+    """2026-11-06 审查发现的两处:macOS 自带 grep 太慢(改用 awk,不再需要 grep);
+    一段读到一半被对方关掉连接时 urllib 抛 IncompleteRead,原来接不住,几 GB 的流整次作废。
+    假服务器按请求头里的 Range 回字节,期望值按「整份文件原样拼回来」定,不是读实现得来的。"""
+
+    URL = "https://data.commoncrawl.org/projects/hyperlinkgraph/x/domain/x-domain-edges.txt.gz"
+    BLOB = bytes(range(40))
+
+    class Sink:
+        def __init__(self):
+            self.buf, self.closed = bytearray(), False
+
+        def write(self, b):
+            self.buf += b
+
+        def close(self):
+            self.closed = True
+
+    class Resp:
+        def __init__(self, start, body, total, cut=None, status=206):
+            self.status, self.body, self.cut = status, body, cut
+            self.headers = {"Content-Range": "bytes %d-%d/%d" % (start, start + len(body) - 1, total)}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            if self.cut is not None:
+                raise http.client.IncompleteRead(self.body[:self.cut], len(self.body) - self.cut)
+            return self.body
+
+    def serve(self, plan):
+        """plan:每次请求怎么回(ok / cut=N / shift=N / 503)。记下每次请求的主机和 Range 起点。"""
+        calls = []
+
+        def urlopen(req, timeout=None):
+            start = int(req.get_header("Range").split("=")[1].split("-")[0])
+            host = req.full_url.split("/")[2]
+            calls.append((host, start))
+            how = plan[len(calls) - 1] if len(calls) <= len(plan) else "ok"
+            if how == "503":
+                raise urllib.error.HTTPError(req.full_url, 503, "SlowDown", {}, None)
+            if how.startswith("shift="):
+                start += int(how[6:])
+            body = self.BLOB[start:start + 16]
+            cut = int(how[4:]) if how.startswith("cut=") else None
+            return self.Resp(start, body, len(self.BLOB), cut)
+        return calls, urlopen
+
+    def feed(self, plan, tries=300):
+        calls, fake = self.serve(plan)
+        sink = self.Sink()
+        with mock.patch.object(L.urllib.request, "urlopen", fake), mock.patch.object(L.time, "sleep", lambda s: None):
+            L._feed(self.URL, sink, tries=tries, chunk=16)
+        return calls, sink
+
+    def test_incomplete_read_resumes_from_offset(self):
+        calls, sink = self.feed(["cut=10"])
+        self.assertEqual(bytes(sink.buf), self.BLOB)            # 断掉前到手的 10 字节照收,不重复不漏
+        self.assertEqual([s for _, s in calls], [0, 10, 26])     # 从断点接着要
+        self.assertTrue(sink.closed)
+
+    def test_retries_are_bounded(self):
+        calls, fake = self.serve(["cut=0"] * 10)
+        with mock.patch.object(L.urllib.request, "urlopen", fake), mock.patch.object(L.time, "sleep", lambda s: None):
+            with self.assertRaises(SystemExit):
+                L._feed(self.URL, self.Sink(), tries=4, chunk=16)
+        self.assertEqual(len(calls), 4)
+
+    def test_wrong_range_not_written(self):
+        calls, sink = self.feed(["shift=5"])
+        self.assertEqual(bytes(sink.buf), self.BLOB)            # 错位的那段不写进流
+        self.assertEqual([s for _, s in calls], [0, 0, 16, 32])
+
+    def test_stays_on_mirror_that_worked(self):
+        calls, sink = self.feed(["503"])
+        self.assertEqual(bytes(sink.buf), self.BLOB)
+        hosts = [h for h, _ in calls]
+        self.assertEqual(hosts[0], "data.commoncrawl.org")
+        self.assertEqual(set(hosts[1:]), {L.CC_MIRRORS[1].split("/")[2]})   # 换过去之后不再每段先打主站
+
+    def test_ccgraph_needs_no_grep(self):
+        tmp = tempfile.mkdtemp(prefix="li_nogrep_")
+        try:
+            local = build_cc(tmp)
+            real = shutil.which
+            with mock.patch.object(L.shutil, "which", lambda t: None if t == "grep" else real(t)):
+                g = L.ccgraph(["brightdata.com", "ipfoxy.com", "novproxy.com"], own="everyinfra.com",
+                              release="test", local=local)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(g["inlinks"]["brightdata.com"],
+                         ["google.com", "proxyblog.net", "spam-farm.xyz", "toolsreview.org"])
+        self.assertEqual(g["outlinks"]["brightdata.com"], ["proxyblog.net"])
+        self.assertEqual(g["mutual"], [["ipfoxy.com", "novproxy.com"]])
 
 
 class ListicleEvidenceTests(unittest.TestCase):

@@ -9,7 +9,7 @@
              抓榜单/对比文章,数每个外链域出现在几篇里 → 种子站(≥min 篇)。榜单文章本身也是「求收录」外联对象。
   ccgraph    --targets seeds.txt [--own example.com] [--release cc-main-2026-jul-aug-sep|latest] [--ranks] --out graph.json
              流式读 Common Crawl 域名级链接图(顶点约 1GB、边约 8GB 压缩,不落盘),取出每个目标域的入链域,
-             以及目标域之间的互链。要 gzip、grep(-E -f)、awk 在 PATH 上;下载断了按 Range 断点续传。
+             以及目标域之间的互链。要 gzip、awk 在 PATH 上;下载断了按 Range 断点续传(读到一半断开也从断点接着要)。
   crawl      --sites sites.txt [--own example.com] [--max-pages 30] --out crawl.json
              抓每个站的首页、合作/集成/友链/资源类页面和 sitemap 里同类页,记下页面上的外链(含 rel、锚文本)。
              页面级互链(A 的某页链 B、B 的某页链 A)= 疑似互换,两边页面都给出来。
@@ -30,6 +30,7 @@
 import argparse
 import csv
 import gzip
+import http.client
 import io
 import json
 import os
@@ -104,11 +105,6 @@ def registrable(host_or_url):
     if h.startswith("www."):
         h = h[4:]
     return SC.registrable(h)
-
-
-def _ere(domain):
-    """域名 → grep -E 字面量(域名里只有字母数字、点、连字符)。"""
-    return domain.replace(".", "\\.")
 
 
 def rev(domain):
@@ -309,37 +305,53 @@ def cc_url(release, kind):
 def _feed(url, sink, tries=300, chunk=16 << 20):
     """把 url 的字节流按 16MB 一段的 Range 请求写进 sink(子进程 stdin)。
     Common Crawl 高峰时 S3 回 503 SlowDown:整条长连接几乎拿不到数据,短的分段请求一半以上能成。
-    所以按段取,单段失败就换主站 / 镜像重试,连续失败 tries 次才放弃(单线程顺序取,不加并发)。"""
-    got, total, fails, last = 0, None, 0, None
+    所以按段取,单段失败就换主站 / 镜像重试,连续失败 tries 次才放弃(单线程顺序取,不加并发)。
+    一段读到一半对方把连接关了(CDN 限流、本机代理出错时常见),urllib 抛 http.client.IncompleteRead,
+    它不是 URLError / OSError:已经到手的字节照收,下一段从断点接着要,这一次算失败。
+    哪个地址刚成功就接着用哪个,失败了才换下一个(原来每段成功后都回主站,主站限流时每段先吃一次 503)。"""
+    got, total, fails, last, cur = 0, None, 0, None, 0
     alts = [url] + [url.replace(CC_MIRRORS[0], m, 1) for m in CC_MIRRORS[1:] if url.startswith(CC_MIRRORS[0])]
     while total is None or got < total:
-        u = alts[fails % len(alts)]
+        u = alts[cur]
+        data, ok = b"", False
         try:
             req = urllib.request.Request(u, headers={"User-Agent": UA, "Range": "bytes=%d-%d" % (got, got + chunk - 1)})
             with urllib.request.urlopen(req, timeout=60) as r:
                 if r.status != 206:
                     raise SystemExit("服务器不支持分段下载:%s" % u)
-                m = re.search(r"/(\d+)$", r.headers.get("Content-Range", ""))
-                total = int(m.group(1)) if m else total
-                data = r.read()
-            sink.write(data)
-            got += len(data)
-            fails = 0
-            if total is None and len(data) < chunk:
-                break
+                cr = re.match(r"bytes (\d+)-\d+/(\d+|\*)", r.headers.get("Content-Range", "") or "")
+                if cr and int(cr.group(1)) != got:      # 回的不是要的那一段,写进去流就错位了
+                    raise OSError("Content-Range 起点 %s,要的是 %d" % (cr.group(1), got))
+                if cr and cr.group(2) != "*":
+                    total = int(cr.group(2))
+                try:
+                    data = r.read()
+                except http.client.IncompleteRead as e:
+                    data = e.partial or b""
+                    raise
+            ok = True
         except urllib.error.HTTPError as e:
             if e.code == 416:           # 已经取完
                 break
-            last, fails = e, fails + 1
-        except (urllib.error.URLError, OSError, TimeoutError) as e:
-            if isinstance(e, BrokenPipeError):
-                raise
-            last, fails = e, fails + 1
-        if fails:
-            if fails >= tries:
-                sink.close()
-                raise SystemExit("下载失败(连续 %d 段失败,到 %d 字节):%s %s" % (tries, got, u, last))
-            time.sleep(min(30, 1 + fails // 5))
+            last = e
+        except (http.client.HTTPException, urllib.error.URLError, OSError, TimeoutError) as e:
+            last = e                    # IncompleteRead、RemoteDisconnected、超时、连不上
+        if data:
+            sink.write(data)
+            got += len(data)
+        if ok and (data or total is None):
+            fails = 0
+            if total is None and len(data) < chunk:
+                break
+            continue
+        if ok:                          # 206 却一个字节都没给:不算成功,免得原地打转
+            last = OSError("空的 206 响应")
+        fails += 1
+        cur = (cur + 1) % len(alts)
+        if fails >= tries:
+            sink.close()
+            raise SystemExit("下载失败(连续 %d 段失败,到 %d 字节):%s %s" % (tries, got, u, last))
+        time.sleep(min(30, 1 + fails // 5))
     sink.close()
     return got
 
@@ -376,24 +388,18 @@ def _pipeline(url, source, tail_cmd):
     return out
 
 
-def stream_grep(url, patterns, source=None):
-    """(下载 | 本地文件) | gzip -dc | grep -E -f patterns → 命中行。source 给本地文件(测试用)时不走网络。"""
-    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".pat", encoding="utf-8") as pf:
-        pf.write("\n".join(patterns) + "\n")
-        pat = pf.name
-    try:
-        return _pipeline(url, source, ["grep", "-E", "-f", pat])
-    finally:
-        os.unlink(pat)
-
-
 def stream_join(url, keys, col, source=None):
-    """(下载 | 本地文件) | gzip -dc | awk 第 col 列在 keys 里的行。键多(几十万)时比 grep 快,一遍读完。"""
+    """(下载 | 本地文件) | gzip -dc | awk:第 col 列在 keys 里的行;col 给几列时任一列命中就算。
+    awk 把键放进哈希表,每行查一次,耗时只跟行数有关、跟键多少无关。
+    顶点和边原来用 grep -E -f(每个目标两条正则):macOS 自带的 BSD grep 对每一行把每条模式挨个试,
+    196 个目标时每行 29 微秒,18 亿条边要十四五个小时;awk 每行 0.35 微秒(2026-11-06 同机实测)。"""
+    cols = (col,) if isinstance(col, int) else tuple(col)
+    cond = " || ".join("($%d in k)" % c for c in cols)
     with tempfile.NamedTemporaryFile("w", delete=False, suffix=".keys", encoding="utf-8") as kf:
         kf.write("\n".join(keys) + "\n")
         kpath = kf.name
     try:
-        return _pipeline(url, source, ["awk", "-F", "\t", "NR==FNR{k[$1];next} ($%d in k)" % col, kpath, "-"])
+        return _pipeline(url, source, ["awk", "-F", "\t", "NR==FNR{k[$1];next} " + cond, kpath, "-"])
     finally:
         os.unlink(kpath)
 
@@ -401,14 +407,13 @@ def stream_join(url, keys, col, source=None):
 def ccgraph(targets, own=None, release=None, ranks=False, local=None):
     """targets:注册域列表。local:{'vertices': path, 'edges': path, 'ranks': path}(测试用)。
     返回 {release, found, missing, inlinks{t:[src]}, outlinks{t:[dst]}, mutual[[a,b]], ranks{d:pos}}。"""
-    for tool in ("gzip", "grep", "awk"):
+    for tool in ("gzip", "awk"):
         if not shutil.which(tool):
             raise SystemExit("缺少命令 %s" % tool)
     local = local or {}
     names = sorted({t.lower() for t in targets} | ({own.lower()} if own else set()))
-    # 1) 顶点:目标域 → id
-    vpat = ["\t%s\t" % _ere(rev(d)) for d in names]
-    vlines = stream_grep(cc_url(release, "vertices"), vpat, local.get("vertices"))
+    # 1) 顶点:目标域 → id(第 2 列是反转域名,整列相等才算)
+    vlines = stream_join(cc_url(release, "vertices"), [rev(d) for d in names], 2, local.get("vertices"))
     id_of = {}
     for ln in vlines:
         parts = ln.split("\t")
@@ -417,9 +422,8 @@ def ccgraph(targets, own=None, release=None, ranks=False, local=None):
     name_of = {v: k for k, v in id_of.items()}
     # 2) 边:指向目标的(入链)和目标发出的(出链)
     ids = sorted(name_of)
-    epat = ["\t%s$" % i for i in ids] + ["^%s\t" % i for i in ids]
     inl, outl = defaultdict(set), defaultdict(set)
-    for ln in stream_grep(cc_url(release, "edges"), epat, local.get("edges")) if ids else []:
+    for ln in stream_join(cc_url(release, "edges"), ids, (1, 2), local.get("edges")) if ids else []:
         a, _, b = ln.partition("\t")
         if b in name_of:
             inl[b].add(a)

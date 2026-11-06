@@ -5,6 +5,9 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **`link_intel.py ccgraph` 在 macOS 上跑得完,断流不再整次作废**:顶点和边原来用 `grep -E -f`(每个目标两条正则),macOS 自带的 BSD grep 对每一行把每条模式挨个试,耗时 = 行数 × 模式数。用脚本自己的流式函数、200 万行合成边文件、196 个目标同机实测:原来每行 26.6 微秒,按 cc-main-2026-aug-sep-oct 的 18 亿条边(https://data.commoncrawl.org/projects/hyperlinkgraph/cc-main-2026-aug-sep-oct/index.html ,核对 2026-11-06)推算要 13 个多小时;改用文件里已有的 awk 哈希连接(`stream_join`,现在可按多列匹配)后每行 0.35 微秒,约 10 分钟,命中行完全相同,也不再需要 grep。`_feed` 原来接不住 `http.client.IncompleteRead`(一段读到一半对方关连接时 urllib 抛它,不是 URLError / OSError),几 GB 的流直接作废;现在已到手的字节照收、从断点接着要,算一次失败,仍是连续 300 段失败才放弃;回的 Content-Range 起点不对、206 却没有字节都算失败,不写进流;哪个地址刚成功就接着用哪个。`tests/test_link_intel.py` 新增 5 条(断点续读、重试上限、错位段、镜像不回跳、没有 grep 也能跑),修前全红。
+  `link_intel.py ccgraph` now streams with an awk hash join instead of `grep -E -f` (BSD grep on macOS: ~13 h for 196 targets, now ~10 min) and resumes a chunk cut off mid-read (`IncompleteRead`) from its offset instead of aborting the whole download.
+
 ## 0.41.1 - 2026-11-06
 
 - **交收录时 Google 和 Bing 一起交**:everyinfra.com 11-06 只给 Google 请求了编入索引,Bing 那边两张日语 sitemap 显示「The page is not accessible」(条数 0)没人发现。`bing_wmt.py` 加 `feeds` 子命令:列 Bing 登记的每张 sitemap 的状态、条数、最近读取日期,`--submit` 先交或重交(SubmitFeed);有读不到的退出码 3。SKILL.md 路由表加「交收录」一行,script-catalog 补 `bing_wmt.py`(原来漏了)。实跑:重交后 Bing 当天读到 53 条和 106 条。`tests/test_bing_wmt.py` 加 3 条,响应取自当天真实 GetFeeds。
