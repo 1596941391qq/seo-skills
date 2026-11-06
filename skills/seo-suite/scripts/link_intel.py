@@ -5,8 +5,9 @@
 流程和判据见 references/research/link-intelligence.md。
 
 子命令:
-  listicles  --input listicles.json|urls.txt [--min 2] [--out seeds.json]
+  listicles  --input listicles.json|urls.txt [--min 2] [--no-resolve] [--resolve-max 300] [--out seeds.json]
              抓榜单/对比文章,数每个外链域出现在几篇里 → 种子站(≥min 篇)。榜单文章本身也是「求收录」外联对象。
+             联盟跳转(/go/x、/get/x、oxylabs.go2cloud.org)先解开,按真实厂商域计数。
   ccgraph    --targets seeds.txt [--own example.com] [--release cc-main-2026-jul-aug-sep|latest] [--ranks] --out graph.json
              流式读 Common Crawl 域名级链接图(顶点约 1GB、边约 8GB 压缩,不落盘),取出每个目标域的入链域,
              以及目标域之间的互链。要 gzip、grep(-E -f)、awk 在 PATH 上;下载断了按 Range 断点续传。
@@ -28,6 +29,7 @@
 所有子命令 --json 输出机器可读结果到 stdout;--out 写文件。网络抓取:仅 http(s),拒私网(同 site_crawl.py)。
 """
 import argparse
+import base64
 import csv
 import gzip
 import io
@@ -177,8 +179,116 @@ def fetch(url, timeout=12.0):
         return 0, url, ""
 
 
-def external_links(body, base):
-    """页面 → [{domain, url, rel[], anchor}](只留外站链接,同注册域的去掉)。"""
+# 联盟跳转。榜单里的厂商链接常不直链厂商:2026-11-06 抽 46 篇代理榜单,5 篇的厂商链接全部或大部分藏在自家
+# /go/x、/get/x 后面(proxyway.com/best/proxy-service-providers 正文 0 个外站直链、16 个 /get/<厂商>),
+# 5 篇经联盟平台的跟踪域(Oxylabs 出现在 14 篇里,只有 7 篇直链 oxylabs.io,6 篇只经 oxylabs.go2cloud.org)。
+# 不解开的话:站内跳转被当成站内链接丢掉,跟踪域按注册域归成 go2cloud.org、pxf.io,冒充种子。
+# 跟踪域的子域是广告主(或广告主自己的联盟网络):
+#   TUNE:https://<网络名>.go2cloud.org/aff_c?offer_id=…&aff_id=…
+#     (https://docs.rokt.com/integration-guides/ads/conversion-tracking/measurement-partners/tune/ ,核对 2026-11-06)
+#   impact.com:https://<品牌>.pxf.io/c/<联盟 id>/…,sjv.io、7eer.net、ojrq.net 同构
+#     (FMTC 的 Impact 接入说明 https://fmtc.atlassian.net/wiki/spaces/DI/pages/605814801/Impact ,核对 2026-11-06)
+TRACKER_SUBDOMAIN = {"go2cloud.org", "pxf.io", "sjv.io", "7eer.net", "ojrq.net"}
+# 站内跳转路径(联盟插件的常见写法)
+CLOAK_PATH = re.compile(r"^/(go|get|goto|out|outgoing|visit|recommends?|refer|aff|link-?out|redirect|external)(/|$)", re.I)
+# 跳转链接里带目标网址的参数(明文、百分号编码、base64 都认)
+DEST_PARAMS = ("url", "u", "ued", "murl", "dest", "destination", "target", "to", "redirect", "redirect_url", "goto",
+               "link", "out")
+RESOLVE_PER_PAGE = 40       # 每页最多解几条站内跳转(发请求的那种)
+RESOLVE_TIMEOUT = 8.0       # 单次请求超时(秒)
+
+
+def tracker_key(host_or_url):
+    """跟踪域上的链接 → '<广告主>.<跟踪域>'(oxylabs.go2cloud.org);不是跟踪域、或没有广告主子域 → ""。"""
+    h = host_or_url or ""
+    if "://" in h:
+        try:
+            h = urllib.parse.urlsplit(h).hostname or ""
+        except ValueError:
+            return ""
+    h = h.split("/")[0].lower().strip(".")
+    suf = registrable(h)
+    if suf not in TRACKER_SUBDOMAIN or h == suf:
+        return ""
+    label = h[: -len(suf) - 1].split(".")[-1]
+    return "" if label in ("", "www") else "%s.%s" % (label, suf)
+
+
+def decoded_dest(url):
+    """跳转链接查询串里带的目标网址:明文、百分号编码或 base64(/go/?url=aHR0cHM6Ly8…);没有 → None。离线,不发请求。"""
+    try:
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    except ValueError:
+        return None
+    for k in DEST_PARAMS:
+        for v in q.get(k, ()):
+            v = v.strip()
+            if v.startswith("//"):
+                v = "https:" + v
+            if v.lower().startswith(("http://", "https://")):
+                return v
+            try:
+                b = base64.urlsafe_b64decode(v + "=" * (-len(v) % 4)).decode("utf-8")
+            except (ValueError, UnicodeDecodeError):
+                continue
+            if b.lower().startswith(("http://", "https://")) and not re.search(r"\s", b):
+                return b
+    return None
+
+
+class CloakResolver:
+    """站内跳转(/go/x、/get/x)离线解不开时解一跳:发一次不跟随跳转的 HEAD(405/403/501 再 GET),读 Location。
+    只问发榜单的站自己(经 site_crawl 的私网守卫),不往下请求联盟平台,那边每次请求都会记一次点击。
+    站内再跳一次(补尾斜杠、换协议)也跟上,最多两跳。按网址(去掉查询串)缓存;每页最多 per_page 次、
+    整次最多 limit 次,单次超时 timeout 秒,每次之间停 delay 秒;超过上限的不发请求,记为没解开。"""
+
+    def __init__(self, limit=300, per_page=RESOLVE_PER_PAGE, timeout=RESOLVE_TIMEOUT, delay=0.0, single=None):
+        self.limit, self.per_page, self.timeout, self.delay = limit, per_page, timeout, delay
+        self.single = single or SC._single
+        self.cache, self.used, self.page_used, self.skipped = {}, 0, 0, 0
+
+    def new_page(self):
+        self.page_used = 0
+
+    def __call__(self, url):
+        key = url.split("#")[0].split("?")[0]
+        if key in self.cache:
+            return self.cache[key]
+        if self.used >= self.limit or self.page_used >= self.per_page:
+            self.skipped += 1
+            return None
+        self.used += 1
+        self.page_used += 1
+        dest, cur = None, url
+        try:
+            for _ in range(2):
+                st, hdrs, _ = self.single(cur, "HEAD", self.timeout)
+                if st in (403, 405, 501):
+                    st, hdrs, _ = self.single(cur, "GET", self.timeout)
+                loc = SC._header(hdrs, "location") if 300 <= st < 400 else None
+                if not loc:
+                    break
+                nxt = urllib.parse.urljoin(cur, loc)
+                if registrable(nxt) == registrable(url) and CLOAK_PATH.search(urllib.parse.urlsplit(nxt).path or "/"):
+                    cur = nxt
+                    continue
+                dest = nxt
+                break
+        except Exception:               # noqa: BLE001 — 连不上、超时、私网:当作没解开
+            dest = None
+        if self.delay:
+            time.sleep(self.delay)
+        self.cache[key] = dest
+        return dest
+
+
+def external_links(body, base, resolver=None, stats=None):
+    """页面 → [{domain, url, rel[], anchor, chrome}](只留外站链接,同注册域的去掉)。
+    联盟跳转先解开再算:同站的跳转链接(/go/x、/get/x,或查询串里带目标网址)和跟踪域上的链接
+    (oxylabs.go2cloud.org)按落地记,另带 via(redirect / tracker)和 href(页面上的原链接)。
+    能离线解的先离线解(查询串里的目标网址;跟踪域按子域认广告主,domain 记成 oxylabs.go2cloud.org,
+    再由 resolve_tracked 对到真实厂商域);离线解不开的站内跳转,给了 resolver 才发请求。
+    stats:{"resolved": n, "unresolved": n},站内跳转解开 / 没解开的条数。"""
     p = LinkParser()
     try:
         p.feed(body[:800_000])
@@ -198,15 +308,75 @@ def external_links(body, base):
         if not href.startswith(("http://", "https://")):
             continue
         d = registrable(href)
+        if not d or "." not in d:
+            continue
+        dest, via = href, ""
+        if d == own:                    # 站内链接:只有跳转出去的才要
+            try:
+                cloak = bool(CLOAK_PATH.search(urllib.parse.urlsplit(href).path or "/"))
+            except ValueError:
+                continue
+            target = decoded_dest(href)
+            if not target and cloak and resolver is not None:
+                target = resolver(href)
+            if not target:
+                if cloak and stats is not None:
+                    stats["unresolved"] = stats.get("unresolved", 0) + 1
+                continue
+            dest, via = target, "redirect"
+        if registrable(dest) in TRACKER_SUBDOMAIN:   # 跟踪域链接里也常带落地网址
+            inner = decoded_dest(dest)
+            if inner:
+                dest = inner
+            via = via or "tracker"
+        d = tracker_key(dest) or registrable(dest)
         if not d or d == own or "." not in d:
             continue
-        key = (d, href)
+        if via == "redirect" and stats is not None:
+            stats["resolved"] = stats.get("resolved", 0) + 1
+        key = (d, dest)
         if key in seen:
             continue
         seen.add(key)
         rel = sorted(set(ln["rel"] + (["nofollow"] if page_nofollow else [])))
-        out.append({"domain": d, "url": href, "rel": rel, "anchor": " ".join(ln["text"].split())[:80],
-                    "chrome": ln["chrome"]})
+        item = {"domain": d, "url": dest, "rel": rel, "anchor": " ".join(ln["text"].split())[:80],
+                "chrome": ln["chrome"]}
+        if via:
+            item["via"], item["href"] = via, href
+        out.append(item)
+    return out
+
+
+def resolve_tracked(fetched):
+    """榜单抓取结果里的跟踪域键(oxylabs.go2cloud.org)→ 这批榜单里别处直链过的同名厂商域(oxylabs.io)。
+    对不上的从 domains 里拿掉、记进 unresolved_trackers,不进种子(go2cloud.org、pxf.io 本身不是厂商)。
+    重复调用结果不变。"""
+    def is_trk(d):
+        return registrable(d) in TRACKER_SUBDOMAIN
+    by_label = defaultdict(Counter)
+    for f in fetched:
+        for d in f.get("domains", []):
+            if not is_trk(d):
+                by_label[d.split(".")[0]][d] += 1
+
+    def real(d):
+        if not is_trk(d):
+            return d
+        k = tracker_key(d)
+        c = by_label.get(k.split(".")[0]) if k else None
+        return sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if c else None
+    out = []
+    for f in fetched:
+        doms = f.get("domains", [])
+        if not any(is_trk(d) for d in doms):
+            out.append(f)
+            continue
+        g = dict(f)
+        mapped = {d: real(d) for d in doms}
+        g["domains"] = sorted({v for v in mapped.values() if v})
+        g["nofollow"] = sorted({mapped[d] for d in f.get("nofollow", []) if mapped.get(d)})
+        g["unresolved_trackers"] = sorted(set(f.get("unresolved_trackers", [])) | {d for d, v in mapped.items() if not v})
+        out.append(g)
     return out
 
 
@@ -231,7 +401,9 @@ def load_listicles(path):
 
 def aggregate_listicles(fetched, min_publishers=2):
     """按「被几家不同网站的榜单提到」计数:同一网站发的多篇只算一家,
-    免得某家自己博客里一排文章页脚都链着自家各国分站,把分站顶成种子。"""
+    免得某家自己博客里一排文章页脚都链着自家各国分站,把分站顶成种子。
+    跟踪域链接先对到真实厂商域(resolve_tracked)。"""
+    fetched = resolve_tracked(fetched)
     per_domain = defaultdict(lambda: {"publishers": set(), "listicles": set(), "categories": set()})
     for f in fetched:
         pub = registrable(f["url"])
@@ -262,25 +434,37 @@ def _sibling(a, b):
 
 def cmd_listicles(ns):
     items = load_listicles(ns.input)
+    resolver = None if ns.no_resolve else CloakResolver(limit=ns.resolve_max, delay=ns.delay)
     fetched = []
     for url, cat in items:
         st, final, body = fetch(url)
-        links = external_links(body, final) if st == 200 else []
+        stats = {"resolved": 0, "unresolved": 0}
+        if resolver is not None:
+            resolver.new_page()
+        links = external_links(body, final, resolver, stats) if st == 200 else []
         body_links = [ln for ln in links if not ln["chrome"]]       # 只算正文,导航和页脚不算推荐
         fetched.append({"url": url, "category": cat, "status": st,
                         "domains": sorted({ln["domain"] for ln in body_links}),
-                        "nofollow": sorted({ln["domain"] for ln in body_links if "nofollow" in ln["rel"]})})
+                        "nofollow": sorted({ln["domain"] for ln in body_links if "nofollow" in ln["rel"]}),
+                        "redirects_resolved": stats["resolved"], "redirects_unresolved": stats["unresolved"]})
         if ns.delay:
             time.sleep(ns.delay)
+    fetched = resolve_tracked(fetched)
     seeds = aggregate_listicles(fetched, ns.min)
     ok = sum(1 for f in fetched if f["status"] == 200 and f["domains"])
+    redir = {"resolved": sum(f["redirects_resolved"] for f in fetched),
+             "unresolved": sum(f["redirects_unresolved"] for f in fetched),
+             "unmatched_trackers": sorted({d for f in fetched for d in f.get("unresolved_trackers", [])})}
     res = {"listicles_total": len(items), "listicles_parsed": ok, "min": ns.min,
-           "seeds": seeds, "fetched": fetched}
+           "seeds": seeds, "redirects": redir, "fetched": fetched}
     write_out(ns.out, res)
     if ns.json:
         print(json.dumps(res, ensure_ascii=False))
     else:
         print("榜单 %d 篇,能读出外链 %d 篇;被 ≥%d 家网站的榜单提到的域 %d 个" % (len(items), ok, ns.min, len(seeds)))
+        print("站内跳转解开 %d 条、没解开 %d 条;跟踪域没对上厂商的 %d 个%s" % (
+            redir["resolved"], redir["unresolved"], len(redir["unmatched_trackers"]),
+            (":" + ", ".join(redir["unmatched_trackers"][:8])) if redir["unmatched_trackers"] else ""))
         for s in seeds[:40]:
             print("  %-28s %2d 家 / %2d 篇  %s" % (s["domain"], s["publisher_count"], s["listicle_count"],
                                                  ",".join(s["categories"])))
@@ -729,7 +913,7 @@ def _brands(domains):
 def listicles_as_crawl(listicle_res):
     """listicles 的抓取结果(每篇的外链域)当成页面级证据:发榜单的站 = 链了这些种子的站。"""
     sites = defaultdict(list)
-    for f in listicle_res.get("fetched", []):
+    for f in resolve_tracked(listicle_res.get("fetched", [])):
         if f.get("status") == 200 and f.get("domains"):
             nf = set(f.get("nofollow", ()))
             sites[registrable(f["url"])].append({"url": f["url"], "kind": "listicle",
@@ -803,6 +987,8 @@ def deadlinks(pages, own=None, per_page=80, fetcher=None, checker=None):
         for ln in external_links(body, final)[:per_page]:
             if ln["domain"] == own or is_platform(ln["domain"]):
                 continue
+            if registrable(ln["url"]) in TRACKER_SUBDOMAIN:   # 不去请求联盟平台:每次请求都会给对方记一次点击
+                continue
             if ln["url"] not in cache:
                 cache[ln["url"]] = checker(ln["url"])
             code, note = cache[ln["url"]]
@@ -866,9 +1052,11 @@ def page_text(body):
     return " ".join(re.sub(r"(?s)<[^>]+>", " ", t).split())
 
 
-def unlinked(pages, own, brand_rx, fetcher=None):
-    """pages:搜品牌名得到的网址 → 提到品牌、却没有任何指向 own 的链接的页(平台站和我们自己的不算)。"""
+def unlinked(pages, own, brand_rx, fetcher=None, resolver=None):
+    """pages:搜品牌名得到的网址 → 提到品牌、却没有任何指向 own 的链接的页(平台站和我们自己的不算)。
+    经站内跳转或联盟跟踪域(<我们的品牌>.pxf.io)链到我们的,也算链了。"""
     fetcher = fetcher or fetch
+    own_label = (own or "").split(".")[0]
     rx = re.compile(brand_rx, re.I)
     out = []
     for page in pages:
@@ -882,7 +1070,10 @@ def unlinked(pages, own, brand_rx, fetcher=None):
         m = rx.search(text)
         if not m:
             continue
-        links = [ln for ln in external_links(body, final) if ln["domain"] == own]
+        if resolver is not None:
+            resolver.new_page()
+        links = [ln for ln in external_links(body, final, resolver) if ln["domain"] == own
+                 or (registrable(ln["domain"]) in TRACKER_SUBDOMAIN and ln["domain"].split(".")[0] == own_label)]
         if links:
             continue
         a = max(0, m.start() - 80)
@@ -893,7 +1084,8 @@ def unlinked(pages, own, brand_rx, fetcher=None):
 def cmd_unlinked(ns):
     pages = [u for u, _ in load_listicles(ns.input)]
     res = {"own": registrable(ns.own), "brand": ns.brand,
-           "unlinked": unlinked(pages, registrable(ns.own), ns.brand)}
+           "unlinked": unlinked(pages, registrable(ns.own), ns.brand,
+                                resolver=None if ns.no_resolve else CloakResolver(limit=ns.resolve_max, delay=0.3))}
     write_out(ns.out, res)
     if ns.json:
         print(json.dumps(res, ensure_ascii=False))
@@ -1017,6 +1209,9 @@ def build_parser():
     a.add_argument("--input", required=True)
     a.add_argument("--min", type=int, default=2)
     a.add_argument("--delay", type=float, default=0.3)
+    a.add_argument("--no-resolve", action="store_true",
+                   help="不发请求解站内跳转(/go/x 这类),只用离线规则(查询串里的目标网址、跟踪域子域)")
+    a.add_argument("--resolve-max", type=int, default=300, help="整次最多为站内跳转发几次请求(每页另限 %d 次)" % RESOLVE_PER_PAGE)
     a.add_argument("--out")
     a.add_argument("--json", action="store_true")
     b = sub.add_parser("ccgraph")
@@ -1069,6 +1264,8 @@ def build_parser():
     g.add_argument("--input", required=True, help="搜品牌名得到的网址,一行一个(或 listicles.json 格式)")
     g.add_argument("--own", required=True)
     g.add_argument("--brand", required=True, help="品牌名正则,例如 'every\\s?infra'")
+    g.add_argument("--no-resolve", action="store_true", help="不发请求解站内跳转,只用离线规则")
+    g.add_argument("--resolve-max", type=int, default=300, help="整次最多为站内跳转发几次请求")
     g.add_argument("--out")
     g.add_argument("--json", action="store_true")
     return ap

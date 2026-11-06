@@ -27,6 +27,7 @@
 
 1. **种子站**:每个类别写 6–8 条英文、3–4 条本地语言的榜单意图查询,用 search MCP 取前 10 名,标出哪些是榜单 / 对比文章,存成 `listicles.json`(格式见 `link_intel.py` 文件头)。然后跑 `link_intel.py listicles --input listicles.json --min 2`,出现在 ≥2 篇榜单里的站进种子名单。再补上已知的直接竞品、已有的合作方和 SERP 抽样里的常客。
    - 榜单文章本身就是「求收录」外联对象:作者会更新榜单,把我们写进去比换链接更有用。
+   - 榜单里的厂商链接常走联盟跳转:自家 `/go/x`、`/get/x`,或联盟平台的跟踪域(`oxylabs.go2cloud.org`、`<品牌>.pxf.io`)。`listicles` 先离线解:查询串里带的目标网址(明文或 base64)直接用;跟踪域按子域认广告主,再对到这批榜单里别处直链过的同名厂商域,对不上的列在输出的 `redirects.unmatched_trackers`,不进种子。离线解不开的站内跳转,对发榜单的站发一次不跟随跳转的 HEAD 读 Location(每页最多 40 次、整次 `--resolve-max` 默认 300 次、单次 8 秒超时、间隔 `--delay`),不请求联盟平台,那边每次请求都会记一次点击;`--no-resolve` 只用离线规则。2026-11-06 抽 46 篇代理榜单:5 篇的厂商链接藏在站内跳转后面(例如 proxyway.com 的总榜正文没有一个外站直链),5 篇经跟踪域;不解开时 go2cloud.org 排第 5 个种子、Oxylabs 只算到 7 家,只用离线规则解开后 go2cloud.org 和 pxf.io 不再是种子,Oxylabs 12 家。
 2. **谁链谁**:跑 `link_intel.py ccgraph --targets seeds.txt --own 我们的域名 --ranks --out graph.json`。一次能查几百个目标域,瓶颈是下载约 9GB(20MB/s 时约 10 分钟),不落盘。
 3. **互换**:有两个来源。
    - 链接图里目标域之间的双向边:`graph.json` 的 `mutual` 字段。

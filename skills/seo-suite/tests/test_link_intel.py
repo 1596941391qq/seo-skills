@@ -188,6 +188,104 @@ class ExchangerTests(unittest.TestCase):
                                ("z.io", "listed", 1, 0, 1), ("w.io", "listed", 1, 0, 0)})
 
 
+class AffiliateRedirectTests(unittest.TestCase):
+    """2026-11-06 审查:抽 46 篇代理榜单,5 篇把厂商链接藏在自家 /go/、/get/ 后面,5 篇经联盟跟踪域
+    (oxylabs.go2cloud.org、smartproxy.pxf.io)。原来前者被当成站内链接丢掉,后者按注册域归成 go2cloud.org、
+    pxf.io 冒充种子(样本里 go2cloud.org 排第 5,Oxylabs 只算到 7 家)。期望值按「链接最终指向哪家厂商」写。"""
+
+    @staticmethod
+    def fetched(pages):
+        """照 cmd_listicles 的做法:每篇正文外链的域(不发请求,只用离线规则)。"""
+        out = []
+        for url, html in pages:
+            links = [x for x in L.external_links(html, url) if not x["chrome"]]
+            out.append({"url": url, "status": 200, "domains": sorted({x["domain"] for x in links}),
+                        "nofollow": sorted({x["domain"] for x in links if "nofollow" in x["rel"]})})
+        return out
+
+    def test_tracker_subdomain_counts_for_vendor(self):
+        pages = [("https://a-review.net/best", '<a href="https://oxylabs.io/">O</a><a href="https://brightdata.com/">B</a>'),
+                 ("https://b-review.net/top", '<a href="https://oxylabs.go2cloud.org/aff_c?offer_id=7&aff_id=1">O</a>'
+                                              '<a href="https://brightdata.com/">B</a>'),
+                 ("https://c-review.net/x", '<a href="https://oxylabs.go2cloud.org/aff_c?offer_id=7&aff_id=2">O</a>'
+                                            '<a href="https://smartproxy.pxf.io/c/1/2/3">S</a>')]
+        f = self.fetched(pages)
+        seeds = {x["domain"]: x["publisher_count"] for x in L.aggregate_listicles(f, 2)}
+        self.assertEqual(seeds, {"oxylabs.io": 3, "brightdata.com": 2})     # go2cloud.org、pxf.io 不是种子
+        # 这批里没人直链 smartproxy 的域:对不上,单列出来给人补,不进种子
+        self.assertEqual(L.resolve_tracked(f)[2]["unresolved_trackers"], ["smartproxy.pxf.io"])
+
+    def test_destination_in_query_decoded_offline(self):
+        html = ('<a href="/go/?url=aHR0cHM6Ly93d3cubXlwcm94eS5leGFtcGxlL2FmZi5waHA%2FYWZmPTE%3D">M</a>'   # base64
+                '<a href="/out.php?u=https%3A%2F%2Fwebshare.io%2F%3Fref%3Dx">W</a>'
+                '<a href="/about/">about</a>')
+        links = L.external_links(html, "https://pub.example/best-proxies")
+        self.assertEqual([(x["domain"], x["via"]) for x in links], [("myproxy.example", "redirect"), ("webshare.io", "redirect")])
+        self.assertEqual(links[0]["url"], "https://www.myproxy.example/aff.php?aff=1")
+        self.assertTrue(links[0]["href"].startswith("https://pub.example/go/"))
+
+    def test_same_site_cloak_resolved_with_one_request_each(self):
+        calls = []
+
+        def single(url, method, timeout):
+            calls.append((url, method, timeout))
+            if "/get/bright-data" in url:
+                return 301, {"location": "https://brightdata.com/?aff=9"}, b""
+            if "/get/oxylabs" in url:
+                return 302, {"location": "https://oxylabs.go2cloud.org/aff_c?offer_id=7"}, b""
+            return 404, {}, b""
+        html = ('<a href="/get/bright-data/?pos=1">B</a><a href="/get/bright-data/?pos=2">B</a>'
+                '<a href="/get/oxylabs/">O</a><a href="/get/gone/">G</a>')
+        stats = {}
+        links = L.external_links(html, "https://reviews.example/best", L.CloakResolver(delay=0, single=single), stats)
+        self.assertEqual([x["domain"] for x in links], ["brightdata.com", "oxylabs.go2cloud.org"])
+        self.assertEqual(stats, {"resolved": 3, "unresolved": 1})
+        self.assertEqual({c[0].split("/")[2] for c in calls}, {"reviews.example"})   # 只问发榜单的站,不请求联盟平台
+        self.assertEqual(len(calls), 3)                                             # 同一路径只问一次
+        self.assertTrue(all(c[1] == "HEAD" and c[2] == L.RESOLVE_TIMEOUT for c in calls))
+
+    def test_resolver_limits(self):
+        calls = []
+
+        def single(url, method, timeout):
+            calls.append(url)
+            return 302, {"location": "https://v%d.example/" % len(calls)}, b""
+        r = L.CloakResolver(limit=3, per_page=2, delay=0, single=single)
+        html = "".join('<a href="/go/v%d">v</a>' % i for i in range(5))
+        st1, st2 = {}, {}
+        L.external_links(html, "https://p1.example/a", r, st1)
+        r.new_page()
+        L.external_links(html.replace("/go/v", "/go/w"), "https://p1.example/b", r, st2)
+        self.assertEqual(len(calls), 3)                     # 整次上限 3:第一页 2 次(每页上限),第二页 1 次
+        self.assertEqual((st1["resolved"], st1["unresolved"]), (2, 3))
+        self.assertEqual((st2["resolved"], st2["unresolved"]), (1, 4))
+
+    def test_listicles_as_crawl_maps_trackers(self):
+        res = {"fetched": [
+            {"url": "https://a-review.net/best", "status": 200, "domains": ["brightdata.com", "oxylabs.io"]},
+            {"url": "https://b-review.net/top", "status": 200, "domains": ["brightdata.com", "oxylabs.go2cloud.org"]}]}
+        rows, _ = L.intersect({"inlinks": {}, "mutual": []}, {"sites": L.listicles_as_crawl(res), "mutual": []},
+                              own="everyinfra.com", min_seeds=2, seeds=["brightdata.com", "oxylabs.io"])
+        self.assertEqual(sorted(r["domain"] for r in rows), ["a-review.net", "b-review.net"])
+
+    def test_unlinked_counts_redirect_and_tracker_links(self):
+        pages = {"https://blog.example.net/a": "<p>We use EveryInfra daily.</p><a href='https://everyinfra.pxf.io/c/1/2/3'>try</a>",
+                 "https://blog.example.net/b": "<p>EveryInfra review</p><a href='/go/everyinfra'>try</a>"}
+
+        def single(url, method, timeout):
+            return 302, {"location": "https://www.everyinfra.com/?via=blog"}, b""
+        res = L.unlinked(list(pages), "everyinfra.com", r"every\s?infra", fetcher=lambda u: (200, u, pages[u]),
+                         resolver=L.CloakResolver(delay=0, single=single))
+        self.assertEqual(res, [])
+
+    def test_deadlinks_does_not_request_trackers(self):
+        checked = []
+        html = '<a href="https://oxylabs.go2cloud.org/aff_c?offer_id=7">O</a><a href="https://deadproxy.example/">D</a>'
+        L.deadlinks(["https://r.example/list"], fetcher=lambda u: (200, u, html),
+                    checker=lambda u: (checked.append(u), (404, ""))[1])
+        self.assertEqual(checked, ["https://deadproxy.example/"])   # 请求跟踪域会给对方记点击
+
+
 class CrawlBudgetTests(unittest.TestCase):
     def test_own_brand_and_partner_pages_first(self):
         """2026-11-06 一次抓 196 个站:proxies.sx、coronium、datacircle 的博客里以别家命名的页有上百篇,

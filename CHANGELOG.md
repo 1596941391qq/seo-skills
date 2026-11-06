@@ -5,6 +5,9 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **`link_intel.py` 解开榜单里的联盟跳转**:抽 46 篇代理榜单(2026-11-06 抓取),5 篇的厂商链接藏在自家 `/go/`、`/get/` 后面(proxyway.com 的总榜正文没有一个外站直链,16 个 `/get/<厂商>`),原来被当成站内链接丢掉,这类联盟评测站在 `intersect --listicles` 里也成了「链了 0 个种子」;5 篇经联盟平台的跟踪域,原来按注册域归成 go2cloud.org、pxf.io,go2cloud.org 排到第 5 个种子,Oxylabs 只算到 7 家。现在先离线解:查询串里带的目标网址(明文、百分号编码、base64)直接用;跟踪域 go2cloud.org(TUNE)、pxf.io / sjv.io / 7eer.net / ojrq.net(impact.com)按子域认广告主,再对到这批榜单里别处直链过的同名厂商域(`resolve_tracked`),对不上的单列、不进种子。离线解不开的站内跳转,对发榜单的站发一次不跟随跳转的 HEAD 读 Location:每页最多 40 次、整次 `--resolve-max` 默认 300 次、单次 8 秒超时、按网址缓存,不请求联盟平台(会给对方记点击);`--no-resolve` 只用离线规则。同一份样本只用离线规则:go2cloud.org、pxf.io 不再是种子,Oxylabs 7 → 12 家;proxyway 那页联网解一跳,发 14 次请求解开全部 16 条。`unlinked` 经跳转或跟踪域链到我们的也算链了;`deadlinks` 不再请求跟踪域。来源:TUNE 链接格式 https://docs.rokt.com/integration-guides/ads/conversion-tracking/measurement-partners/tune/ ,impact.com 链接格式 https://fmtc.atlassian.net/wiki/spaces/DI/pages/605814801/Impact (均核对 2026-11-06)。`tests/test_link_intel.py` 新增 7 条,修前全红。
+  `link_intel.py` resolves affiliate redirects in listicles (same-site `/go/` `/get/` links and TUNE / impact.com tracking subdomains) to the vendor domain, offline first and with one capped, non-following HEAD to the publisher otherwise; go2cloud.org and pxf.io no longer show up as seeds.
+
 ## 0.41.1 - 2026-11-06
 
 - **交收录时 Google 和 Bing 一起交**:everyinfra.com 11-06 只给 Google 请求了编入索引,Bing 那边两张日语 sitemap 显示「The page is not accessible」(条数 0)没人发现。`bing_wmt.py` 加 `feeds` 子命令:列 Bing 登记的每张 sitemap 的状态、条数、最近读取日期,`--submit` 先交或重交(SubmitFeed);有读不到的退出码 3。SKILL.md 路由表加「交收录」一行,script-catalog 补 `bing_wmt.py`(原来漏了)。实跑:重交后 Bing 当天读到 53 条和 106 条。`tests/test_bing_wmt.py` 加 3 条,响应取自当天真实 GetFeeds。
