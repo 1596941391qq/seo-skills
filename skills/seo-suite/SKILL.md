@@ -61,6 +61,7 @@ metadata:
 | llms.txt 与 AI 爬虫 | [llms-txt-guide](references/content/llms-txt-guide.md)、[ai-crawler-policy](references/technical/ai-crawler-policy.md) | `llmstxt.py`、`robots_posture.py` |
 | 技术审计 | [audit-rule-catalog](references/technical/audit-rule-catalog.md)、[validation-guide](references/technical/validation-guide.md) | `site_crawl.py`、`site_audit.py`、`health_score.py` |
 | 审计发现变工单 | [audit-tool-output](references/technical/audit-tool-output.md) | `envelope.py` → `remediation.py` |
+| 交收录(新页、加急页、新 sitemap):Google 和 Bing 同一批交 | [validation-guide](references/technical/validation-guide.md) | `gsc_api.py inspect`(只读,请求编入索引要在 GSC 后台点)、`bing_wmt.py submit`、`bing_wmt.py feeds --submit` |
 | Schema | [schema-templates](references/technical/schema-templates.md) | `schema_lint.py` |
 | 重定向 / canonical | [redirects-canonical](references/technical/redirects-canonical.md) | `redirect_chain.py`、`sitemap_audit.py` |
 | hreflang / 多市场 | [hreflang-validation](references/technical/hreflang-validation.md) | `hreflang_cluster.py`、`market_lint.py` |

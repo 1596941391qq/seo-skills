@@ -5,6 +5,11 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+## 0.41.1 - 2026-11-06
+
+- **交收录时 Google 和 Bing 一起交**:everyinfra.com 11-06 只给 Google 请求了编入索引,Bing 那边两张日语 sitemap 显示「The page is not accessible」(条数 0)没人发现。`bing_wmt.py` 加 `feeds` 子命令:列 Bing 登记的每张 sitemap 的状态、条数、最近读取日期,`--submit` 先交或重交(SubmitFeed);有读不到的退出码 3。SKILL.md 路由表加「交收录」一行,script-catalog 补 `bing_wmt.py`(原来漏了)。实跑:重交后 Bing 当天读到 53 条和 106 条。`tests/test_bing_wmt.py` 加 3 条,响应取自当天真实 GetFeeds。
+  Submit to Bing together with Google: new `bing_wmt.py feeds` lists sitemap status from Bing (exit 3 when any is unreadable) and resubmits with `--submit`.
+
 ## 0.41.0 - 2026-11-06
 
 - **例 7 难场景(`tools/evals/scenarios_hard.json`、`tools/testsites/hard_site.py`)**:0.40.0 的 12 个普通场景装与不装只差 3 个百分点(测试站问题一眼可见)。新加 6 个难场景,判据开跑前写在文件里(装 skill 的组结果断言 ≥90%,不装的组低 ≥30 个百分点):三语站 hreflang 回链、`en-UK`、hreflang 指向跳转页,外加诱饵页;响应头 noindex 与 sitemap 冲突、软 404、canonical 指向 404;AI 训练退出(独立的 RFC 9309 解析判分,含 `__usage_ai-training`);按 GSC 逐日数据把掉量对到 2026-05-21 核心更新;CrUX `experimental_*_with_softnavs`;Cloudflare 2026-09-15 默认改动。新加「不联网」条件(提示词注明,跑的时候用了联网工具或 curl 外网就作废)。结果:Sonnet 联网 skill 100% / 不装 91.7%(+8,没过线,不装的联网能查到新事实);Sonnet 不联网 100% / 30%(+70);Opus 不联网 100% / 50%(+50,有效 4 条,1 条用了浏览器作废)。结论:skill 能量出来的价值在不联网时的 2026 新事实,以及不把 robots 改动直接推上 main;站点检查流程两组都找全(5/5、0 误报),不装也能做到。

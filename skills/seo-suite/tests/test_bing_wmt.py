@@ -386,5 +386,60 @@ class StatsCsvContractTests(unittest.TestCase):
         self.assertEqual(data["url_info"]["discovery_date"], "2023-11-14")
 
 
+
+class FeedsTests(unittest.TestCase):
+    """feeds:GetFeeds 列 sitemap 状态,--submit 先 SubmitFeed。
+    响应取自 2026-11-06 everyinfra.com 的真实 GetFeeds(两张日语 sitemap 读不到)。"""
+
+    REAL_20261106 = {"d": [
+        {"__type": "Feed:#Microsoft.Bing.Webmaster.Api", "Compressed": False, "FileSize": 0,
+         "LastCrawled": "/Date(1793912346000)/", "Status": "The page is not accessible",
+         "Submitted": "/Date(1793900000000)/", "Type": "NA",
+         "Url": "https://everyinfra.com/sitemap/ja-platform.xml", "UrlCount": 0},
+        {"__type": "Feed:#Microsoft.Bing.Webmaster.Api", "Compressed": False, "FileSize": 0,
+         "LastCrawled": "/Date(1793912335000)/", "Status": "Success",
+         "Submitted": "/Date(1793900000000)/", "Type": "NA",
+         "Url": "https://everyinfra.com/sitemap/ja-content.xml", "UrlCount": 161},
+        {"__type": "Feed:#Microsoft.Bing.Webmaster.Api", "Compressed": False, "FileSize": 0,
+         "LastCrawled": "/Date(1793912334000)/", "Status": "Pending",
+         "Submitted": "/Date(1793945452221)/", "Type": "NA",
+         "Url": "https://everyinfra.com/sitemap/ja-captcha.xml", "UrlCount": 0},
+    ]}
+
+    def test_not_accessible_feed_exits_3_and_is_named(self):
+        _stub, patcher = stubbed({"GetFeeds": self.REAL_20261106})
+        with patcher:
+            rc, out, _err = run_main(["feeds", "--site", "everyinfra.com", "--key", KEY])
+        self.assertEqual(rc, 3)
+        self.assertIn("读不到", out)
+        self.assertIn("ja-platform.xml  [The page is not accessible]", out)
+        self.assertIn("1 张 sitemap Bing 读不到", out)
+
+    def test_json_lists_only_unreadable_pending_counts_as_ok(self):
+        _stub, patcher = stubbed({"GetFeeds": self.REAL_20261106})
+        with patcher:
+            rc, out, _err = run_main(["feeds", "--site", "everyinfra.com", "--key", KEY,
+                                      "--json"])
+        self.assertEqual(rc, 3)
+        d = json.loads(out)
+        self.assertEqual(d["not_readable"], ["https://everyinfra.com/sitemap/ja-platform.xml"])
+        self.assertEqual([f["url_count"] for f in d["feeds"]], [0, 161, 0])
+        self.assertEqual(d["feeds"][0]["last_crawled"], "2026-11-05")
+
+    def test_submit_posts_feed_before_listing(self):
+        stub, patcher = stubbed({"SubmitFeed": {"d": None},
+                                 "GetFeeds": {"d": [self.REAL_20261106["d"][1]]}})
+        sm = "https://everyinfra.com/sitemap/ja-platform.xml"
+        with patcher:
+            rc, out, _err = run_main(["feeds", "--site", "everyinfra.com", "--key", KEY,
+                                      "--submit", sm])
+        self.assertEqual(rc, 0)
+        methods = [u.split("/api.svc/json/", 1)[1].split("?")[0] for u, _ in stub.calls]
+        self.assertEqual(methods, ["SubmitFeed", "GetFeeds"])
+        self.assertEqual(json.loads(stub.calls[0][1]),
+                         {"siteUrl": "https://everyinfra.com", "feedUrl": sm})
+        self.assertIn("已提交: " + sm, out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

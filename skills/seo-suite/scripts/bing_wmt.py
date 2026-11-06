@@ -13,6 +13,11 @@ Bing WMT JSON/REST API(官方 learn.microsoft.com/en-us/bingwebmaster;SOAP/POX �
   submit    --site HOST (--url U ... | --urls F)  # SubmitUrl(单)/SubmitUrlBatch(批,≤500/调用)
   stats     --site HOST [--url U] [--out F]     # GetQueryStats → CSV(+--url 时附 GetUrlInfo)
   pagequery --site HOST --page U [--out F]      # GetPageQueryStats → 单页的查询 CSV(同 stats 列)
+  feeds     --site HOST [--submit SITEMAP ...]  # GetFeeds 列 sitemap 状态;--submit 先 SubmitFeed(重)交
+                                               #   有 sitemap 读不到(Status 不是 Success/Pending)时退出码 3
+
+给 Google 交网址或 sitemap 时,同一批也交 Bing:网址用 submit,sitemap 用 feeds --submit,
+再跑一次 feeds 看每张是 Success 且 UrlCount 不为 0(Google 没有普通网页的提交 API)。
 
 凭证寻径:--key > env BING_WMT_KEY(doctor.py T4 键,免费)。无 key 不猜——doctor 式指路。
 
@@ -40,7 +45,8 @@ SSRF 防御(套件惯例,照 gsc_api.py 端点固定思路):仅 https + bing.com
 (ssl.bing.com/www.bing.com 等 bing.com 及子域);端点基址内置,不接受任意 URL。
 apikey 只进请求查询串,不进任何输出(异常信息过 redact_key)。
 
-退出码:0 正常;1 运行错(网络/HTTP/API/凭证缺失);2 用法错(参数/SSRF 拒)。
+退出码:0 正常;1 运行错(网络/HTTP/API/凭证缺失);2 用法错(参数/SSRF 拒);
+3 feeds 发现有 sitemap Bing 读不到。
 """
 import argparse
 import csv
@@ -238,6 +244,29 @@ def submit_urls(key, site, urls, timeout=DEFAULT_TIMEOUT, batch_meta=None):
             batch_meta.append({"method": "SubmitUrlBatch", "count": len(chunk), "resp": resp})
         results.append({"method": "SubmitUrlBatch", "count": len(chunk), "ok": True})
     return results
+
+
+FEED_OK_STATUSES = ("Success", "Pending")   # Pending=刚(重)交、还没读;其余如
+                                            # "The page is not accessible" 都算读不到
+
+
+def get_feeds(key, site, timeout=DEFAULT_TIMEOUT):
+    """GetFeeds → [{"url","status","url_count","last_crawled","submitted"}];d 为 null → []。"""
+    d = api_call("GetFeeds", key, params={"siteUrl": site}, timeout=timeout)
+    rows = []
+    for f in d if isinstance(d, list) else []:
+        if not isinstance(f, dict):
+            continue
+        rows.append({"url": f.get("Url"), "status": f.get("Status") or "",
+                     "url_count": int(f.get("UrlCount") or 0),
+                     "last_crawled": parse_wcf_date(f.get("LastCrawled")),
+                     "submitted": parse_wcf_date(f.get("Submitted"))})
+    return rows
+
+
+def submit_feed(key, site, feed_url, timeout=DEFAULT_TIMEOUT):
+    """SubmitFeed(POST);重交已有的 sitemap 也走它,Bing 会把状态改成 Pending 再读。"""
+    api_call("SubmitFeed", key, body={"siteUrl": site, "feedUrl": feed_url}, timeout=timeout)
 
 
 def get_query_stats(key, site, timeout=DEFAULT_TIMEOUT):
@@ -500,6 +529,37 @@ def cmd_pagequery(args):
     return 0
 
 
+def cmd_feeds(args):
+    key = resolve_key(args)
+    site = normalize_site(args.site)
+    for u in args.submit:
+        submit_feed(key, site, u, timeout=args.timeout)
+    rows = get_feeds(key, site, timeout=args.timeout)
+    bad = [r for r in rows if r["status"] not in FEED_OK_STATUSES]
+    if args.json:
+        print(json.dumps({"schema_version": SCHEMA_VERSION, "ok": not bad, "site": site,
+                          "submitted": list(args.submit), "feeds": rows,
+                          "not_readable": [r["url"] for r in bad]},
+                         ensure_ascii=False, indent=1))
+        return 3 if bad else 0
+    print("== Bing sitemap 状态 ==")
+    print("site: %s" % site)
+    for u in args.submit:
+        print("已提交: %s" % u)
+    for r in rows:
+        print("%-9s %6d 条  最近读取 %s  %s%s" % (
+            "OK" if r["status"] in FEED_OK_STATUSES else "读不到", r["url_count"],
+            r["last_crawled"] or "-", r["url"],
+            "" if r["status"] == "Success" else "  [%s]" % r["status"]))
+    if not rows:
+        print("(Bing 侧没有登记任何 sitemap;用 --submit 交)")
+    if bad:
+        print("[!] %d 张 sitemap Bing 读不到:先用 bingbot UA 取一次确认现在能打开,"
+              "再用 --submit 重交" % len(bad))
+        return 3
+    return 0
+
+
 def build_parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--key", help="Bing WMT API key(优先级 --key > env %s)" % ENV_KEY)
@@ -518,8 +578,9 @@ def build_parser():
                "配额: 实测约 100/日+1300/月(读 GetUrlSubmissionQuota 为准);SubmitUrlBatch ≤500/调用\n"
                "诚实边界: 流量数据验证后数天起量、历史不回填(空列表≠0≠错);\n"
                "  GetUrlSubmissionStatus 已于 2026-08-31 裁撤,urlstatus 走 GetUrlInfo+配额端点\n"
-               "退出码: 0 正常 / 1 运行错(网络/HTTP/API/凭证缺失) / 2 用法错(参数/SSRF 拒)")
-    sub = p.add_subparsers(dest="cmd", metavar="{urlstatus,submit,stats,pagequery}")
+               "退出码: 0 正常 / 1 运行错(网络/HTTP/API/凭证缺失) / 2 用法错(参数/SSRF 拒)\n"
+               "  / 3 feeds 有 sitemap 读不到")
+    sub = p.add_subparsers(dest="cmd", metavar="{urlstatus,submit,stats,pagequery,feeds}")
 
     pu = sub.add_parser("urlstatus", parents=[common],
                         help="查 URL 提交/收录状态(GetUrlInfo+GetUrlSubmissionQuota)")
@@ -544,6 +605,12 @@ def build_parser():
     pp.add_argument("--site", required=True, help="站点(裸域名或与 WMT 验证形式一致的 URL)")
     pp.add_argument("--page", required=True, help="页面完整 URL")
     pp.add_argument("--out", metavar="F", help="CSV 落盘路径(缺省 CSV 走 stdout,可管道)")
+
+    pf = sub.add_parser("feeds", parents=[common],
+                        help="列 sitemap 状态(GetFeeds);--submit 先交或重交(SubmitFeed)")
+    pf.add_argument("--site", required=True, help="站点(裸域名或与 WMT 验证形式一致的 URL)")
+    pf.add_argument("--submit", action="append", default=[], metavar="SITEMAP",
+                    help="要交或重交的 sitemap 完整 URL(可重复)")
     return p
 
 
@@ -553,7 +620,7 @@ def main(argv=None):
         build_parser().print_help(sys.stderr)
         return 2
     handlers = {"urlstatus": cmd_urlstatus, "submit": cmd_submit, "stats": cmd_stats,
-                "pagequery": cmd_pagequery}
+                "pagequery": cmd_pagequery, "feeds": cmd_feeds}
     try:
         return handlers[args.cmd](args)
     except UsageError as e:
