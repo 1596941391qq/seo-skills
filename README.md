@@ -85,7 +85,7 @@ EveryInfra SEO Skills 的版本为 `0.41.0`，采用 Apache-2.0 许可协议。�
 | 能力集合 | 典型任务 |
 |---|---|
 | overview | 整站 SEO 诊断、路线图与优先级排序、不知道先做什么时的分诊、目标市场 intake 闸门 |
-| research | 关键词研究与搜索意图（各市场工具链+persona×意图 SXO 层）、SERP 分析（含各市场 AIO 覆盖与 SERP 占位层）、内容缺口、竞品、目录提交引擎、外链画像 |
+| research | 关键词研究与搜索意图（各市场工具链+persona×意图 SXO 层）、SERP 分析（含各市场 AIO 覆盖与 SERP 占位层）、内容缺口、竞品、目录提交引擎、外链画像、**竞品与外链发现**（`link_intel.py`：榜单种子站、Common Crawl 链接图、合作页互换识别、互换池、求收录候选、竞品赢词页面类型）、**经典速效清单**（33 条，逐条指到脚本） |
 | content | SEO 内容 brief 与写作、标题与 meta 描述、GEO / AI 搜索可见度优化（含区域 AI 平台）、中文 AI 搜索、**视频 SEO/GEO**（<img src="assets/icons/youtube.svg" width="16" height="16" alt=""> YouTube 被引机制/人工字幕层）、**电商 GEO 五级阶梯+七大 marketplace 站内 SEO**（ML/Trendyol/Allegro/bol/<img src="assets/icons/shopee.svg" width="16" height="16" alt=""> Shopee）、内容质量、旧内容刷新 |
 | technical | 技术 SEO 与单页审计、robots.txt 与 AI 爬虫政策（含区域爬虫/MistralAI/Bytespider）、hreflang 国际化、结构化数据（含富结果状态速查）、内链与架构、实体、Programmatic SEO、Core Web Vitals、**JS 渲染与 SPA SEO**（五引擎渲染差异）、**Agent-Readiness 协议层**（ARD/WebMCP）、**服务器日志分析**（AI 到访测量/a11y 三分法）、归因埋点 |
 | monitoring | 排名追踪、外链（含各市场本地目录与 Google 链接垃圾政策边界；买链价格表已于 2026-10 删除）、品牌提及（四级引用阶梯+各市场监控通道）、**算法更新归因**（官方时间线/数据文件）、SEO 漂移监控、指标与报告 |
