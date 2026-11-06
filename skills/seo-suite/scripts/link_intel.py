@@ -607,52 +607,72 @@ def load_ledger(path):
 
 
 def intersect(graph, crawl=None, own=None, min_seeds=2, ledger=(), seeds=None):
-    """seeds:只把这些目标域当种子(链接图里可以多查一些域,算候选时只用确定的种子)。"""
+    """seeds:只把这些目标域当种子(链接图里可以多查一些域,算候选时只用确定的种子)。
+    两种证据分开判,不混算:
+    - 抓过页面的域(crawl / listicles 里有它的页):只按页面判。同一页正文里链了 ≥min_seeds 家才算,
+      followed 只数页面上看得到的 follow 链接。链接图里它链了多少种子另记在 graph_seeds,不参与判断。
+    - 只在链接图里出现的域:Common Crawl 的边不分正文 / 导航 / 页脚,也不只是 <a>(还有 <link>、<script>、
+      og:image、跳转、robots.txt 的 Sitemap 行),没有 rel。所以 followed 留空(不知道),排在有页面证据的
+      行后面,evidence_kind=commoncrawl,用前要抓页核实。
+    原来链接图里出现过的域一律跳过「同一页 ≥min_seeds 家」,链接图里的每个种子都记成 follow:
+    只要给了 --graph,只算正文、同一页 ≥2 家、follow 计数三条都对它不起作用。"""
     own = own or graph.get("own")
     seeds = {d for d in (set(seeds) if seeds else set(graph["inlinks"])) if not is_platform(d)} - {own}
-    links_to = defaultdict(set)            # 来源域 → 它链到的种子
-    followed = defaultdict(set)            # 来源域 → 至少有一条不带 nofollow / sponsored / ugc 的种子
+    graph_links = defaultdict(set)         # 来源域 → 链接图里它链到的种子(域名级,不知道 rel 和位置)
+    page_links = defaultdict(set)          # 来源域 → 页面正文里它链到的种子
+    followed = defaultdict(set)            # 来源域 → 页面上至少有一条不带 nofollow / sponsored / ugc 的种子
     evidence = defaultdict(set)            # 来源域 → 页面级证据(哪几页链了种子)
     page_best = defaultdict(int)           # 来源域 → 单页最多链了几家种子(同名不同后缀算一家)
-    graph_only = set()
+    paged = set()                          # 抓到过页面的域:按页面证据判
     for t, srcs in graph["inlinks"].items():
         if t not in seeds:
             continue
         for s in srcs:
-            links_to[s].add(t)
-            followed[s].add(t)             # 链接图只到域名级,不知道 rel
-            graph_only.add(s)
+            graph_links[s].add(t)
     own_linkers = set(graph["inlinks"].get(own, []))
-    if crawl:   # 页面级证据补进来(链接图之后才出现的链接)
+    if crawl:   # 页面级证据(链接图之后才出现的链接、链接图看不到的 rel 和位置)
         for s in crawl["sites"]:
             for pg in s["pages"]:
+                if pg.get("status") == 200 or pg.get("links"):
+                    paged.add(s["site"])
                 on_page = {ln["domain"] for ln in pg["links"] if ln["domain"] in seeds and not ln.get("chrome")}
                 page_best[s["site"]] = max(page_best[s["site"]], len(_brands(on_page - {s["site"]})))
                 for ln in pg["links"]:
                     if ln["domain"] in seeds and not ln.get("chrome"):   # 导航、页脚里的不算推荐
-                        links_to[s["site"]].add(ln["domain"])
+                        page_links[s["site"]].add(ln["domain"])
                         if not {"nofollow", "sponsored", "ugc"} & set(ln.get("rel", ())):
                             followed[s["site"]].add(ln["domain"])
                         evidence[s["site"]].add((pg.get("kind", ""), pg["url"]))
                     if ln["domain"] == own:
                         own_linkers.add(s["site"])
     ranks = graph.get("ranks", {})
+    has_graph = bool(graph["inlinks"])
     rows = []
-    for d, ts in links_to.items():
-        ts = ts - {d}
-        if d.startswith("#") or d == own or len(_brands(ts)) < min_seeds or d in own_linkers:
+    for d in set(graph_links) | set(page_links):
+        if d.startswith("#") or d == own or d in own_linkers:
             continue
-        # 页面证据要求「同一页」链了 ≥min_seeds 家:四页各链一家的站,没有一页是在推荐同行
-        if d not in graph_only and page_best[d] < min_seeds:
-            continue
-        rows.append({"domain": d, "seeds_linked": len(_brands(ts)), "best_page": page_best.get(d, ""),
-                     "followed": len(_brands(followed[d] & ts)),
+        gs = graph_links.get(d, set()) - {d}
+        if d in paged:
+            ts = page_links.get(d, set()) - {d}
+            # 页面证据要求「同一页」链了 ≥min_seeds 家:四页各链一家的站,没有一页是在推荐同行
+            if len(_brands(ts)) < min_seeds or page_best[d] < min_seeds:
+                continue
+            fol = len(_brands(followed[d] & ts))
+        else:
+            ts = gs
+            if len(_brands(ts)) < min_seeds:
+                continue
+            fol = ""                       # 链接图不知道 rel,不编
+        rows.append({"domain": d, "seeds_linked": len(_brands(ts)), "best_page": page_best[d] if d in paged else "",
+                     "followed": fol, "graph_seeds": len(_brands(gs)) if has_graph else "",
                      "seeds": ";".join(sorted(ts)),
                      "is_seed": int(d in seeds), "platform": int(is_platform(d)),
                      "cc_rank": ranks.get(d, ""), "contacted": int(d in ledger),
                      "evidence": ";".join(u for _, u in sorted(evidence.get(d, ()))[:6]),
-                     "evidence_kind": ",".join(sorted({k for k, _ in evidence.get(d, ())})) or "commoncrawl"})
-    rows.sort(key=lambda r: (r["platform"], -r["seeds_linked"], r["cc_rank"] if r["cc_rank"] != "" else 10**12))
+                     "evidence_kind": ",".join(sorted({k for k, _ in evidence.get(d, ())})) if d in paged else "commoncrawl"})
+    # 有页面证据的排前面;只有链接图证据的种子数常被整站页脚、论坛帖、嵌入组件撑大,排在后面待核实
+    rows.sort(key=lambda r: (r["platform"], r["evidence_kind"] == "commoncrawl", -r["seeds_linked"],
+                             r["cc_rank"] if r["cc_rank"] != "" else 10**12, r["domain"]))
     mutual = [{"a": a, "b": b, "source": "commoncrawl"} for a, b in graph.get("mutual", [])]
     if crawl:
         mutual += [{"a": m["a"], "b": m["b"], "source": "page",
@@ -757,7 +777,8 @@ def cmd_intersect(ns):
     rows, mutual = intersect(graph, crawl, own, ns.min, load_ledger(ns.ledger), seeds)
     if ns.out:
         with open(ns.out, "w", encoding="utf-8", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["domain", "seeds_linked", "best_page", "followed", "seeds", "is_seed", "platform", "cc_rank",
+            w = csv.DictWriter(f, fieldnames=["domain", "seeds_linked", "best_page", "followed", "graph_seeds", "seeds", "is_seed",
+                                              "platform", "cc_rank",
                                               "contacted", "evidence_kind", "evidence"])
             w.writeheader()
             w.writerows(rows)
@@ -765,10 +786,13 @@ def cmd_intersect(ns):
     if ns.json:
         print(json.dumps(res, ensure_ascii=False))
     else:
-        print("外联候选(链到 ≥%d 个种子、没链 %s)%d 个;互换关系 %d 对" % (ns.min, own, len(rows), len(mutual)))
+        graph_only = sum(1 for r in rows if r["evidence_kind"] == "commoncrawl")
+        print("外联候选(链到 ≥%d 个种子、没链 %s)%d 个,其中只有链接图证据、待抓页核实的 %d 个;互换关系 %d 对"
+              % (ns.min, own, len(rows), graph_only, len(mutual)))
         for r in rows[:30]:
-            print("  %-28s 链了 %2d 个种子  rank=%s%s" % (r["domain"], r["seeds_linked"], r["cc_rank"],
-                                                   "  已联系" if r["contacted"] else ""))
+            print("  %-28s 链了 %2d 个种子  follow %s  rank=%s%s%s" % (
+                r["domain"], r["seeds_linked"], r["followed"] if r["followed"] != "" else "?", r["cc_rank"],
+                "  只有链接图证据" if r["evidence_kind"] == "commoncrawl" else "", "  已联系" if r["contacted"] else ""))
     return 0
 
 

@@ -169,6 +169,56 @@ class SecondCheckTests(unittest.TestCase):
         self.assertEqual(rows, [])
 
 
+class GraphPrecisionTests(unittest.TestCase):
+    """2026-11-06 审查:文档第 5 步的命令同时给 --graph 和 --crawl / --listicles,而链接图里出现过的域原来
+    一律跳过「同一页 ≥2 家」,链接图里的每个种子都记成 follow,上面两轮核验修的三条全部失效。
+    Common Crawl 的边来自 <a>、<link>、<script>、og:image、跳转、robots.txt Sitemap 行,不看 rel
+    (cc-pyspark wat_extract_links.py ExtractHostLinksJob.get_links / process_robotstxt,核对 2026-11-06)。
+    期望值按文档对各列的定义写:有页面证据的按页面判;只有链接图的 follow 未知。"""
+
+    GRAPH = {"inlinks": {"a-seed.com": ["x.com"], "b-seed.com": ["x.com"]}, "mutual": []}
+
+    @staticmethod
+    def crawl(pages):
+        return {"sites": [{"site": "x.com", "pages": pages}], "mutual": []}
+
+    @staticmethod
+    def page(url, links):
+        return {"url": url, "kind": "partner", "status": 200,
+                "links": [{"domain": d, "rel": rel, "chrome": ch} for d, rel, ch in links]}
+
+    def test_graph_does_not_bypass_same_page_rule(self):
+        """x.com 两页各链一家(都 nofollow),链接图里也有它:没有一页在推荐同行,不是候选。"""
+        crawl = self.crawl([self.page("https://x.com/p1", [("a-seed.com", ["nofollow"], False)]),
+                            self.page("https://x.com/p2", [("b-seed.com", ["nofollow"], False)])])
+        rows, _ = L.intersect(self.GRAPH, crawl, own="me.com", min_seeds=2)
+        self.assertEqual(rows, [])
+
+    def test_graph_does_not_fake_follow(self):
+        """同一页链了两家,两条都是 nofollow:followed 是 0,不因为链接图里有这两条边就变成 2。"""
+        crawl = self.crawl([self.page("https://x.com/best", [("a-seed.com", ["nofollow"], False),
+                                                              ("b-seed.com", ["sponsored"], False)])])
+        rows, _ = L.intersect(self.GRAPH, crawl, own="me.com", min_seeds=2)
+        self.assertEqual([(r["domain"], r["seeds_linked"], r["followed"]) for r in rows], [("x.com", 2, 0)])
+        self.assertEqual(rows[0]["graph_seeds"], 2)              # 链接图里的数另记一列,不参与判断
+
+    def test_graph_does_not_count_footer_links(self):
+        """两家都只在页脚:页面证据说它没在正文推荐同行,链接图(不分正文和页脚)不能把它加回来。"""
+        crawl = self.crawl([self.page("https://x.com/", [("a-seed.com", [], True), ("b-seed.com", [], True)])])
+        rows, _ = L.intersect(self.GRAPH, crawl, own="me.com", min_seeds=2)
+        self.assertEqual(rows, [])
+
+    def test_graph_only_rows_follow_unknown_and_ranked_after_page_rows(self):
+        """只有链接图证据的 y.com 链了 3 家,有页面证据的 z.com 链了 2 家:z.com 在前;y.com 的 follow 未知。"""
+        graph = {"inlinks": {"a-seed.com": ["y.com"], "b-seed.com": ["y.com"], "c-seed.com": ["y.com"]}, "mutual": []}
+        crawl = {"sites": [{"site": "z.com", "pages": [self.page("https://z.com/best", [
+            ("a-seed.com", [], False), ("b-seed.com", [], False)])]}], "mutual": []}
+        rows, _ = L.intersect(graph, crawl, own="me.com", min_seeds=2)
+        self.assertEqual([(r["domain"], r["followed"], r["evidence_kind"]) for r in rows],
+                         [("z.com", 2, "partner"), ("y.com", "", "commoncrawl")])
+        self.assertEqual(rows[1]["seeds_linked"], 3)
+
+
 class ExchangerTests(unittest.TestCase):
     def test_hosts_and_listed(self):
         """互换池:有 /partners 页列了 ≥3 个外站的站是「在做互换的站」;页上列的外站按被几家列出计数。

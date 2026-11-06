@@ -5,6 +5,9 @@ Future content or structure changes must bump the version and add a dated entry.
 
 ## 未发版 / Unreleased
 
+- **`link_intel.py intersect` 给了 `--graph` 也守住页面级的三条规则**:文档第 5 步的命令同时给 `--graph` 和 `--crawl` / `--listicles`,而链接图里出现过的域原来一律跳过「同一页 ≥2 家」,链接图里的每个种子都记成 follow,0.41.0 两轮核验修的只算正文、同一页 ≥2 家、follow 计数三条对它们全部失效(反例:两页各链一家且都是 nofollow 的站,原来出成 `followed=2` 的候选)。Common Crawl 的边还来自 `<link>`、`<script>`、og:image、跳转和 robots.txt 的 Sitemap 行,不看 rel、不分正文和页脚(cc-pyspark `wat_extract_links.py`,核对 2026-11-06)。现在抓过页面的域只按页面判,链接图里的种子数另记新列 `graph_seeds`;只在链接图里出现的域 `followed` 留空、排在有页面证据的行后面,命令行输出标「只有链接图证据」。`link-intelligence.md` 数据源表和第 5 步同步。`tests/test_link_intel.py` 新增 4 条,修前全红。
+  `link_intel.py intersect`: with `--graph`, domains that have page evidence are judged by page evidence only (same page, body links, follow count); graph-only rows get an empty `followed` and rank after page-verified rows; new `graph_seeds` column.
+
 ## 0.41.1 - 2026-11-06
 
 - **交收录时 Google 和 Bing 一起交**:everyinfra.com 11-06 只给 Google 请求了编入索引,Bing 那边两张日语 sitemap 显示「The page is not accessible」(条数 0)没人发现。`bing_wmt.py` 加 `feeds` 子命令:列 Bing 登记的每张 sitemap 的状态、条数、最近读取日期,`--submit` 先交或重交(SubmitFeed);有读不到的退出码 3。SKILL.md 路由表加「交收录」一行,script-catalog 补 `bing_wmt.py`(原来漏了)。实跑:重交后 Bing 当天读到 53 条和 106 条。`tests/test_bing_wmt.py` 加 3 条,响应取自当天真实 GetFeeds。
